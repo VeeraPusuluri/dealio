@@ -3,6 +3,7 @@ name: Deploy to GCP Cloud Run
 on:
   push:
     branches: [main]
+  workflow_dispatch:   # allows manual trigger from GitHub UI
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
