@@ -1,0 +1,137 @@
+name: Deploy to GCP Cloud Run
+
+on:
+  push:
+    branches: [main]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-east4
+  REGISTRY: us-east4-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/dealio-repo
+
+jobs:
+  # ── Detect which parts of the repo changed ────────────────────────────────
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend:  ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      schema:   ${{ steps.filter.outputs.schema }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'Dealio_Backend/**'
+            frontend:
+              - 'Dealio_frontend/**'
+            schema:
+              - 'Dealio_Backend/prisma/schema.prisma'
+
+  # ── Deploy backend ────────────────────────────────────────────────────────
+  deploy-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & push backend image
+        run: |
+          docker build --platform linux/amd64 \
+            -t ${{ env.REGISTRY }}/dealio-backend:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/dealio-backend:latest \
+            Dealio_Backend
+          docker push ${{ env.REGISTRY }}/dealio-backend:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/dealio-backend:latest
+
+      - name: Deploy backend to Cloud Run
+        run: |
+          gcloud run services update dealio-backend \
+            --image=${{ env.REGISTRY }}/dealio-backend:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }}
+
+      - name: Run DB migrations (if schema changed)
+        if: needs.changes.outputs.schema == 'true'
+        run: |
+          gcloud run jobs update dealio-migrate \
+            --image=${{ env.REGISTRY }}/dealio-backend:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }}
+          gcloud run jobs execute dealio-migrate \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }} \
+            --wait
+
+  # ── Deploy frontend ───────────────────────────────────────────────────────
+  deploy-frontend:
+    needs: [changes, deploy-backend]
+    # Run if frontend changed OR backend changed (backend URL is baked into the image)
+    # Uses always() so it still runs even if deploy-backend was skipped
+    if: |
+      always() &&
+      (needs.changes.outputs.frontend == 'true' || needs.changes.outputs.backend == 'true') &&
+      (needs.deploy-backend.result == 'success' || needs.deploy-backend.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & push frontend image
+        run: |
+          docker build --platform linux/amd64 \
+            -t ${{ env.REGISTRY }}/dealio-frontend:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/dealio-frontend:latest \
+            --build-arg VITE_AUTH_URL=https://dealio-backend-1013744675613.us-east4.run.app/api \
+            --build-arg VITE_BUILDER_URL=https://dealio-backend-1013744675613.us-east4.run.app/api \
+            --build-arg VITE_CUSTOMER_URL=https://dealio-backend-1013744675613.us-east4.run.app/api \
+            --build-arg VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }} \
+            --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }} \
+            --build-arg VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }} \
+            Dealio_frontend
+          docker push ${{ env.REGISTRY }}/dealio-frontend:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/dealio-frontend:latest
+
+      - name: Deploy frontend to Cloud Run
+        run: |
+          gcloud run services update dealio-frontend \
+            --image=${{ env.REGISTRY }}/dealio-frontend:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }}
+
+      - name: Print live URLs
+        run: |
+          echo "🌐 Frontend: https://dealio-frontend-1013744675613.us-east4.run.app"
+          echo "🔧 Backend:  https://dealio-backend-1013744675613.us-east4.run.app"
