@@ -8,7 +8,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "test": "jest",
-    "migrate": "prisma db push",
+    "migrate": "node scripts/init-db.js && prisma db push",
     "migrate:deploy": "prisma migrate deploy"
   },
   "keywords": [],
@@ -24,6 +24,7 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
     "multer": "^2.1.1",
+    "pg": "^8.13.3",
     "prisma": "^6.3.1",
     "zod": "^4.4.3"
   },
