@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  phone         String         @unique
+  fullName      String?
+  email         String?        @unique
+  role          String         // BUILDER, CUSTOMER, CP, BANK, LANDOWNER, VENDOR, NRI
+  preferredCity String?
+  createdAt     DateTime       @default(now())
+  builder       Builder?
+  meetings      Meeting[]
+  dealsAsCustomer Deal[]       @relation("CustomerDeals")
+  loanCases     LoanCase[]
+  notifications Notification[]
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  type      String   @default("info")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Builder {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique
+  companyName String?
+  user        User      @relation(fields: [userId], references: [id])
+  projects    Project[]
+  meetings    Meeting[] @relation("BuilderMeetings")
+  deals       Deal[]
+}
+
+model Project {
+  id              Int       @id @default(autoincrement())
+  builderId       Int
+  builder         Builder   @relation(fields: [builderId], references: [id])
+  name            String
+  city            String?
+  description     String?
+  address         String?
+  totalUnits      Int?
+  availableUnits  Int?
+  bookedUnits     Int?
+  soldUnits       Int?
+  reraNumber      String?
+  reraExpiry      String?
+  priceFrom       Float?
+  priceTo         Float?
+  commissionValue Float?
+  featured        Boolean   @default(false)
+  closingSoon     Boolean   @default(false)
+  imageUrl        String?
+  videoUrl        String?
+  possessionDate  String?
+  published       Boolean   @default(true)
+  status          String    @default("ACTIVE")
+  createdAt       DateTime  @default(now())
+  meetings        Meeting[]
+  deals           Deal[]
+  documents       Document[]
+}
+
+model Meeting {
+  id              Int       @id @default(autoincrement())
+  projectId       Int?
+  project         Project?  @relation(fields: [projectId], references: [id])
+  customerId      Int
+  customer        User      @relation(fields: [customerId], references: [id])
+  builderId       Int
+  builder         Builder   @relation("BuilderMeetings", fields: [builderId], references: [id])
+  customerPhone   String
+  customerName    String
+  preferredDate   String
+  preferredTime   String
+  meetingType     String?
+  notes           String?
+  builderNotes    String?
+  confirmedDate   String?
+  confirmedTime   String?
+  status          String    @default("Pending") // Pending, Confirmed, Completed, Follow-up Required
+  createdAt       DateTime  @default(now())
+}
+
+model Deal {
+  id              Int       @id @default(autoincrement())
+  builderId       Int
+  builder         Builder   @relation(fields: [builderId], references: [id])
+  customerId      Int
+  customer        User      @relation("CustomerDeals", fields: [customerId], references: [id])
+  projectId       Int
+  project         Project   @relation(fields: [projectId], references: [id])
+  status               String    @default("Enquiry")
+  dealValue            Float?
+  isNRI                Boolean   @default(false)
+  commissionStatus     String?   @default("Pending")
+  commissionReleasedAt DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  loanCase             LoanCase?
+}
+
+model LoanCase {
+  id              Int       @id @default(autoincrement())
+  dealId          Int       @unique
+  deal            Deal      @relation(fields: [dealId], references: [id])
+  customerId      Int
+  customer        User      @relation(fields: [customerId], references: [id])
+  projectId       Int
+  loanAmount      Float
+  propertyValue   Float
+  employmentType  String?
+  tenureMonths    Int?
+  status          String    @default("Active") // Active, Sanctioned, Disbursed, Rejected
+  submittedAt     DateTime  @default(now())
+}
+
+model Document {
+  id              Int       @id @default(autoincrement())
+  projectId       Int
+  project         Project   @relation(fields: [projectId], references: [id])
+  name            String
+  url             String
+  docType         String
+  createdAt       DateTime  @default(now())
+}

@@ -1,0 +1,142 @@
+import { Request, Response } from 'express';
+import prisma from '../utils/prisma';
+import { channelManager } from '../services/channelManager';
+
+export const customerController = {
+  getCities: async (req: Request, res: Response) => {
+    const projects = await prisma.project.findMany({
+      select: { city: true },
+      where: { published: true }
+    });
+    const cities = Array.from(new Set(projects.map(p => p.city).filter(Boolean)));
+    const defaultCities = ['Hyderabad', 'Bengaluru', 'Mumbai', 'Pune', 'Delhi NCR', 'Chennai'];
+    res.json({ ok: true, data: cities.length > 0 ? cities : defaultCities });
+  },
+
+  getProjects: async (req: Request, res: Response) => {
+    const { city } = req.query;
+    const projects = await prisma.project.findMany({
+      where: {
+        published: true,
+        ...(city ? { city: { equals: city as string, mode: 'insensitive' } } : {})
+      }
+    });
+    res.json({ ok: true, data: projects });
+  },
+
+  getProject: async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const project = await prisma.project.findUnique({
+      where: { id: Number(id) },
+      include: { builder: { select: { companyName: true, user: { select: { fullName: true } } } } },
+    });
+    if (project) {
+      const { priceFrom, priceTo, builder, ...rest } = project as any;
+      res.json({ ok: true, data: {
+        ...rest,
+        priceMin:    priceFrom ?? null,
+        priceMax:    priceTo   ?? null,
+        builderName: builder?.companyName || builder?.user?.fullName || null,
+      }});
+    } else {
+      res.status(404).json({ ok: false, message: 'Project not found' });
+    }
+  },
+
+  // SSE endpoint — long-lived connection, one per logged-in customer tab.
+  // The browser cannot send custom headers on EventSource, so the JWT is
+  // accepted as a ?token= query param (requireAuth already handles this).
+  subscribeToCity: async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+
+    // SSE handshake
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // disable nginx buffering
+    res.flushHeaders();
+
+    // Look up the user's preferred city
+    const dbUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferredCity: true }
+    });
+    const city = dbUser?.preferredCity ?? null;
+
+    // Send initial "connected" frame so the client knows the socket is live
+    res.write(`data: ${JSON.stringify({
+      type: 'connected',
+      city,
+      title: '',
+      message: city ? `Subscribed to ${city}` : 'Connected (no city preference set)',
+      timestamp: new Date().toISOString()
+    })}\n\n`);
+
+    // Register in the channel
+    if (city) channelManager.subscribe(city, userId, res);
+
+    // Keep-alive comment every 25 s (proxies close idle SSE connections)
+    const heartbeat = setInterval(() => {
+      try { res.write(': ping\n\n'); } catch { clearInterval(heartbeat); }
+    }, 25_000);
+
+    // Cleanup when the browser closes the tab / navigates away
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      if (city) channelManager.unsubscribe(city, userId);
+    });
+  },
+
+  setPreferredCity: async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    const { city } = req.body;
+    await prisma.user.update({
+      where: { id: userId },
+      data: { preferredCity: city || null }
+    });
+    res.json({ ok: true });
+    // The frontend reconnects the SSE after calling this, so the new city is
+    // picked up automatically on the next connection.
+  },
+
+  updateProfile: async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    const { email } = req.body;
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { email: email || null },
+      select: { id: true, email: true, fullName: true, phone: true, role: true }
+    });
+    res.json({ ok: true, data: updated });
+  },
+
+  getNotifications: async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    const notifications = await prisma.notification.findMany({
+      where: { userId, read: false },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
+    if (notifications.length > 0) {
+      await prisma.notification.updateMany({
+        where: { id: { in: notifications.map(n => n.id) } },
+        data: { read: true }
+      });
+    }
+    res.json({ ok: true, data: notifications });
+  },
+
+  // Diagnostic: list active channels and subscriber counts (no auth needed in dev)
+  channelStats: (_req: Request, res: Response) => {
+    res.json({ ok: true, data: channelManager.stats() });
+  },
+
+  getAvailableCPs: async (_req: Request, res: Response) => {
+    const cps = await prisma.user.findMany({
+      where: { role: 'CP' },
+      select: { id: true, fullName: true, phone: true, email: true, preferredCity: true },
+      orderBy: { fullName: 'asc' },
+    });
+    res.json({ ok: true, data: cps });
+  },
+};

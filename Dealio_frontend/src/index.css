@@ -1,0 +1,151 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 216 25% 96%;
+    --foreground: 213 40% 23%;
+    --card: 0 0% 100%;
+    --card-foreground: 213 40% 23%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 213 40% 23%;
+    --primary: 210 52% 23%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 184 86% 29%;
+    --secondary-foreground: 0 0% 100%;
+    --accent: 25 80% 53%;
+    --accent-foreground: 0 0% 100%;
+    --muted: 214 20% 92%;
+    --muted-foreground: 215 16% 47%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 25% 88%;
+    --input: 214 25% 88%;
+    --ring: 210 52% 23%;
+    --radius: 0.75rem;
+
+    /* Stakeholder colors */
+    --builder: 184 86% 29%;
+    --cp: 25 80% 53%;
+    --customer: 142 72% 29%;
+    --bank: 210 51% 37%;
+    --vendor: 29 36% 35%;
+    --admin: 265 44% 44%;
+    --landowner: 4 55% 46%;
+
+    /* Tier colors */
+    --platinum: 258 90% 66%;
+    --gold: 38 92% 50%;
+    --silver: 220 9% 46%;
+
+    /* Unit status */
+    --available: 142 72% 29%;
+    --booked: 38 92% 50%;
+    --sold: 0 72% 51%;
+    --hold: 220 9% 64%;
+
+    /* Sidebar */
+    --sidebar-background: 213 57% 13%;
+    --sidebar-foreground: 210 40% 92%;
+    --sidebar-primary: 184 86% 29%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 213 50% 18%;
+    --sidebar-accent-foreground: 210 40% 92%;
+    --sidebar-border: 213 40% 20%;
+    --sidebar-ring: 184 86% 29%;
+
+    /* Shadows */
+    --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.07);
+    --shadow-elevated: 0 8px 30px rgba(0, 0, 0, 0.12);
+  }
+
+  .dark {
+    --background: 213 57% 8%;
+    --foreground: 210 40% 92%;
+    --card: 213 57% 11%;
+    --card-foreground: 210 40% 92%;
+    --popover: 213 57% 11%;
+    --popover-foreground: 210 40% 92%;
+    --primary: 184 86% 29%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 52% 23%;
+    --secondary-foreground: 210 40% 98%;
+    --accent: 25 80% 53%;
+    --accent-foreground: 0 0% 100%;
+    --muted: 213 40% 16%;
+    --muted-foreground: 215 16% 60%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 213 40% 20%;
+    --input: 213 40% 20%;
+    --ring: 184 86% 29%;
+    --sidebar-background: 213 57% 6%;
+    --sidebar-foreground: 210 40% 85%;
+    --sidebar-primary: 184 86% 29%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 213 50% 12%;
+    --sidebar-accent-foreground: 210 40% 85%;
+    --sidebar-border: 213 40% 15%;
+    --sidebar-ring: 184 86% 29%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .card-shadow {
+    box-shadow: var(--shadow-card);
+  }
+  .elevated-shadow {
+    box-shadow: var(--shadow-elevated);
+  }
+
+  /* Light & Airy card — used by builder pages */
+  .la-card {
+    background: white;
+    border-radius: 1rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05), 0 4px 16px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Light & Airy page gradient banner */
+  .la-banner {
+    background: linear-gradient(135deg, rgba(10, 126, 140, 0.07) 0%, rgba(255, 255, 255, 0) 60%);
+    border-radius: 1.25rem;
+    border: 1px solid rgba(10, 126, 140, 0.08);
+  }
+}
+
+/* Confetti animation */
+@keyframes confetti-fall {
+  0% { transform: translateY(-100%) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+@keyframes pulse-amber {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-confetti {
+  animation: confetti-fall 2s ease-in-out forwards;
+}
+
+.animate-pulse-amber {
+  animation: pulse-amber 2s ease-in-out infinite;
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.5);
+}
