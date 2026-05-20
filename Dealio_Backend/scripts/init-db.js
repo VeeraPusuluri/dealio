@@ -1,37 +1,47 @@
 /**
  * init-db.js
- * Connects to the default 'postgres' database on AlloyDB and creates
- * the 'dealio' database if it doesn't already exist.
- * Run this before `prisma db push`.
+ * Creates the 'dealio' database on AlloyDB if it doesn't exist.
+ * Uses explicit connection params to avoid URL-parsing issues with
+ * special characters in passwords.
  */
 const { Client } = require('pg');
 
 async function main() {
+  // Parse connection details from DATABASE_URL using regex
+  // Format: postgresql://user:password@host:port/dbname?params
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) throw new Error('DATABASE_URL is not set');
 
-  // Parse host + credentials from DATABASE_URL, swap db to 'postgres'
-  const url = new URL(dbUrl);
-  url.pathname = '/postgres';
-  // Remove Prisma-specific params that pg doesn't understand
-  url.searchParams.delete('schema');
+  const match = dbUrl.match(
+    /^postgresql:\/\/([^:]+):(.+)@([^:\/]+):?(\d+)?\/[^?]+(.*)?$/
+  );
+  if (!match) throw new Error(`Cannot parse DATABASE_URL: ${dbUrl}`);
 
-  const client = new Client({ connectionString: url.toString() });
+  const [, user, password, host, port] = match;
+  const decodedPassword = decodeURIComponent(password);
+
+  const client = new Client({
+    host,
+    port: parseInt(port || '5432', 10),
+    user,
+    password: decodedPassword,
+    database: 'postgres', // connect to default db to create 'dealio'
+    ssl: { rejectUnauthorized: false }, // AlloyDB requires SSL
+  });
 
   try {
     await client.connect();
-    console.log('Connected to AlloyDB (postgres db)');
+    console.log(`Connected to AlloyDB at ${host} as ${user}`);
 
     const res = await client.query(
       `SELECT 1 FROM pg_database WHERE datname = 'dealio'`
     );
 
     if (res.rowCount === 0) {
-      // CREATE DATABASE cannot run inside a transaction
       await client.query('CREATE DATABASE dealio');
       console.log('✅ Created database: dealio');
     } else {
-      console.log('ℹ️  Database dealio already exists — skipping creation');
+      console.log('ℹ️  Database dealio already exists');
     }
   } finally {
     await client.end();
