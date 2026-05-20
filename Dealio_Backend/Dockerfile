@@ -24,6 +24,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY prisma ./prisma
+COPY scripts ./scripts
 
 # Cloud Run injects PORT; default to 8090 for local runs
 ENV PORT=8090
