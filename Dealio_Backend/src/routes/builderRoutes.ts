@@ -53,6 +53,7 @@ router.get('/customer/meetings', builderController.getMeetings);
 router.post('/:builderId/projects', builderController.createProject);
 router.get('/:builderId/projects', builderController.getProjects);
 router.get('/:builderId/projects/:projectId', builderController.getProject);
+router.get('/:builderId/projects/:projectId/pdf', builderController.getProjectPdf);
 router.patch('/:builderId/projects/:projectId', builderController.updateProject);
 router.post('/:builderId/projects/:projectId/image', requireAuth, upload.single('file'), builderController.uploadProjectImage);
 router.get('/:builderId/projects/:projectId/documents', builderController.getDocuments);
