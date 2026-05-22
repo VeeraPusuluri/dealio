@@ -5,7 +5,7 @@ import { pushNotifTo } from '@/lib/crossNotify';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import {
   Calendar, CheckCircle2, Clock, MessageSquare, Phone, Loader2,
-  RefreshCw, Building2, XCircle, Users, FileText, Paintbrush,
+  RefreshCw, Building2, XCircle, Users, FileText,
   ChevronRight, Search, X, ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -47,8 +47,7 @@ const STAT_STYLES: Record<string, { iconBg: string; iconColor: string }> = {
 };
 
 const TYPE_ICON: Record<string, React.ElementType> = {
-  'Site Visit': Building2, 'Interior Consultation': Paintbrush,
-  'Builder Meeting': Users, 'Document Review': FileText,
+  'Site Visit': Building2, 'Builder Meeting': Users, 'Document Review': FileText,
 };
 
 function initials(n: string) { return n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(); }

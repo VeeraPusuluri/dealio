@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore, UserRole, roleLabels, roleColors, AuthApiResponse } from '@/stores/useAuthStore';
 import {
-  Building2, Users, User, Landmark, Wrench, Shield, Globe, Map,
+  Building2, Users, User, Landmark, Shield, Globe,
   Loader2, Phone as PhoneIcon, ArrowRight, CheckCircle2, Sparkles, ChevronDown,
 } from 'lucide-react';
 import { DealioLogo } from '@/components/shared/DealioLogo';
@@ -21,12 +21,12 @@ const COUNTRY_CODES = [
 
 const roleHome: Record<UserRole, string> = {
   builder: '/builder', cp: '/cp', customer: '/customer', bank: '/bank',
-  vendor: '/vendor', admin: '/admin', nri: '/nri', landowner: '/landowner',
+  admin: '/admin', nri: '/nri',
 };
 
 const roleIcons: Record<UserRole, React.ElementType> = {
   builder: Building2, cp: Users, customer: User, bank: Landmark,
-  vendor: Wrench, admin: Shield, nri: Globe, landowner: Map,
+  admin: Shield, nri: Globe,
 };
 
 const roleDescriptions: Record<UserRole, string> = {
@@ -34,13 +34,11 @@ const roleDescriptions: Record<UserRole, string> = {
   cp: 'Track pipeline & commissions',
   customer: 'Monitor your property journey',
   bank: 'Process loan cases faster',
-  vendor: 'List services & get leads',
   admin: 'Platform administration',
   nri: 'Invest & manage remotely',
-  landowner: 'List land & explore JVs',
 };
 
-const signupRoles: UserRole[] = ['customer', 'cp', 'builder', 'bank', 'vendor', 'nri', 'landowner'];
+const signupRoles: UserRole[] = ['customer', 'cp', 'builder', 'bank', 'nri', 'admin'];
 
 type Method = 'phone' | 'google';
 
@@ -104,8 +102,7 @@ const SignupPage = () => {
     setBusy(true);
     try {
       const data = await authApi.signupVerifyOtp(phoneCC, phone.replace(/\D/g, ''), phoneOtp, name.trim(), signupRole.toUpperCase()) as AuthApiResponse;
-      if (data?.user) data.user.role = signupRole.toUpperCase();
-      setAuthFromResponse(data);
+      setAuthFromResponse(data, signupRole);
       toast({ title: 'Welcome to Dealio!' });
     } catch (e: unknown) {
       toast({ title: 'Verification failed', description: e instanceof Error ? e.message : 'Verification failed', variant: 'destructive' });
@@ -117,8 +114,7 @@ const SignupPage = () => {
     setBusy(true);
     try {
       const data = await authApi.googleAuth(credentialResponse.credential, signupRole) as AuthApiResponse;
-      if (data?.user) data.user.role = signupRole.toUpperCase();
-      setAuthFromResponse(data);
+      setAuthFromResponse(data, signupRole);
       toast({ title: 'Welcome to Dealio!' });
     } catch (e: unknown) {
       toast({ title: 'Google sign-up failed', description: e instanceof Error ? e.message : 'Google authentication failed', variant: 'destructive' });

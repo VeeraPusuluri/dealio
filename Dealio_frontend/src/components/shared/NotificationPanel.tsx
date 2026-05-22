@@ -22,7 +22,7 @@ function timeAgo(ts: string) {
 }
 
 const NotificationPanel = ({ onClose }: { onClose: () => void }) => {
-  const { notifications, markAllRead, markRead, dismiss } = useNotificationStore();
+  const { notifications, markAllRead, markRead, dismiss, clearAll } = useNotificationStore();
   const navigate = useNavigate();
 
   const handleClick = (id: string, link?: string) => {
@@ -119,8 +119,8 @@ const NotificationPanel = ({ onClose }: { onClose: () => void }) => {
         {notifications.length > 0 && (
           <div className="border-t border-border px-5 py-3 flex-shrink-0">
             <button
-              onClick={() => { useNotificationStore.getState().markAllRead(); }}
-              className="w-full text-center text-xs text-muted-foreground hover:text-secondary transition-colors py-1"
+              onClick={() => { clearAll(); onClose(); }}
+              className="w-full text-center text-xs text-muted-foreground hover:text-destructive transition-colors py-1"
             >
               Clear all notifications
             </button>

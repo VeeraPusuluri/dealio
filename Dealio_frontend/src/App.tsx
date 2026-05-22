@@ -15,6 +15,7 @@ import BuilderOverview from "./pages/builder/BuilderOverview";
 import BuilderProjects from "./pages/builder/BuilderProjects";
 import BuilderProjectDetail from "./pages/builder/BuilderProjectDetail";
 import AddProjectWizard from "./pages/builder/AddProjectWizard";
+import EditProjectWizard from "./pages/builder/EditProjectWizard";
 import BuilderUnits from "./pages/builder/BuilderUnits";
 import BuilderLeads from "./pages/builder/BuilderLeads";
 import BuilderCPPerformance from "./pages/builder/BuilderCPPerformance";
@@ -46,6 +47,8 @@ import CPSocialAnalytics from "./pages/cp/CPSocialAnalytics";
 import CPWhatsAppBroadcast from "./pages/cp/CPWhatsAppBroadcast";
 import CPAIInsights from "./pages/cp/CPAIInsights";
 import CPPipeline from "./pages/cp/CPPipeline";
+import CPContacts from "./pages/cp/CPContacts";
+import CPSettings from "./pages/cp/CPSettings";
 
 import CustomerHome from "./pages/customer/CustomerHome";
 import CustomerProjectDetail from "./pages/customer/CustomerProjectDetail";
@@ -67,11 +70,6 @@ import BankLoanCases from "./pages/bank/BankLoanCases";
 import BankAnalytics from "./pages/bank/BankAnalytics";
 import BankDocuments from "./pages/bank/BankDocuments";
 
-import VendorOverview from "./pages/vendor/VendorOverview";
-import VendorListings from "./pages/vendor/VendorListings";
-import VendorQuotes from "./pages/vendor/VendorQuotes";
-import VendorAnalytics from "./pages/vendor/VendorAnalytics";
-
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminCommissions from "./pages/admin/AdminCommissions";
@@ -84,12 +82,10 @@ import AdminProjects from "./pages/admin/AdminProjects";
 import AdminDeals from "./pages/admin/AdminDeals";
 import AdminCampaigns from "./pages/admin/AdminCampaigns";
 import LoanPortal from "./pages/shared/LoanPortal";
-import InteriorPortal from "./pages/shared/InteriorPortal";
 import DealConversation from "./pages/shared/DealConversation";
+import ProjectSharePage from "./pages/shared/ProjectSharePage";
 import { BuilderPossession, CustomerPossession } from "./pages/shared/PossessionTracker";
 import { BuilderSnagging, CustomerSnagging } from "./pages/shared/SnaggingModule";
-import InteriorMarketplace from "./pages/shared/InteriorMarketplace";
-
 import NRIDashboard from "./pages/nri/NRIDashboard";
 import NRIProjects from "./pages/nri/NRIProjects";
 import NRIProjectDetail from "./pages/nri/NRIProjectDetail";
@@ -105,11 +101,6 @@ import NRIProfile from "./pages/nri/NRIProfile";
 import NRIManage from "./pages/nri/NRIManage";
 import NRIInvest from "./pages/nri/NRIInvest";
 import NRILoanStatus from "./pages/nri/NRILoanStatus";
-
-import LandOwnerDashboard from "./pages/landowner/LandOwnerDashboard";
-import LandOwnerOverview from "./pages/landowner/LandOwnerOverview";
-import LandOwnerInterests from "./pages/landowner/LandOwnerInterests";
-import LandOwnerChat from "./pages/landowner/LandOwnerChat";
 
 const queryClient = new QueryClient();
 
@@ -137,6 +128,7 @@ const App = () => (
           <Route path="/builder" element={<ProtectedRoute><BuilderOverview /></ProtectedRoute>} />
           <Route path="/builder/projects" element={<ProtectedRoute><BuilderProjects /></ProtectedRoute>} />
           <Route path="/builder/projects/new" element={<ProtectedRoute><AddProjectWizard /></ProtectedRoute>} />
+          <Route path="/builder/projects/:id/edit" element={<ProtectedRoute><EditProjectWizard /></ProtectedRoute>} />
           <Route path="/builder/projects/:id" element={<ProtectedRoute><BuilderProjectDetail /></ProtectedRoute>} />
           <Route path="/builder/units" element={<ProtectedRoute><BuilderUnits /></ProtectedRoute>} />
           <Route path="/builder/leads" element={<ProtectedRoute><BuilderLeads /></ProtectedRoute>} />
@@ -144,7 +136,6 @@ const App = () => (
           <Route path="/builder/documents" element={<ProtectedRoute><BuilderDocuments /></ProtectedRoute>} />
           <Route path="/builder/broadcast" element={<ProtectedRoute><BuilderBroadcast /></ProtectedRoute>} />
           <Route path="/builder/loan" element={<ProtectedRoute><LoanPortal /></ProtectedRoute>} />
-          <Route path="/builder/interior" element={<ProtectedRoute><InteriorPortal /></ProtectedRoute>} />
           <Route path="/builder/meetings" element={<ProtectedRoute><BuilderMeetings /></ProtectedRoute>} />
           <Route path="/builder/deals" element={<ProtectedRoute><BuilderDealsPage /></ProtectedRoute>} />
           <Route path="/builder/ai" element={<ProtectedRoute><BuilderAIPricing /></ProtectedRoute>} />
@@ -171,12 +162,13 @@ const App = () => (
           <Route path="/cp/followups" element={<ProtectedRoute><CPFollowUps /></ProtectedRoute>} />
           <Route path="/cp/leaderboard" element={<ProtectedRoute><CPLeaderboard /></ProtectedRoute>} />
           <Route path="/cp/loan" element={<ProtectedRoute><LoanPortal /></ProtectedRoute>} />
-          <Route path="/cp/interior" element={<ProtectedRoute><InteriorPortal /></ProtectedRoute>} />
           <Route path="/cp/meetings" element={<ProtectedRoute><CPMeetingRequests /></ProtectedRoute>} />
           <Route path="/cp/content-studio" element={<ProtectedRoute><CPContentStudio /></ProtectedRoute>} />
           <Route path="/cp/social-analytics" element={<ProtectedRoute><CPSocialAnalytics /></ProtectedRoute>} />
           <Route path="/cp/whatsapp-broadcast" element={<ProtectedRoute><CPWhatsAppBroadcast /></ProtectedRoute>} />
           <Route path="/cp/ai-insights" element={<ProtectedRoute><CPAIInsights /></ProtectedRoute>} />
+          <Route path="/cp/contacts" element={<ProtectedRoute><CPContacts /></ProtectedRoute>} />
+          <Route path="/cp/settings" element={<ProtectedRoute><CPSettings /></ProtectedRoute>} />
           <Route path="/cp/conversations" element={<ProtectedRoute><DealConversation /></ProtectedRoute>} />
 
           {/* Customer */}
@@ -194,7 +186,6 @@ const App = () => (
           <Route path="/customer/topup" element={<ProtectedRoute><CustomerTopup /></ProtectedRoute>} />
           <Route path="/customer/possession" element={<ProtectedRoute><CustomerPossession /></ProtectedRoute>} />
           <Route path="/customer/snagging" element={<ProtectedRoute><CustomerSnagging /></ProtectedRoute>} />
-          <Route path="/customer/interior-vendors" element={<ProtectedRoute><InteriorMarketplace /></ProtectedRoute>} />
           <Route path="/customer/conversations" element={<ProtectedRoute><DealConversation /></ProtectedRoute>} />
           <Route path="/customer/settings" element={<ProtectedRoute><CustomerSettings /></ProtectedRoute>} />
 
@@ -208,13 +199,6 @@ const App = () => (
           <Route path="/bank/analytics" element={<ProtectedRoute><BankAnalytics /></ProtectedRoute>} />
           <Route path="/bank/conversations" element={<ProtectedRoute><DealConversation /></ProtectedRoute>} />
 
-          {/* Vendor */}
-          <Route path="/vendor" element={<ProtectedRoute><VendorOverview /></ProtectedRoute>} />
-          <Route path="/vendor/listings" element={<ProtectedRoute><VendorListings /></ProtectedRoute>} />
-          <Route path="/vendor/leads" element={<ProtectedRoute><InteriorPortal /></ProtectedRoute>} />
-          <Route path="/vendor/quotes" element={<ProtectedRoute><VendorQuotes /></ProtectedRoute>} />
-          <Route path="/vendor/analytics" element={<ProtectedRoute><VendorAnalytics /></ProtectedRoute>} />
-
           {/* Admin */}
           <Route path="/admin" element={<ProtectedRoute><AdminOverview /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
@@ -227,6 +211,9 @@ const App = () => (
           <Route path="/admin/deals" element={<ProtectedRoute><AdminDeals /></ProtectedRoute>} />
           <Route path="/admin/fraud" element={<ProtectedRoute><AdminFraud /></ProtectedRoute>} />
           <Route path="/admin/campaigns" element={<ProtectedRoute><AdminCampaigns /></ProtectedRoute>} />
+
+          {/* Public share page — no auth required */}
+          <Route path="/p/:token" element={<ProjectSharePage />} />
 
           {/* Shared Loan */}
           <Route path="/loan" element={<ProtectedRoute><LoanPortal /></ProtectedRoute>} />
@@ -248,14 +235,6 @@ const App = () => (
           <Route path="/nri/calculator" element={<ProtectedRoute><NRICalculator /></ProtectedRoute>} />
           <Route path="/nri/profile" element={<ProtectedRoute><NRIProfile /></ProtectedRoute>} />
           <Route path="/nri/conversations" element={<ProtectedRoute><DealConversation /></ProtectedRoute>} />
-
-          {/* Land Owner */}
-          <Route path="/landowner" element={<ProtectedRoute><LandOwnerDashboard /></ProtectedRoute>} />
-          <Route path="/landowner/land" element={<ProtectedRoute><LandOwnerOverview /></ProtectedRoute>} />
-          <Route path="/landowner/interests" element={<ProtectedRoute><LandOwnerInterests /></ProtectedRoute>} />
-          <Route path="/landowner/jv" element={<ProtectedRoute><Placeholder title="JV Agreements" /></ProtectedRoute>} />
-          <Route path="/landowner/documents" element={<ProtectedRoute><Placeholder title="Land Documents" /></ProtectedRoute>} />
-          <Route path="/landowner/chat" element={<ProtectedRoute><LandOwnerChat /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

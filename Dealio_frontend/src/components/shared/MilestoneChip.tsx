@@ -11,9 +11,6 @@ const milestoneChipColors: Record<MilestoneStage, { bg: string; text: string }> 
   'Loan Disbursed': { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-300' },
   'Registration Done': { bg: 'bg-lime-100 dark:bg-lime-900/30', text: 'text-lime-700 dark:text-lime-300' },
   'Possession Given': { bg: 'bg-green-200 dark:bg-green-900/40', text: 'text-green-800 dark:text-green-200' },
-  'Interior Referred': { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-300' },
-  'Interior In Progress': { bg: 'bg-orange-200 dark:bg-orange-900/40', text: 'text-orange-800 dark:text-orange-200' },
-  'Interior Completed': { bg: 'bg-orange-300 dark:bg-orange-900/50', text: 'text-orange-900 dark:text-orange-100' },
 };
 
 interface MilestoneChipProps {

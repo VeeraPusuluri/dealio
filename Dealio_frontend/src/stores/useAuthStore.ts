@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type UserRole = 'builder' | 'cp' | 'customer' | 'bank' | 'vendor' | 'admin' | 'nri' | 'landowner';
+export type UserRole = 'builder' | 'cp' | 'customer' | 'bank' | 'admin' | 'nri';
 
 export interface User {
   id: string;
@@ -18,10 +18,8 @@ export const roleColors: Record<UserRole, string> = {
   cp: '#E87722',
   customer: '#16A34A',
   bank: '#2E5D8E',
-  vendor: '#7B5E3A',
   admin: '#6B3FA0',
   nri: '#F5A623',
-  landowner: '#C0392B',
 };
 
 export const roleLabels: Record<UserRole, string> = {
@@ -29,10 +27,8 @@ export const roleLabels: Record<UserRole, string> = {
   cp: 'Channel Partner',
   customer: 'Customer',
   bank: 'Bank Officer',
-  vendor: 'Interior Vendor',
   admin: 'Admin',
   nri: 'NRI Buyer',
-  landowner: 'Land Owner',
 };
 
 export const demoCredentials: Record<UserRole, { email: string; password: string; name: string }> = {
@@ -40,10 +36,8 @@ export const demoCredentials: Record<UserRole, { email: string; password: string
   cp: { email: 'ravi@dealio.in', password: 'Demo@1234', name: 'Ravi Kumar' },
   customer: { email: 'rahul@email.com', password: 'Demo@1234', name: 'Rahul Singh' },
   bank: { email: 'ramesh@hdfc.com', password: 'Demo@1234', name: 'Ramesh Babu' },
-  vendor: { email: 'info@designcraft.in', password: 'Demo@1234', name: 'DesignCraft Interiors' },
   admin: { email: 'admin@dealio.in', password: 'Demo@1234', name: 'Platform Admin' },
   nri: { email: 'nri@dealio.in', password: 'Demo@1234', name: 'Arjun Mehta' },
-  landowner: { email: 'rajendra@email.com', password: 'Demo@1234', name: 'Rajendra Prasad' },
 };
 
 export interface AuthApiResponse {
@@ -70,7 +64,7 @@ interface AuthState {
   isAuthenticated: boolean;
   loading: boolean;
   accessToken: string | null;
-  setAuthFromResponse: (response: AuthApiResponse) => void;
+  setAuthFromResponse: (response: AuthApiResponse, roleOverride?: string) => void;
   logout: () => Promise<void>;
   login: (role: UserRole) => Promise<void>;
   loginAsRole: (role: UserRole) => Promise<void>;
@@ -86,15 +80,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loading: true,
   accessToken: null,
 
-  setAuthFromResponse: (response: AuthApiResponse) => {
-    // Map backend response keys to frontend User interface
+  setAuthFromResponse: (response: AuthApiResponse, roleOverride?: string) => {
     const user: User = {
       id: String(response.user.id),
       name: response.user.fullName || (response.user as any).name,
       email: response.user.email,
       phone: response.user.phone,
       countryCode: response.user.countryCode,
-      role: (response.user.role || (response.user as any).role || 'customer').toLowerCase() as UserRole,
+      role: (roleOverride || response.user.role || (response.user as any).role || 'customer').toLowerCase() as UserRole,
       avatar: response.user.avatarUrl,
     };
     localStorage.setItem(TOKEN_KEY, response.accessToken);

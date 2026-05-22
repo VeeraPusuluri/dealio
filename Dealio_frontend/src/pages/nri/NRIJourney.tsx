@@ -16,7 +16,6 @@ const steps = [
   { label: 'Pre-Possession Inspection', date: 'Sep 2025', detail: '', status: 'pending' },
   { label: 'Possession & Key Handover', date: 'Sep 2025', detail: '', status: 'pending' },
   { label: 'Property Registration', date: 'Sep 2025', detail: 'Your POA nominee will sign on your behalf', status: 'pending' },
-  { label: 'Interior Setup', date: '', detail: 'Refer to CPConnect interior vendors', status: 'pending' },
 ];
 
 const NRIJourney = () => {

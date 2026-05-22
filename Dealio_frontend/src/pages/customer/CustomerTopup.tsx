@@ -24,10 +24,10 @@ const CustomerTopup = () => {
   }, [topupAmount, remainingTenure]);
 
   const suggestions = [
-    { text: 'Use ₹8L for interior work — Dealio connects you with vendors at 15% group discount', color: '#0A7E8C' },
     { text: 'Invest ₹10L in Solar Rooftop → earn ₹16,000/month → covers top-up EMI', color: '#16A34A' },
     { text: "Use ₹5L for kids' education → invest the rest, returns offset the EMI", color: '#6B3FA0' },
     { text: 'Invest top-up in EV Charging → 18% returns > 9.25% cost → net gain 8.75% per year', color: '#E87722' },
+    { text: 'Prepay existing loan → reduce tenure by 3 years → save ₹12L in interest', color: '#0A7E8C' },
   ];
 
   const inp = 'w-full mt-1.5 px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary focus:bg-white transition-all';
@@ -91,7 +91,7 @@ const CustomerTopup = () => {
             <div>
               <label className="text-xs text-gray-400">Purpose</label>
               <select value={purpose} onChange={e => setPurpose(e.target.value)} className={inp}>
-                {['Home Renovation', 'Interior Design', 'Education', 'Medical', 'Personal', 'Business', 'Repay Other Loan', 'Investment'].map(p => <option key={p}>{p}</option>)}
+                {['Home Renovation', 'Education', 'Medical', 'Personal', 'Business', 'Repay Other Loan', 'Investment'].map(p => <option key={p}>{p}</option>)}
               </select>
             </div>
             <div className="p-3 rounded-xl bg-gray-50 border border-gray-100 text-sm text-gray-700">

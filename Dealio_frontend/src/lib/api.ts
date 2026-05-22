@@ -173,6 +173,16 @@ export const builderApi = {
   getDocuments: (builderId: number | string, projectId: number | string) =>
     builderReq(`/builder/${builderId}/projects/${projectId}/documents`),
 
+  getProjectPdfUrl: async (builderId: number | string, projectId: number | string): Promise<string> => {
+    const token = getToken();
+    const res = await fetch(`${BUILDER_BASE}/builder/${builderId}/projects/${projectId}/pdf`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error('Failed to generate PDF');
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
+
   uploadDocument: async (builderId: number | string, projectId: number | string, file: File, docType: string) => {
     const token = getToken();
     const formData = new FormData();
@@ -249,6 +259,64 @@ export const customerApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
+};
+
+export interface CPContactPayload {
+  name: string;
+  phone: string;
+  email?: string;
+  notes?: string;
+  tags?: string;
+  bhkPreference?: string;
+}
+
+const cpReq = (path: string, options?: RequestInit) => request(BUILDER_BASE, path, options);
+
+export const cpApi = {
+  getContacts: (cpUserId: string | number) =>
+    cpReq(`/cp/${cpUserId}/contacts`),
+
+  addContact: (cpUserId: string | number, data: CPContactPayload) =>
+    cpReq(`/cp/${cpUserId}/contacts`, { method: 'POST', body: JSON.stringify(data) }),
+
+  updateContact: (cpUserId: string | number, contactId: number, data: Partial<CPContactPayload>) =>
+    cpReq(`/cp/${cpUserId}/contacts/${contactId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  deleteContact: (cpUserId: string | number, contactId: number) =>
+    cpReq(`/cp/${cpUserId}/contacts/${contactId}`, { method: 'DELETE' }),
+
+  getProfile: (cpUserId: string | number) =>
+    cpReq(`/cp/${cpUserId}/profile`),
+
+  updateProfile: (cpUserId: string | number, data: { fullName?: string; email?: string; city?: string; bio?: string; reraNumber?: string }) =>
+    cpReq(`/cp/${cpUserId}/profile`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  sendPhoneOtp: (phone: string) =>
+    cpReq('/cp/verify-phone/send-otp', { method: 'POST', body: JSON.stringify({ phone }) }),
+
+  verifyPhone: (cpUserId: string | number, phone: string, otp: string) =>
+    cpReq(`/cp/${cpUserId}/verify-phone`, { method: 'POST', body: JSON.stringify({ phone, otp }) }),
+
+  uploadDocument: async (cpUserId: string | number, file: File, docType: 'aadhaar' | 'pan' | 'rera') => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('docType', docType);
+    let res: Response;
+    try {
+      res = await fetch(`${BUILDER_BASE}/cp/${cpUserId}/documents`, {
+        method: 'POST',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: formData,
+      });
+    } catch {
+      throw new Error('Cannot reach the server.');
+    }
+    let json: Record<string, unknown>;
+    try { json = await res.json(); } catch { throw new Error(`Server error (HTTP ${res.status})`); }
+    if (!res.ok) throw new Error((json?.message as string) || `Upload failed: ${res.status}`);
+    return json?.data !== undefined ? json.data : json;
+  },
 };
 
 // Customer portal — calls Builder service, requires JWT, no builderId in path

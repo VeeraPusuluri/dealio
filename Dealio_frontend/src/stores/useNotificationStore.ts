@@ -28,6 +28,7 @@ interface NotificationState {
   markRead:     (id: string) => void;
   markAllRead:  () => void;
   dismiss:      (id: string) => void;
+  clearAll:     () => void;
 }
 
 const initial = load();
@@ -69,5 +70,11 @@ export const useNotificationStore = create<NotificationState>((set) => ({
       const next   = state.notifications.filter(n => n.id !== id);
       save(next);
       return { notifications: next, unreadCount: Math.max(0, state.unreadCount - (target?.read ? 0 : 1)) };
+    }),
+
+  clearAll: () =>
+    set(() => {
+      save([]);
+      return { notifications: [], unreadCount: 0 };
     }),
 }));

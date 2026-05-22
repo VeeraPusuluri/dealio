@@ -9,7 +9,7 @@ import { useDealStore } from '@/stores/useDealStore';
 import { customerApi, portalApi, builderApi } from '@/lib/api';
 import { pushNotifTo } from '@/lib/crossNotify';
 import { projects as mockProjects } from '@/data/projects';
-import { Calendar, MapPin, Clock, Star, Building2, FileText, Paintbrush, Users, Loader2, RefreshCw, X, ChevronRight, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { Calendar, MapPin, Clock, Star, Building2, FileText, Users, Loader2, RefreshCw, X, ChevronRight, MessageSquare, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ApiMeeting {
@@ -18,10 +18,10 @@ interface ApiMeeting {
   status: string; notes?: string; builderNotes?: string;
 }
 interface ProjectSummary { id: number; name: string; city: string; }
-type MeetingType = 'Site Visit' | 'Interior Consultation' | 'Builder Meeting' | 'Document Review';
+type MeetingType = 'Site Visit' | 'Builder Meeting' | 'Document Review';
 
 const TYPE_ICONS: Record<MeetingType, React.ElementType> = {
-  'Site Visit': Building2, 'Interior Consultation': Paintbrush, 'Builder Meeting': Users, 'Document Review': FileText,
+  'Site Visit': Building2, 'Builder Meeting': Users, 'Document Review': FileText,
 };
 const STATUS_LABEL: Record<string, string> = {
   Pending: 'Pending Confirmation', Confirmed: 'Confirmed', Completed: 'Completed', Cancelled: 'Cancelled',
@@ -227,7 +227,7 @@ const CustomerMeeting = () => {
               <div>
                 <label className="text-sm font-semibold text-gray-700 block mb-1.5">Step 3: Meeting Type</label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {(['Site Visit', 'Interior Consultation', 'Builder Meeting', 'Document Review'] as MeetingType[]).map(type => {
+                  {(['Site Visit', 'Builder Meeting', 'Document Review'] as MeetingType[]).map(type => {
                     const Icon = TYPE_ICONS[type];
                     return (
                       <button key={type} onClick={() => setMeetingType(type)} className={`p-4 rounded-xl border text-center transition-all ${meetingType === type ? 'border-secondary bg-secondary/8 shadow-sm' : 'border-gray-200 hover:bg-gray-50'}`}>

@@ -76,7 +76,7 @@ interface EditForm {
   published: boolean;
 }
 
-const tabs = ['Overview', 'Units', 'Documents', 'Settings'] as const;
+const tabs = ['Overview', 'Units', 'Documents', 'Brochure', 'Settings'] as const;
 const DOC_TYPES = ['RERA Certificate', 'Floor Plan', 'Brochure', 'Price List', 'Layout Plan', 'Agreement', 'Other'];
 const STATUS_OPTIONS = [
   { value: 'PRE_LAUNCH', label: 'Pre Launch' },
@@ -110,6 +110,9 @@ const BuilderProjectDetail = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [builderId, setBuilderId] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id || !id) return;
@@ -145,6 +148,17 @@ const BuilderProjectDetail = () => {
       .catch(() => setDocuments([]))
       .finally(() => setDocsLoading(false));
   }, [activeTab, builderId, id]);
+
+  useEffect(() => {
+    if (activeTab !== 'Brochure' || !builderId || !id) return;
+    if (pdfUrl) return; // already loaded
+    setPdfLoading(true);
+    setPdfError(null);
+    builderApi.getProjectPdfUrl(builderId, id)
+      .then(url => setPdfUrl(url))
+      .catch(e => setPdfError(e instanceof Error ? e.message : 'Failed to generate PDF'))
+      .finally(() => setPdfLoading(false));
+  }, [activeTab, builderId, id, pdfUrl]);
 
   const enterEdit = () => {
     if (!project) return;
@@ -215,6 +229,7 @@ const BuilderProjectDetail = () => {
       setProject(updated);
       setEditMode(false);
       setEditForm(null);
+      if (pdfUrl) { URL.revokeObjectURL(pdfUrl); setPdfUrl(null); } // invalidate cached PDF
       toast.success('Project updated successfully');
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to save changes');
@@ -319,7 +334,7 @@ const BuilderProjectDetail = () => {
                 </button>
               </>
             ) : (
-              <button onClick={enterEdit} className="px-3 py-1.5 rounded-xl text-sm border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center gap-1.5 transition-colors">
+              <button onClick={() => navigate(`/builder/projects/${id}/edit`)} className="px-3 py-1.5 rounded-xl text-sm border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center gap-1.5 transition-colors">
                 <Pencil size={14} /> Edit
               </button>
             )}
@@ -606,6 +621,60 @@ const BuilderProjectDetail = () => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Brochure Tab */}
+        {activeTab === 'Brochure' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-slate-800">Project Brochure PDF</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Auto-generated from your project details</p>
+              </div>
+              {pdfUrl && (
+                <div className="flex gap-2">
+                  <a href={pdfUrl} download={`${project.name}_brochure.pdf`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                    <Download size={14} /> Download
+                  </a>
+                  <button
+                    onClick={() => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); setPdfUrl(null); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
+                    Regenerate
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {pdfLoading && (
+              <div className="flex flex-col items-center justify-center py-24 gap-3">
+                <Loader2 className="animate-spin text-secondary" size={32} />
+                <p className="text-sm text-muted-foreground">Generating PDF brochure…</p>
+              </div>
+            )}
+
+            {pdfError && (
+              <div className="text-center py-16 border border-dashed border-border rounded-xl">
+                <FileText className="mx-auto mb-3 text-muted-foreground" size={36} />
+                <p className="text-sm text-destructive mb-3">{pdfError}</p>
+                <button
+                  onClick={() => { setPdfError(null); setPdfUrl(null); }}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-secondary text-secondary-foreground hover:opacity-90">
+                  Try Again
+                </button>
+              </div>
+            )}
+
+            {pdfUrl && !pdfLoading && (
+              <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50" style={{ height: '75vh' }}>
+                <iframe
+                  src={pdfUrl}
+                  className="w-full h-full"
+                  title="Project Brochure"
+                />
+              </div>
+            )}
           </div>
         )}
 
