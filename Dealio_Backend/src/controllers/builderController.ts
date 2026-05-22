@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { channelManager } from '../services/channelManager';
+import PDFDocument from 'pdfkit';
 
 // Maps DB column names (priceFrom/priceTo) to the frontend's expected names (priceMin/priceMax)
 function toProjectDto(p: Record<string, unknown>) {
@@ -610,6 +611,163 @@ export const builderController = {
       clearInterval(heartbeat);
       channelManager.unsubscribe(channelKey, userId);
     });
+  },
+
+  getProjectPdf: async (req: Request, res: Response) => {
+    const { projectId } = req.params;
+
+    const project = await prisma.project.findUnique({
+      where: { id: Number(projectId) },
+      include: {
+        builder: { select: { companyName: true, user: { select: { fullName: true } } } },
+        documents: { orderBy: { createdAt: 'asc' } },
+      },
+    });
+
+    if (!project) {
+      res.status(404).json({ ok: false, message: 'Project not found' });
+      return;
+    }
+
+    const fmt = (n: number) => {
+      if (n >= 10_000_000) return `Rs. ${(n / 10_000_000).toFixed(2)} Cr`;
+      if (n >= 100_000)    return `Rs. ${(n / 100_000).toFixed(0)} L`;
+      return `Rs. ${n.toLocaleString('en-IN')}`;
+    };
+    const fmtPrice = (min?: number | null, max?: number | null) => {
+      if (!min && !max) return 'Price on request';
+      if (min && max)   return `${fmt(min)} - ${fmt(max)}`;
+      return fmt(min || max || 0);
+    };
+    const builderName = project.builder?.companyName || project.builder?.user?.fullName || 'Builder';
+    const location    = [project.address, project.city].filter(Boolean).join(', ') || project.city || '';
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${project.name.replace(/[^a-z0-9]/gi, '_')}_brochure.pdf"`);
+
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    doc.pipe(res);
+
+    const TEAL      = '#0A7E8C';
+    const ORANGE    = '#E87722';
+    const DARK      = '#0F2035';
+    const MUTED     = '#64748b';
+    const LIGHT_BG  = '#f8fafc';
+    const PAGE_W    = doc.page.width - 100;   // usable width (50 margins each side)
+
+    /* ── Header banner ── */
+    doc.rect(0, 0, doc.page.width, 72).fill(DARK);
+    doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(20).text('DEALIO', 50, 22);
+    doc.fillColor(ORANGE).font('Helvetica').fontSize(9).text('Real Estate Platform', 50, 46);
+    doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(11)
+      .text('PROJECT BROCHURE', 0, 28, { align: 'right', width: doc.page.width - 50 });
+    doc.fillColor(TEAL).rect(0, 72, doc.page.width, 4).fill();
+
+    /* ── Project title ── */
+    doc.moveDown(1.5);
+    doc.fillColor(DARK).font('Helvetica-Bold').fontSize(26).text(project.name, 50, 100);
+    if (builderName) {
+      doc.fillColor(MUTED).font('Helvetica').fontSize(12).text(`by ${builderName}`, 50, 132);
+    }
+    if (location) {
+      doc.fillColor(MUTED).font('Helvetica').fontSize(10).text(`\u{1F4CD}  ${location}`, 50, 150);
+    }
+
+    /* ── Coloured accent line ── */
+    doc.moveDown(0.5);
+    const lineY = doc.y + 6;
+    doc.rect(50, lineY, 40, 3).fill(ORANGE);
+    doc.moveDown(1.2);
+
+    /* ── Helper: section heading ── */
+    const sectionHead = (title: string) => {
+      doc.moveDown(0.6);
+      doc.fillColor(TEAL).font('Helvetica-Bold').fontSize(11).text(title.toUpperCase());
+      doc.moveDown(0.2);
+      doc.moveTo(50, doc.y).lineTo(50 + PAGE_W, doc.y).strokeColor('#e2e8f0').lineWidth(1).stroke();
+      doc.moveDown(0.4);
+    };
+
+    /* ── Key details grid ── */
+    sectionHead('Key Details');
+    const details: [string, string][] = [
+      ['Price Range', fmtPrice(project.priceFrom, project.priceTo)],
+      ['Status',      (project.status || '').replace(/_/g, ' ')],
+      ['Possession',  project.possessionDate || '—'],
+      ['Total Units', project.totalUnits != null ? String(project.totalUnits) : '—'],
+      ['Available',   project.availableUnits != null ? String(project.availableUnits) : '—'],
+      ['Booked',      project.bookedUnits != null ? String(project.bookedUnits) : '—'],
+      ['Sold',        project.soldUnits != null ? String(project.soldUnits) : '—'],
+    ];
+    if (project.reraNumber) details.push(['RERA No.', project.reraNumber]);
+    if (project.reraExpiry) details.push(['RERA Expiry', project.reraExpiry.slice(0, 10)]);
+
+    const col = PAGE_W / 2;
+    let gridX = 50, gridY = doc.y;
+    details.forEach(([label, value], i) => {
+      const x = gridX + (i % 2 === 0 ? 0 : col);
+      const y = gridY + Math.floor(i / 2) * 28;
+      doc.fillColor(MUTED).font('Helvetica').fontSize(8).text(label, x, y);
+      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10).text(value, x, y + 10, { width: col - 10 });
+    });
+    doc.y = gridY + Math.ceil(details.length / 2) * 28 + 10;
+
+    /* ── Configurations ── */
+    const configs: string[] = (project as any).configurations ?? [];
+    if (configs.length > 0) {
+      sectionHead('Configurations');
+      doc.fillColor(DARK).font('Helvetica').fontSize(10).text(configs.join('   /   '));
+    }
+
+    /* ── Description ── */
+    if (project.description) {
+      sectionHead('About the Project');
+      doc.fillColor('#374151').font('Helvetica').fontSize(10).text(project.description, { lineGap: 4 });
+    }
+
+    /* ── Amenities ── */
+    const amenities: string[] = (project as any).amenities ?? [];
+    if (amenities.length > 0) {
+      sectionHead('Amenities');
+      const perRow = 3;
+      const cellW  = PAGE_W / perRow;
+      let ax = 50, ay = doc.y;
+      amenities.forEach((a, i) => {
+        const cx = ax + (i % perRow) * cellW;
+        const cy = ay + Math.floor(i / perRow) * 22;
+        doc.fillColor(TEAL).circle(cx + 4, cy + 5, 2.5).fill();
+        doc.fillColor(DARK).font('Helvetica').fontSize(9).text(a, cx + 10, cy, { width: cellW - 14 });
+      });
+      doc.y = ay + Math.ceil(amenities.length / perRow) * 22 + 8;
+    }
+
+    /* ── Nearby highlights ── */
+    const nearby: string[] = (project as any).nearbyHighlights ?? [];
+    if (nearby.length > 0) {
+      sectionHead('Nearby Highlights');
+      doc.fillColor(DARK).font('Helvetica').fontSize(10).text(nearby.join('   •   '));
+    }
+
+    /* ── Documents list ── */
+    if (project.documents.length > 0) {
+      sectionHead('Available Documents');
+      project.documents.forEach(d => {
+        doc.fillColor(TEAL).font('Helvetica-Bold').fontSize(9).text(`${d.docType}:  `, { continued: true });
+        doc.fillColor(MUTED).font('Helvetica').fontSize(9).text(d.name);
+      });
+    }
+
+    /* ── Footer ── */
+    const footerY = doc.page.height - 60;
+    doc.rect(0, footerY, doc.page.width, 60).fill(DARK);
+    doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(10)
+      .text('DEALIO', 50, footerY + 14);
+    doc.fillColor(ORANGE).font('Helvetica').fontSize(8)
+      .text('India\'s Real Estate Platform', 50, footerY + 28);
+    doc.fillColor('#ffffff').font('Helvetica').fontSize(7)
+      .text(`Generated on ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}  |  dealio.in`, 0, footerY + 38, { align: 'right', width: doc.page.width - 50 });
+
+    doc.end();
   },
 
   // Fetch and mark-read builder notifications

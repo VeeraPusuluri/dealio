@@ -81,3 +81,63 @@ ALTER TABLE "Meeting" ADD CONSTRAINT "Meeting_projectId_fkey" FOREIGN KEY ("proj
 -- AddForeignKey
 ALTER TABLE "Meeting" ADD CONSTRAINT "Meeting_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
+-- ─────────────────────────────────────────
+-- ChannelPartner
+-- ─────────────────────────────────────────
+
+-- CreateTable
+CREATE TABLE IF NOT EXISTS "ChannelPartner" (
+    "id"                SERIAL NOT NULL,
+    "userId"            INTEGER NOT NULL,
+    "city"              TEXT,
+    "tier"              TEXT NOT NULL DEFAULT 'Silver',
+    "totalDeals"        INTEGER NOT NULL DEFAULT 0,
+    "dealsThisMonth"    INTEGER NOT NULL DEFAULT 0,
+    "totalEarnings"     DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "pendingCommission" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "influencerScore"   INTEGER NOT NULL DEFAULT 0,
+    "sharesThisMonth"   INTEGER NOT NULL DEFAULT 0,
+    "leadsFromSocial"   INTEGER NOT NULL DEFAULT 0,
+    "joinedDate"        TEXT,
+    "referredById"      INTEGER,
+    "createdAt"         TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ChannelPartner_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX IF NOT EXISTS "ChannelPartner_userId_key" ON "ChannelPartner"("userId");
+
+-- AddForeignKey
+ALTER TABLE "ChannelPartner" ADD CONSTRAINT "ChannelPartner_userId_fkey"
+    FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "ChannelPartner" ADD CONSTRAINT "ChannelPartner_referredById_fkey"
+    FOREIGN KEY ("referredById") REFERENCES "ChannelPartner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- Add CP reference to Deal (nullable — not all deals come via a CP)
+ALTER TABLE "Deal" ADD COLUMN IF NOT EXISTS "cpId" INTEGER;
+
+ALTER TABLE "Deal" ADD CONSTRAINT "Deal_cpId_fkey"
+    FOREIGN KEY ("cpId") REFERENCES "ChannelPartner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- ─────────────────────────────────────────
+-- CPContact
+-- ─────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS "CPContact" (
+    "id"        SERIAL NOT NULL,
+    "cpId"      INTEGER NOT NULL,
+    "name"      TEXT NOT NULL,
+    "phone"     TEXT NOT NULL,
+    "email"     TEXT,
+    "notes"     TEXT,
+    "tags"      TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CPContact_pkey" PRIMARY KEY ("id")
+);
+
+ALTER TABLE "CPContact" ADD CONSTRAINT "CPContact_cpId_fkey"
+    FOREIGN KEY ("cpId") REFERENCES "ChannelPartner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
