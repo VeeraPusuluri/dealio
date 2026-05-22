@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuthStore, UserRole, roleLabels, roleColors, AuthApiResponse } from '@/stores/useAuthStore';
+import { useAuthStore, UserRole, roleLabels, roleColors, demoCredentials, AuthApiResponse } from '@/stores/useAuthStore';
 import {
-  Building2, Users, User, Landmark, Wrench, Shield, Globe, Map,
+  Building2, Users, User, Landmark, Shield, Globe,
   Loader2, Phone as PhoneIcon, Sparkles, CheckCircle2, ArrowRight,
 } from 'lucide-react';
 import { DealioLogo } from '@/components/shared/DealioLogo';
@@ -17,12 +17,12 @@ const COUNTRY_CODES = [
 
 const roleIcons: Record<UserRole, React.ElementType> = {
   builder: Building2, cp: Users, customer: User, bank: Landmark,
-  vendor: Wrench, admin: Shield, nri: Globe, landowner: Map,
+  admin: Shield, nri: Globe,
 };
 
 const roleHome: Record<UserRole, string> = {
   builder: '/builder', cp: '/cp', customer: '/customer', bank: '/bank',
-  vendor: '/vendor', admin: '/admin', nri: '/nri', landowner: '/landowner',
+  admin: '/admin', nri: '/nri',
 };
 
 const DOT_GRID = {
@@ -40,7 +40,7 @@ const benefits = [
 type Mode   = 'signin' | 'signup';
 type Method = 'phone' | 'google';
 
-const signupRoles: UserRole[] = ['customer', 'cp', 'builder', 'bank', 'vendor', 'nri', 'landowner'];
+const signupRoles: UserRole[] = ['customer', 'cp', 'builder', 'bank', 'nri', 'admin'];
 
 const LoginPage = () => {
   const [params] = useSearchParams();
@@ -99,11 +99,11 @@ const LoginPage = () => {
       let data: AuthApiResponse;
       if (mode === 'signup') {
         data = await authApi.signupVerifyOtp(phoneCC, phone.replace(/\D/g, ''), phoneOtp, name.trim(), signupRole.toUpperCase()) as AuthApiResponse;
-        if (data?.user) data.user.role = signupRole;
+        setAuthFromResponse(data, signupRole);
       } else {
         data = await authApi.loginVerifyOtp(phoneCC, phone.replace(/\D/g, ''), phoneOtp) as AuthApiResponse;
+        setAuthFromResponse(data);
       }
-      setAuthFromResponse(data);
       toast({ title: mode === 'signup' ? 'Welcome to Dealio!' : 'Welcome back!' });
     } catch (err: unknown) {
       toast({ title: 'Verification failed', description: err instanceof Error ? err.message : 'Verification failed', variant: 'destructive' });
@@ -115,8 +115,7 @@ const LoginPage = () => {
     setBusy(true);
     try {
       const data = await authApi.googleAuth(credentialResponse.credential, mode === 'signup' ? signupRole : undefined) as AuthApiResponse;
-      if (data?.user && mode === 'signup') data.user.role = signupRole.toUpperCase();
-      setAuthFromResponse(data);
+      setAuthFromResponse(data, mode === 'signup' ? signupRole : undefined);
       toast({ title: mode === 'signup' ? 'Welcome to Dealio!' : 'Welcome back!' });
     } catch (err: unknown) {
       toast({ title: 'Google sign-in failed', description: err instanceof Error ? err.message : 'Google authentication failed', variant: 'destructive' });
@@ -142,20 +141,12 @@ const LoginPage = () => {
   const handleDemoSkip = async () => {
     try {
       setBusy(true);
-      const role = signupRole.toUpperCase();
-      console.log("[DEBUG_LOG] Requesting demo login for role:", role);
-      // Ensure OTP exists in backend for this mock phone
-      await authApi.loginSendOtp('+91', '1234567890');
-      const response = await authApi.loginVerifyOtp('+91', '1234567890', '123456');
-      console.log("[DEBUG_LOG] Received response:", response);
-      // Force the role to what the user selected in the UI for demo purposes
-      if (response && response.user) {
-        response.user.role = signupRole; // Use the lowercase version from signupRole
-      }
-      setAuthFromResponse(response);
+      const demoName = demoCredentials[signupRole]?.name || signupRole;
+      await authApi.signupSendOtp('+91', '1234567890', demoName, signupRole.toUpperCase());
+      const response = await authApi.signupVerifyOtp('+91', '1234567890', '123456', demoName, signupRole.toUpperCase()) as AuthApiResponse;
+      setAuthFromResponse(response, signupRole);
       toast({ title: 'Welcome to Dealio (Demo)!' });
     } catch (e: unknown) {
-      console.error("[DEBUG_LOG] Demo login error:", e);
       toast({ title: 'Demo login failed', description: e instanceof Error ? e.message : 'Demo login failed', variant: 'destructive' });
     } finally {
       setBusy(false);

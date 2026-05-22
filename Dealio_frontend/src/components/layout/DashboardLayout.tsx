@@ -6,14 +6,14 @@ import { useAuthStore, roleLabels, roleColors, UserRole } from '@/stores/useAuth
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import NotificationPanel from '@/components/shared/NotificationPanel';
 import {
-  Building2, Users, User, Landmark, Wrench, Shield,
+  Building2, Users, User, Landmark, Shield,
   LayoutDashboard, FolderOpen, Megaphone, BarChart3, FileText,
   HandCoins, Share2, Palette, Home as HomeIcon, CreditCard,
   Calendar, Globe, ShoppingBag, Inbox, PieChart, ListChecks,
   Calculator, MessageSquare, AlertTriangle, ChevronLeft, ChevronRight,
-  LogOut, Bell, Search, ChevronDown, Grid3X3, Briefcase, UserPlus, Hammer,
+  LogOut, Bell, Search, ChevronDown, Grid3X3, Briefcase, UserPlus,
   Trophy, ClipboardList, Radio, UserCircle, TrendingUp, Wallet, Video, Scale,
-  Paintbrush, Brain, Share, BarChart, Map, Handshake, Columns, Settings,
+  Paintbrush, Brain, Share, BarChart, Columns, Settings,
 } from 'lucide-react';
 interface NavItem { label: string; path: string; icon: React.ElementType; badge?: number; }
 
@@ -37,7 +37,6 @@ const getRoleNavItems = (role: UserRole, _badges: Record<string, number>): NavIt
       { label: 'Possession', path: '/builder/possession', icon: ListChecks },
       { label: 'Snagging', path: '/builder/snagging', icon: AlertTriangle },
       { label: 'Loan Threads', path: '/builder/loan', icon: CreditCard },
-      { label: 'Interior Leads', path: '/builder/interior', icon: Hammer },
       { label: 'Conversations', path: '/builder/conversations', icon: MessageSquare },
       { label: 'Documents', path: '/builder/documents', icon: FileText },
       { label: 'Broadcast', path: '/builder/broadcast', icon: Megaphone },
@@ -56,13 +55,14 @@ const getRoleNavItems = (role: UserRole, _badges: Record<string, number>): NavIt
       { label: 'Follow-ups', path: '/cp/followups', icon: ClipboardList },
       { label: 'Commissions', path: '/cp/commissions', icon: HandCoins },
       { label: 'Leaderboard', path: '/cp/leaderboard', icon: Trophy },
+      { label: 'My Contacts', path: '/cp/contacts', icon: UserPlus },
       { label: 'Loan Threads', path: '/cp/loan', icon: CreditCard },
-      { label: 'Interior Leads', path: '/cp/interior', icon: Hammer },
       { label: 'Conversations', path: '/cp/conversations', icon: MessageSquare },
       { label: 'Referral Tree', path: '/cp/referral', icon: Share2 },
       { label: 'Brochure', path: '/cp/brochure', icon: Palette },
       { label: 'Community', path: '/cp/community', icon: Globe },
       { label: 'Services', path: '/cp/services', icon: ShoppingBag },
+      { label: 'Settings', path: '/cp/settings', icon: Settings },
     ],
     customer: [
       { label: 'Dashboard', path: '/customer', icon: LayoutDashboard },
@@ -79,7 +79,6 @@ const getRoleNavItems = (role: UserRole, _badges: Record<string, number>): NavIt
       { label: 'Loan Top-up', path: '/customer/topup', icon: Wallet },
       { label: 'Possession', path: '/customer/possession', icon: ListChecks },
       { label: 'Snagging', path: '/customer/snagging', icon: AlertTriangle },
-      { label: 'Interior Vendors', path: '/customer/interior-vendors', icon: Hammer },
       { label: 'Settings', path: '/customer/settings', icon: Settings },
     ],
     bank: [
@@ -91,13 +90,6 @@ const getRoleNavItems = (role: UserRole, _badges: Record<string, number>): NavIt
       { label: 'Conversations', path: '/bank/conversations', icon: MessageSquare },
       { label: 'Status Update', path: '/bank/status', icon: ListChecks },
       { label: 'Analytics', path: '/bank/analytics', icon: PieChart },
-    ],
-    vendor: [
-      { label: 'Overview', path: '/vendor', icon: LayoutDashboard },
-      { label: 'Listings', path: '/vendor/listings', icon: ShoppingBag },
-      { label: 'Lead Inbox', path: '/vendor/leads', icon: Inbox },
-      { label: 'Quotes', path: '/vendor/quotes', icon: FileText },
-      { label: 'Analytics', path: '/vendor/analytics', icon: PieChart },
     ],
     admin: [
       { label: 'Overview', path: '/admin', icon: LayoutDashboard },
@@ -128,21 +120,13 @@ const getRoleNavItems = (role: UserRole, _badges: Record<string, number>): NavIt
       { label: 'Legal Guide', path: '/nri/legal', icon: Globe },
       { label: 'My Profile', path: '/nri/profile', icon: UserCircle },
     ],
-    landowner: [
-      { label: 'Overview', path: '/landowner', icon: LayoutDashboard },
-      { label: 'My Land', path: '/landowner/land', icon: Map },
-      { label: 'Builder Interests', path: '/landowner/interests', icon: Users },
-      { label: 'JV Agreements', path: '/landowner/jv', icon: Handshake },
-      { label: 'Documents', path: '/landowner/documents', icon: FileText },
-      { label: 'Chat', path: '/landowner/chat', icon: MessageSquare },
-    ],
   };
   return navMap[role] || [];
 };
 
 const roleIcons: Record<UserRole, React.ElementType> = {
   builder: Building2, cp: Users, customer: User,
-  bank: Landmark, vendor: Wrench, admin: Shield, nri: Globe, landowner: Map,
+  bank: Landmark, admin: Shield, nri: Globe,
 };
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
@@ -206,34 +190,26 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
         <div className="h-16 flex items-center px-4 border-b border-white/10">
           {/* Icon mark */}
           <div
-            className="relative w-9 h-9 flex items-center justify-center flex-shrink-0 overflow-hidden"
+            className="w-9 h-9 flex items-center justify-center flex-shrink-0"
             style={{
               borderRadius: 11,
-              background: 'linear-gradient(150deg, #0DAABF 0%, #0A7E8C 28%, #1A3B5D 62%, #0F2035 100%)',
-              boxShadow: '0 0 0 1px rgba(255,255,255,0.1), 0 4px 16px rgba(10,126,140,0.4), 0 1px 4px rgba(0,0,0,0.3)',
+              background: 'linear-gradient(145deg, #0FA5BB 0%, #0A7E8C 100%)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.15), 0 4px 14px rgba(10,126,140,0.35)',
             }}
           >
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{ background: 'radial-gradient(ellipse 130% 65% at 30% -5%, rgba(255,255,255,0.2) 0%, transparent 60%)', borderRadius: 11 }}
-            />
-            <svg width="17" height="17" viewBox="0 0 20 20" fill="none" className="relative z-10">
+            <svg width="17" height="17" viewBox="0 0 20 20" fill="none">
               <path
                 fillRule="evenodd"
                 clipRule="evenodd"
-                d="M3.5 2L3.5 18L10.5 18Q18 18 18 10Q18 2 10.5 2L3.5 2Z M6.5 5.5L6.5 14.5L10.5 14.5Q14.5 14.5 14.5 10Q14.5 5.5 10.5 5.5L6.5 5.5Z"
+                d="M3.5 3 H9 A7 7 0 0 1 9 17 H3.5 Z M6 5.5 H9 A4.5 4.5 0 0 1 9 14.5 H6 Z"
                 fill="white"
-                fillOpacity="0.95"
+                fillOpacity="0.96"
               />
             </svg>
-            <span
-              className="absolute rounded-full"
-              style={{ width: 6, height: 6, top: 3, right: 3, background: 'linear-gradient(135deg,#FCD34D,#E87722)', boxShadow: '0 1px 4px rgba(232,119,34,0.65)' }}
-            />
           </div>
           {!collapsed && (
-            <span className="ml-3 text-white font-black text-lg leading-none select-none" style={{ letterSpacing: '-0.03em' }}>
-              Deal<span style={{ color: '#0A8C9E' }}>io</span>
+            <span className="ml-3 font-bold text-[18px] leading-none select-none tracking-tight" style={{ letterSpacing: '-0.02em' }}>
+              <span className="text-white">Deal</span><span style={{ color: '#7AE0EC' }}>io</span>
             </span>
           )}
         </div>

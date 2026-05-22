@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useCustomerMilestoneStore, milestoneStages, milestoneColors, MilestoneStage } from '@/stores/useCustomerMilestoneStore';
-import { useLoanThreadStore } from '@/stores/useLoanThreadStore';
-import { useInteriorStore } from '@/stores/useInteriorStore';
 import { formatCurrency } from '@/lib/format';
 import { toast } from 'sonner';
 import { X, ChevronRight, Search } from 'lucide-react';
@@ -13,7 +11,7 @@ const AdminCustomers = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const tabStages = ['All', 'Enquiry', 'Site Visit Done', 'Booked', 'Loan Application Created', 'Loan Sanctioned', 'Registration Done', 'Possession Given', 'Interior Referred'];
+  const tabStages = ['All', 'Enquiry', 'Site Visit Done', 'Booked', 'Loan Application Created', 'Loan Sanctioned', 'Registration Done', 'Possession Given'];
 
   const filtered = milestones.filter(m => {
     if (activeTab !== 'All' && m.currentStage !== activeTab) return false;

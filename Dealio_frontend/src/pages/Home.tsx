@@ -2,21 +2,19 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import {
-  Building2, Users, Home as HomeIcon, Landmark, Hammer, ShieldCheck,
-  Globe2, MapPin, ArrowRight, CheckCircle2, Sparkles, TrendingUp,
-  BarChart3, Zap, Shield, Clock, MessageSquare, Menu, X,
+  Building2, Users, Home as HomeIcon, Landmark, ShieldCheck,
+  Globe2, ArrowRight, CheckCircle2, Sparkles, TrendingUp,
+  BarChart3, Zap, Shield, Clock, MessageSquare, Menu, X, MapPin,
 } from 'lucide-react';
 import { DealioLogo } from '@/components/shared/DealioLogo';
 
 const roles = [
-  { icon: Building2,   label: 'Builders',         desc: 'Inventory, RERA, demand letters & AI pricing',   color: '#0A7E8C', bg: 'rgba(10,126,140,0.08)'  },
-  { icon: Users,       label: 'Channel Partners',  desc: 'Pipeline, brochures, commissions & leaderboard', color: '#E87722', bg: 'rgba(232,119,34,0.08)'   },
-  { icon: HomeIcon,    label: 'Customers',         desc: 'Track journey, EMI calculator & documents',      color: '#16A34A', bg: 'rgba(22,163,74,0.08)'    },
-  { icon: Landmark,    label: 'Banks',             desc: 'Loan cases, TAT tracking & approvals',           color: '#2E5D8E', bg: 'rgba(46,93,142,0.08)'    },
-  { icon: Hammer,      label: 'Interior Vendors',  desc: 'Quotes, leads & interior marketplace',           color: '#7B5E3A', bg: 'rgba(123,94,58,0.08)'    },
-  { icon: Globe2,      label: 'NRI Buyers',        desc: 'POA, FEMA, repatriation & remote management',   color: '#D97706', bg: 'rgba(217,119,6,0.08)'    },
-  { icon: MapPin,      label: 'Land Owners',       desc: 'List parcels, explore JV partnerships',          color: '#C0392B', bg: 'rgba(192,57,43,0.08)'    },
-  { icon: ShieldCheck, label: 'Admin',             desc: 'Onboarding, fraud detection & revenue',          color: '#6B3FA0', bg: 'rgba(107,63,160,0.08)'   },
+  { icon: Building2,   label: 'Builders',        desc: 'Inventory, RERA, demand letters & AI pricing',   color: '#0A7E8C', bg: 'rgba(10,126,140,0.08)' },
+  { icon: Users,       label: 'Channel Partners', desc: 'Pipeline, brochures, commissions & leaderboard', color: '#E87722', bg: 'rgba(232,119,34,0.08)'  },
+  { icon: HomeIcon,    label: 'Customers',        desc: 'Track journey, EMI calculator & documents',      color: '#16A34A', bg: 'rgba(22,163,74,0.08)'   },
+  { icon: Landmark,    label: 'Banks',            desc: 'Loan cases, TAT tracking & approvals',           color: '#2E5D8E', bg: 'rgba(46,93,142,0.08)'   },
+  { icon: Globe2,      label: 'NRI Buyers',       desc: 'POA, FEMA, repatriation & remote management',   color: '#D97706', bg: 'rgba(217,119,6,0.08)'   },
+  { icon: ShieldCheck, label: 'Admin',            desc: 'Onboarding, fraud detection & revenue',          color: '#6B3FA0', bg: 'rgba(107,63,160,0.08)'  },
 ];
 
 const stats = [
@@ -153,7 +151,7 @@ const Home = () => {
             </h1>
 
             <p className="text-white/65 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-              Dealio connects builders, channel partners, customers, banks, interior vendors, NRIs and land owners — so every transaction closes faster, with zero leakage.
+              Dealio connects builders, channel partners, customers, banks and NRIs — so every transaction closes faster, with zero leakage.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
@@ -173,7 +171,7 @@ const Home = () => {
 
             {/* Trust pills */}
             <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5">
-              {[['RERA-ready'], ['8 role portals'], ['WhatsApp-native'], ['AI-powered pricing']].map(([label]) => (
+              {[['RERA-ready'], ['6 role portals'], ['WhatsApp-native'], ['AI-powered pricing']].map(([label]) => (
                 <span key={label} className="flex items-center gap-1.5 text-white/55 text-xs font-medium">
                   <CheckCircle2 size={12} style={{ color: '#F5A623' }} /> {label}
                 </span>

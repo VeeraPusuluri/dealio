@@ -1,95 +1,334 @@
 import { useState } from 'react';
-import { X, Download, Share2, Copy, Building2 } from 'lucide-react';
+import { X, Download, Share2, Copy, Building2, MapPin, Calendar, CheckCircle2, Home, Users, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 interface ProjectSummary {
   id: number;
   name: string;
-  city: string;
+  city?: string;
   locality?: string;
+  address?: string | null;
+  builderName?: string | null;
   configurations?: string[];
-  priceMin?: number;
-  priceMax?: number;
-  reraNumber?: string;
+  priceMin?: number | null;
+  priceMax?: number | null;
+  possessionDate?: string | null;
+  reraNumber?: string | null;
+  totalUnits?: number | null;
+  availableUnits?: number | null;
+  description?: string | null;
+  imageUrl?: string | null;
+  status?: string;
 }
 
 interface FlyerModalProps {
   project: ProjectSummary;
   onClose: () => void;
-  cpName?: string;
-  cpPhone?: string;
 }
 
-const fmtPrice = (min?: number, max?: number) => {
+const fmt = (n: number) => {
+  if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(2)} Cr`;
+  if (n >= 100_000) return `₹${(n / 100_000).toFixed(0)} L`;
+  return `₹${n.toLocaleString('en-IN')}`;
+};
+const fmtPrice = (min?: number | null, max?: number | null) => {
   if (!min && !max) return 'Price on request';
-  const fmt = (n: number) => {
-    if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(1)} Cr`;
-    if (n >= 100_000) return `₹${(n / 100_000).toFixed(0)} L`;
-    return `₹${n.toLocaleString('en-IN')}`;
-  };
   if (min && max) return `${fmt(min)} – ${fmt(max)}`;
   return fmt(min || max || 0);
 };
 
-const FlyerModal = ({ project, onClose, cpName = 'Ravi Kumar', cpPhone = '+91 98765 43210' }: FlyerModalProps) => {
-  const [style, setStyle] = useState<'portrait' | 'landscape'>('portrait');
+type Theme = 'dark' | 'light' | 'warm';
 
+const THEMES: { id: Theme; label: string; preview: string }[] = [
+  { id: 'dark',  label: 'Premium',  preview: 'bg-slate-900' },
+  { id: 'light', label: 'Fresh',    preview: 'bg-white border border-slate-200' },
+  { id: 'warm',  label: 'Vibrant',  preview: 'bg-orange-500' },
+];
+
+function FlyerPreview({
+  project, theme, cpName, cpPhone,
+}: {
+  project: ProjectSummary;
+  theme: Theme;
+  cpName: string;
+  cpPhone: string;
+}) {
   const location = [project.locality, project.city].filter(Boolean).join(', ');
-  const configs = project.configurations?.join(' / ') || '';
-  const priceText = fmtPrice(project.priceMin, project.priceMax);
-  const shareText = `🏠 ${project.name}\n📍 ${location}\n💰 ${priceText}${configs ? `\n🛏️ ${configs}` : ''}\n\n📞 Contact: ${cpName} — ${cpPhone}`;
+  const configs  = project.configurations?.join('  /  ') || '';
+  const price    = fmtPrice(project.priceMin, project.priceMax);
+  const avail    = project.availableUnits;
+  const descSnippet = project.description
+    ? project.description.slice(0, 120) + (project.description.length > 120 ? '…' : '')
+    : null;
+
+  /* ── theme tokens ── */
+  const t = {
+    dark: {
+      wrapper: 'text-white',
+      bg:      'linear-gradient(160deg, #0F2035 0%, #1B3A5C 55%, #0A7E8C 100%)',
+      imgOverlay: 'bg-gradient-to-t from-[#0F2035] via-[#0F2035]/60 to-transparent',
+      nameTxt:  'text-white',
+      sub:      'text-white/60',
+      priceTxt: '#F59E0B',
+      chipBg:   'bg-white/10 text-white/90',
+      divider:  'border-white/15',
+      statBg:   'bg-white/8',
+      statTxt:  'text-white',
+      statSub:  'text-white/50',
+      rera:     'bg-emerald-900/40 text-emerald-300 border border-emerald-700/30',
+      footerBg: 'bg-white/8 border-t border-white/10',
+      footerTxt:'text-white',
+      footerSub:'text-white/50',
+      badge:    'bg-[#E87722] text-white',
+      desc:     'text-white/65',
+    },
+    light: {
+      wrapper: 'text-slate-800',
+      bg:      'linear-gradient(160deg, #f8fafc 0%, #f1f5f9 100%)',
+      imgOverlay: 'bg-gradient-to-t from-slate-100 via-slate-100/40 to-transparent',
+      nameTxt:  'text-slate-900',
+      sub:      'text-slate-400',
+      priceTxt: '#E87722',
+      chipBg:   'bg-slate-200/70 text-slate-700',
+      divider:  'border-slate-200',
+      statBg:   'bg-white shadow-sm',
+      statTxt:  'text-slate-800',
+      statSub:  'text-slate-400',
+      rera:     'bg-emerald-50 text-emerald-700 border border-emerald-200',
+      footerBg: 'bg-white border-t border-slate-100',
+      footerTxt:'text-slate-800',
+      footerSub:'text-slate-400',
+      badge:    'bg-orange-100 text-orange-700',
+      desc:     'text-slate-500',
+    },
+    warm: {
+      wrapper: 'text-white',
+      bg:      'linear-gradient(160deg, #E87722 0%, #D4691C 40%, #0F2035 100%)',
+      imgOverlay: 'bg-gradient-to-t from-[#0F2035] via-[#D4691C]/40 to-transparent',
+      nameTxt:  'text-white',
+      sub:      'text-white/60',
+      priceTxt: '#FCD34D',
+      chipBg:   'bg-white/15 text-white',
+      divider:  'border-white/20',
+      statBg:   'bg-white/12',
+      statTxt:  'text-white',
+      statSub:  'text-white/55',
+      rera:     'bg-white/15 text-white border border-white/20',
+      footerBg: 'bg-white/10 border-t border-white/15',
+      footerTxt:'text-white',
+      footerSub:'text-white/55',
+      badge:    'bg-white/20 text-white',
+      desc:     'text-white/65',
+    },
+  }[theme];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-card rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl animate-slide-up space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-card-foreground">Generate Flyer</h3>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-muted"><X size={18} className="text-muted-foreground" /></button>
-        </div>
+    <div className={`rounded-2xl overflow-hidden aspect-[3/4] flex flex-col ${t.wrapper} relative`}
+      style={{ background: t.bg }}>
 
-        <div className="flex gap-3">
-          {(['portrait', 'landscape'] as const).map(s => (
-            <button key={s} onClick={() => setStyle(s)}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 capitalize ${style === s ? 'border-accent text-accent' : 'border-border text-muted-foreground'}`}>
-              {s}
-            </button>
+      {/* Project image */}
+      <div className="relative h-[42%] shrink-0 overflow-hidden">
+        {project.imageUrl
+          ? <img src={project.imageUrl} alt={project.name} className="w-full h-full object-cover" />
+          : (
+            <div className="w-full h-full flex items-center justify-center"
+              style={{ backgroundColor: theme === 'dark' ? '#1B3A5C' : theme === 'warm' ? '#D4691C' : '#e2e8f0' }}>
+              <Building2 size={52} className="opacity-20" />
+            </div>
+          )
+        }
+        <div className={`absolute inset-0 ${t.imgOverlay}`} />
+
+        {/* Availability badge */}
+        {avail != null && avail > 0 && (
+          <div className={`absolute top-3 left-3 text-[10px] font-bold px-2.5 py-1 rounded-full ${t.badge}`}>
+            {avail} Units Available
+          </div>
+        )}
+        {project.status === 'CLOSING_SOON' && (
+          <div className="absolute top-3 right-3 text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-500 text-white">
+            Closing Soon
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 flex flex-col px-4 pt-3 pb-0">
+
+        {/* Name + location */}
+        <h3 className={`text-base font-black leading-tight ${t.nameTxt}`}>{project.name}</h3>
+        {project.builderName && (
+          <p className={`text-[10px] font-semibold mt-0.5 uppercase tracking-wide ${t.sub}`}>
+            by {project.builderName}
+          </p>
+        )}
+        {location && (
+          <p className={`text-[11px] mt-1 flex items-center gap-1 ${t.sub}`}>
+            <MapPin size={9} /> {location}
+          </p>
+        )}
+
+        {/* Price */}
+        <p className="text-lg font-black mt-2" style={{ color: t.priceTxt }}>{price}</p>
+
+        {/* Configs */}
+        {configs && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {(project.configurations ?? []).map(c => (
+              <span key={c} className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${t.chipBg}`}>{c}</span>
+            ))}
+          </div>
+        )}
+
+        {/* Stats row */}
+        <div className={`grid grid-cols-3 gap-1.5 mt-3 border-t pt-3 ${t.divider}`}>
+          {[
+            { icon: Calendar, label: 'Possession', value: project.possessionDate?.slice(0,7) ?? '—' },
+            { icon: Home,     label: 'Total Units', value: project.totalUnits ? String(project.totalUnits) : '—' },
+            { icon: Users,    label: 'Available', value: avail != null ? String(avail) : '—' },
+          ].map(({ icon: Icon, label, value }) => (
+            <div key={label} className={`rounded-lg px-2 py-1.5 text-center ${t.statBg}`}>
+              <Icon size={10} className="mx-auto mb-0.5 opacity-60" />
+              <p className={`text-[11px] font-black ${t.statTxt}`}>{value}</p>
+              <p className={`text-[9px] leading-none mt-0.5 ${t.statSub}`}>{label}</p>
+            </div>
           ))}
         </div>
 
-        <div className={`rounded-xl overflow-hidden border border-border ${style === 'landscape' ? 'aspect-video' : 'aspect-[3/4]'}`}
-          style={{ background: 'linear-gradient(135deg, #1B3A5C 0%, #0F2035 100%)' }}>
-          <div className="h-full flex flex-col text-white p-5 justify-between">
-            <div className="flex items-center justify-center flex-1">
-              <Building2 size={64} className="text-white/20" />
-            </div>
-            <div>
-              <h4 className="text-lg font-bold">{project.name}</h4>
-              <p className="text-xs opacity-70">{location}</p>
-              <p className="text-sm font-semibold mt-2" style={{ color: '#E87722' }}>{priceText}</p>
-              {configs && <p className="text-xs opacity-80 mt-1">{configs}</p>}
-              <div className="border-t border-white/20 pt-2 mt-3">
-                <p className="text-xs font-semibold">{cpName}</p>
-                <p className="text-[10px] opacity-70">{cpPhone} · Dealio Certified CP</p>
-              </div>
-            </div>
+        {/* Description snippet */}
+        {descSnippet && (
+          <p className={`text-[10px] leading-relaxed mt-2.5 ${t.desc} line-clamp-2`}>{descSnippet}</p>
+        )}
+
+        {/* RERA */}
+        {project.reraNumber && (
+          <div className={`flex items-center gap-1.5 mt-2.5 text-[10px] font-semibold px-2.5 py-1.5 rounded-lg ${t.rera}`}>
+            <CheckCircle2 size={10} /> RERA: {project.reraNumber}
+          </div>
+        )}
+
+        <div className="flex-1" />
+
+        {/* CP footer */}
+        <div className={`-mx-4 mt-3 px-4 py-3 flex items-center justify-between ${t.footerBg}`}>
+          <div>
+            <p className={`text-[11px] font-bold ${t.footerTxt}`}>{cpName}</p>
+            <p className={`text-[9px] ${t.footerSub}`}>{cpPhone} · Dealio Certified CP</p>
+          </div>
+          <div className="flex items-center gap-1">
+            <Sparkles size={9} style={{ color: '#E87722' }} />
+            <span className={`text-[9px] font-bold ${t.footerSub}`}>dealio.in</span>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
 
-        <div className="flex gap-2">
-          <button onClick={() => toast.success('Flyer image downloading...')}
-            className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2"
-            style={{ backgroundColor: '#E87722' }}>
-            <Download size={14} /> Download
+/* ─── Main modal ─────────────────────────────────────────────────── */
+const FlyerModal = ({ project, onClose }: FlyerModalProps) => {
+  const { user } = useAuthStore();
+  const [theme, setTheme] = useState<Theme>('dark');
+
+  const cpName  = user?.name  || 'Your Name';
+  const cpPhone = user?.phone ? `+91 ${user.phone}` : '+91 98765 43210';
+
+  const location  = [project.locality, project.city].filter(Boolean).join(', ');
+  const configs   = project.configurations?.join(' / ') || '';
+  const priceText = fmtPrice(project.priceMin, project.priceMax);
+
+  const shareText =
+    `🏠 *${project.name}*\n` +
+    (project.builderName ? `🏢 Builder: ${project.builderName}\n` : '') +
+    `📍 ${location}\n` +
+    `💰 Starting from ${priceText}\n` +
+    (configs ? `🛏️ ${configs}\n` : '') +
+    (project.possessionDate ? `📅 Possession: ${project.possessionDate}\n` : '') +
+    (project.availableUnits != null ? `🏗️ ${project.availableUnits} units still available!\n` : '') +
+    (project.reraNumber ? `✅ RERA: ${project.reraNumber}\n` : '') +
+    (project.description ? `\n📋 ${project.description.slice(0, 120)}…\n` : '') +
+    `\n📞 Contact me for a free site visit:\n${cpName} — ${cpPhone}`;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md max-h-[92vh] overflow-y-auto shadow-2xl flex flex-col">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100 shrink-0">
+          <div>
+            <h3 className="text-base font-bold text-slate-800">Generate Flyer</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Customer-ready — no internal pricing details</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-slate-100 transition-colors">
+            <X size={18} className="text-slate-500" />
           </button>
-          <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank')}
-            className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 bg-[#25D366]">
-            <Share2 size={14} /> WhatsApp
-          </button>
-          <button onClick={() => { navigator.clipboard.writeText(shareText); toast.success('Flyer text copied to clipboard'); }}
-            className="py-2.5 px-4 rounded-lg text-sm font-medium border border-border text-card-foreground flex items-center gap-2 hover:bg-muted">
-            <Copy size={14} />
-          </button>
+        </div>
+
+        <div className="p-5 space-y-5">
+
+          {/* Theme picker */}
+          <div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2.5">Style</p>
+            <div className="flex gap-2.5">
+              {THEMES.map(t => (
+                <button key={t.id} onClick={() => setTheme(t.id)}
+                  className={`flex-1 flex flex-col items-center gap-2 py-3 rounded-xl border-2 transition-all ${
+                    theme === t.id ? 'border-orange-400 shadow-sm' : 'border-slate-100 hover:border-slate-200'
+                  }`}>
+                  <div className={`w-8 h-8 rounded-lg ${t.preview}`} />
+                  <span className="text-[11px] font-bold text-slate-600">{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Flyer preview */}
+          <FlyerPreview project={project} theme={theme} cpName={cpName} cpPhone={cpPhone} />
+
+          {/* What's included note */}
+          <div className="bg-slate-50 rounded-xl p-3.5">
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Included in flyer</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              {[
+                'Project name & image',
+                'Builder name',
+                'Location',
+                'Price range',
+                'BHK configurations',
+                'Possession date',
+                'Unit availability',
+                'RERA number',
+                'Project description',
+                'Your contact info',
+              ].map(item => (
+                <div key={item} className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                  <CheckCircle2 size={10} className="text-emerald-500 shrink-0" /> {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2.5">
+            <button
+              onClick={() => toast.success('Flyer downloading…')}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white hover:opacity-90 transition-opacity"
+              style={{ background: 'linear-gradient(135deg,#E87722,#D4691C)' }}>
+              <Download size={14} /> Download
+            </button>
+            <button
+              onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank')}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white hover:opacity-90 transition-opacity bg-[#25D366]">
+              <Share2 size={14} /> WhatsApp
+            </button>
+            <button
+              onClick={() => { navigator.clipboard.writeText(shareText); toast.success('Copied to clipboard'); }}
+              className="w-12 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors">
+              <Copy size={16} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

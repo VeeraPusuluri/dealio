@@ -8,78 +8,56 @@ interface Props {
 }
 
 const sizes = {
-  sm: { box: 'w-8 h-8',   radius: 10, svg: 15, dot: 6,  word: 'text-[17px]', gap: 'gap-2' },
-  md: { box: 'w-10 h-10', radius: 12, svg: 19, dot: 7,  word: 'text-xl',     gap: 'gap-2.5' },
-  lg: { box: 'w-14 h-14', radius: 16, svg: 26, dot: 9,  word: 'text-[28px]', gap: 'gap-3' },
+  sm: { box: 'w-7 h-7',   radius: 9,  svg: 14, word: 'text-[15px]', gap: 'gap-2'   },
+  md: { box: 'w-9 h-9',   radius: 11, svg: 18, word: 'text-[18px]', gap: 'gap-2.5' },
+  lg: { box: 'w-12 h-12', radius: 14, svg: 24, word: 'text-[24px]', gap: 'gap-3'   },
 };
 
+// Clean geometric D — outer shape + inner cutout via evenodd
+// Left vertical bar: x 3.5→6, height 3→17
+// Right arc: from (6,3)/(9,3) curving to (9,17)/(6,17), radius 7 outer / 4.5 inner
 const DMark = ({ size }: { size: number }) => (
   <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
-    {/* Outlined D via evenodd — inner area shows background gradient */}
     <path
       fillRule="evenodd"
       clipRule="evenodd"
-      d="M3.5 2L3.5 18L10.5 18Q18 18 18 10Q18 2 10.5 2L3.5 2Z M6.5 5.5L6.5 14.5L10.5 14.5Q14.5 14.5 14.5 10Q14.5 5.5 10.5 5.5L6.5 5.5Z"
+      d="M3.5 3 H9 A7 7 0 0 1 9 17 H3.5 Z M6 5.5 H9 A4.5 4.5 0 0 1 9 14.5 H6 Z"
       fill="white"
-      fillOpacity="0.95"
+      fillOpacity="0.96"
     />
   </svg>
 );
 
 export const DealioLogo = ({ size = 'md', showWordmark = true, variant = 'default', to }: Props) => {
   const s = sizes[size];
-  const wordColor = variant === 'light' ? 'text-white' : 'text-[#0F2035]';
+  const dealColor   = variant === 'light' ? '#ffffff'  : '#0F2035';
+  const ioColor     = variant === 'light' ? '#7AE0EC'  : '#0A7E8C';
 
   const inner = (
     <div className={`inline-flex items-center ${s.gap}`}>
-      {/* Icon mark */}
+
+      {/* ── Icon mark ──────────────────────────────────────────────────────── */}
       <div
-        className={`relative ${s.box} flex items-center justify-center flex-shrink-0 overflow-hidden`}
+        className={`relative ${s.box} flex items-center justify-center flex-shrink-0`}
         style={{
           borderRadius: s.radius,
-          background: 'linear-gradient(150deg, #0DAABF 0%, #0A7E8C 28%, #1A3B5D 62%, #0F2035 100%)',
-          boxShadow: [
-            '0 0 0 1px rgba(255,255,255,0.1)',
-            '0 4px 20px rgba(10,126,140,0.45)',
-            '0 1px 4px rgba(0,0,0,0.3)',
-          ].join(', '),
+          background: 'linear-gradient(145deg, #0FA5BB 0%, #0A7E8C 100%)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 4px 14px rgba(10,126,140,0.28)',
         }}
       >
-        {/* Top-left glass shine */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              'radial-gradient(ellipse 130% 65% at 30% -5%, rgba(255,255,255,0.2) 0%, transparent 60%)',
-            borderRadius: s.radius,
-          }}
-        />
-
         <DMark size={s.svg} />
-
-        {/* Accent dot */}
-        <span
-          className="absolute rounded-full"
-          style={{
-            width:  s.dot,
-            height: s.dot,
-            top:    3,
-            right:  3,
-            background: 'linear-gradient(135deg, #FCD34D 0%, #F59E0B 55%, #E87722 100%)',
-            boxShadow: '0 1px 4px rgba(232,119,34,0.65)',
-          }}
-        />
       </div>
 
-      {/* Wordmark */}
+      {/* ── Wordmark ───────────────────────────────────────────────────────── */}
       {showWordmark && (
         <span
-          className={`${s.word} font-black leading-none select-none ${wordColor}`}
-          style={{ letterSpacing: '-0.03em' }}
+          className={`${s.word} font-bold leading-none select-none tracking-tight`}
+          style={{ color: dealColor, letterSpacing: '-0.02em' }}
         >
-          Deal<span style={{ color: '#0A8C9E' }}>io</span>
+          Deal<span style={{ color: ioColor }}>io</span>
         </span>
       )}
+
     </div>
   );
 

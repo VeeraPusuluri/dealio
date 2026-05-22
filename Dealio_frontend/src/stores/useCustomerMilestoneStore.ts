@@ -11,16 +11,12 @@ export type MilestoneStage =
   | 'Loan Sanctioned'
   | 'Loan Disbursed'
   | 'Registration Done'
-  | 'Possession Given'
-  | 'Interior Referred'
-  | 'Interior In Progress'
-  | 'Interior Completed';
+  | 'Possession Given';
 
 export const milestoneStages: MilestoneStage[] = [
   'Enquiry', 'Site Visit Scheduled', 'Site Visit Done', 'Negotiation', 'Booked',
   'Loan Application Created', 'Loan Sanctioned', 'Loan Disbursed',
-  'Registration Done', 'Possession Given', 'Interior Referred',
-  'Interior In Progress', 'Interior Completed',
+  'Registration Done', 'Possession Given',
 ];
 
 export const milestoneColors: Record<MilestoneStage, string> = {
@@ -34,9 +30,6 @@ export const milestoneColors: Record<MilestoneStage, string> = {
   'Loan Disbursed': '#16A34A',
   'Registration Done': '#059669',
   'Possession Given': '#047857',
-  'Interior Referred': '#E87722',
-  'Interior In Progress': '#D97706',
-  'Interior Completed': '#15803D',
 };
 
 export interface CustomerMilestone {
@@ -58,7 +51,6 @@ export interface CustomerMilestone {
   builderId?: string;
   builderName?: string;
   loanThreadId?: string;
-  interiorThreadId?: string;
   currentStage: MilestoneStage;
   stageHistory: { stage: MilestoneStage; date: string; updatedBy: string }[];
   lastActivityDate: string;
@@ -111,7 +103,7 @@ const initialMilestones: CustomerMilestone[] = [
     id: 'CM004', customerId: 'C004', customerName: 'Arjun Reddy', phone: '9876543212', email: 'arjun@email.com',
     projectId: 'P003', projectName: 'My Home Avatar', unitType: '4BHK', unit: '1204', tower: 'C', sqft: 2800, price: 22000000,
     bookingDate: '2024-12-20', cpId: 'CP001', cpName: 'Ravi Kumar', builderId: 'B001', builderName: 'My Home Group',
-    interiorThreadId: 'IT001', currentStage: 'Interior Referred',
+    currentStage: 'Possession Given',
     stageHistory: [
       { stage: 'Enquiry', date: '2024-11-15', updatedBy: 'Ravi Kumar (CP)' },
       { stage: 'Booked', date: '2024-12-20', updatedBy: 'My Home Group (Builder)' },
@@ -120,7 +112,6 @@ const initialMilestones: CustomerMilestone[] = [
       { stage: 'Loan Disbursed', date: '2025-01-12', updatedBy: 'Bank' },
       { stage: 'Registration Done', date: '2025-01-15', updatedBy: 'Admin' },
       { stage: 'Possession Given', date: '2025-01-18', updatedBy: 'My Home Group (Builder)' },
-      { stage: 'Interior Referred', date: '2025-01-19', updatedBy: 'Ravi Kumar (CP)' },
     ],
     lastActivityDate: '2025-01-19', daysInCurrentStage: 0,
   },
