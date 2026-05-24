@@ -1,0 +1,1137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>dealio — New Project</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,400&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+  :root{
+    --bg: #FAFAF7;
+    --ink: #111210;
+    --ink-2: #2A2C28;
+    --muted: #80847C;
+    --muted-2: #B7B9B0;
+    --line: #E8E7E0;
+    --line-soft: #F0EFE8;
+    --card: #FFFFFF;
+    --accent: #2D3A2E;
+    --accent-soft: #E8EDE5;
+    --good: #4F8A5E;
+    --warn: #C28E3E;
+    --danger: #B5462F;
+
+    --serif: "Newsreader", "Times New Roman", serif;
+    --sans: "Inter Tight", ui-sans-serif, system-ui, sans-serif;
+  }
+  body[data-accent="forest"]{ --accent:#2D3A2E; --accent-soft:#E8EDE5; }
+  body[data-accent="ink"]   { --accent:#111210; --accent-soft:#EBEAE2; }
+  body[data-accent="terra"] { --accent:#7A4A35; --accent-soft:#F1E3DC; }
+  body[data-accent="navy"]  { --accent:#1F2E4A; --accent-soft:#E1E5EE; }
+
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: -0.005em;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  /* ============ top bar (matches v3) ============ */
+  .topbar{
+    display:flex; align-items:center;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+    position: sticky; top:0; z-index: 10;
+    gap: 24px;
+  }
+  .brand{
+    font-family: var(--serif);
+    font-size: 22px; font-weight: 400;
+    letter-spacing: -0.02em;
+    display:flex; align-items:center; gap: 8px;
+  }
+  .brand .dot{
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+  }
+  .brand em{ font-style: italic; color: var(--muted); font-weight: 300; }
+
+  .topnav{ display:flex; gap: 4px; margin-left: 20px; }
+  .topnav a{
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 13px; font-weight: 500;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .topnav a:hover{ color: var(--ink); }
+  .topnav a.active{ background: var(--ink); color: var(--bg); }
+
+  .top-right{ margin-left:auto; display:flex; gap:10px; align-items:center; }
+  .ic-btn{
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    display: grid; place-items: center;
+    cursor: pointer; color: var(--ink-2);
+  }
+  .av{
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent); color: var(--bg);
+    display: grid; place-items:center;
+    font-size: 11px; font-weight: 600;
+  }
+
+  /* ============ page header ============ */
+  .wrap{
+    max-width: 1200px; margin: 0 auto;
+    padding: 40px 32px 100px;
+  }
+  .crumbs{
+    font-size: 12.5px; color: var(--muted);
+    display:flex; align-items:center; gap: 8px;
+    margin-bottom: 14px;
+  }
+  .crumbs a{ color: var(--muted); text-decoration: none; }
+  .crumbs a:hover{ color: var(--ink); }
+  .crumbs b{ color: var(--ink); font-weight: 500; }
+  .crumbs svg{ opacity: .5; }
+
+  .page-head{
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 32px;
+    padding-bottom: 28px;
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .page-head h1{
+    font-family: var(--serif);
+    font-size: clamp(40px, 5vw, 60px);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1.0;
+    margin: 0;
+  }
+  .page-head h1 em{ font-style: italic; color: var(--muted); font-weight: 300; }
+  .page-head p{
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 520px;
+  }
+  .head-meta{
+    display:flex; gap: 10px; align-items: center;
+  }
+  .save-state{
+    display:inline-flex; align-items:center; gap: 8px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .save-state .dot{
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--good);
+    box-shadow: 0 0 0 3px rgba(79,138,94,.15);
+  }
+
+  /* ============ layout ============ */
+  .layout{
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 56px;
+    align-items: flex-start;
+  }
+
+  /* ============ stepper (left) ============ */
+  .stepper{
+    position: sticky;
+    top: 96px;
+    display:flex; flex-direction: column; gap: 2px;
+  }
+  .step{
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    align-items: flex-start;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+  }
+  .step:hover{ background: var(--card); }
+  .step.active{ background: var(--card); border: 1px solid var(--line); }
+  .step-n{
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    display: grid; place-items: center;
+    font-size: 12px; font-weight: 600;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .step.done .step-n{
+    background: var(--accent); color: white; border-color: var(--accent);
+  }
+  .step.active .step-n{
+    background: var(--ink); color: var(--bg); border-color: var(--ink);
+  }
+  .step-t{ display:flex; flex-direction: column; gap: 2px; min-width: 0; padding-top: 4px; }
+  .step-t b{ font-size: 13.5px; font-weight: 500; color: var(--ink); }
+  .step-t small{ font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+  .step.done .step-t b{ color: var(--ink-2); }
+  /* connecting line */
+  .stepper::before{
+    content: '';
+    position: absolute;
+    left: 26px; top: 38px; bottom: 38px;
+    border-left: 1px dashed var(--line);
+    z-index: 0;
+  }
+  .step{ z-index: 1; background-clip: padding-box; }
+
+  /* ============ form (right) ============ */
+  .form{ min-width: 0; display:flex; flex-direction: column; gap: 32px; }
+
+  .section{
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 28px 32px 24px;
+  }
+  .section-head{
+    margin-bottom: 22px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  .section-head h2{
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 26px;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+  }
+  .section-head h2 em{ font-style: italic; color: var(--muted); font-weight: 300; }
+  .section-head small{
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+    margin-left: auto;
+  }
+
+  /* form grid */
+  .grid-row{
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 16px 20px;
+  }
+  .grid-row + .grid-row{ margin-top: 16px; }
+  .col-12{ grid-column: span 12; }
+  .col-8{ grid-column: span 8; }
+  .col-6{ grid-column: span 6; }
+  .col-4{ grid-column: span 4; }
+  .col-3{ grid-column: span 3; }
+
+  /* field */
+  .field{ display:flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .field label{
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-2);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .field label .req{ color: var(--danger); font-weight: 600; }
+  .field label .opt{ color: var(--muted); font-weight: 400; font-size: 11.5px; }
+  .field .hint{
+    font-size: 11.5px; color: var(--muted);
+    line-height: 1.4;
+  }
+
+  .input, .select{
+    appearance: none;
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: 10px;
+    font-family: var(--sans);
+    font-size: 13.5px;
+    color: var(--ink);
+    transition: border-color .15s ease, background .15s ease;
+    outline: none;
+  }
+  .input:hover, .select:hover{ border-color: var(--muted-2); }
+  .input:focus, .select:focus{
+    border-color: var(--ink);
+    background: var(--card);
+  }
+  .input::placeholder{ color: var(--muted); }
+
+  textarea.input{
+    min-height: 96px;
+    resize: vertical;
+    font-family: var(--sans);
+    line-height: 1.5;
+  }
+
+  .select{
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%2380847C' stroke-width='1.6'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+    cursor: pointer;
+  }
+
+  /* prefixed input */
+  .input-group{
+    display: flex; align-items: stretch;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color .15s ease;
+  }
+  .input-group:focus-within{ border-color: var(--ink); background: var(--card); }
+  .input-group .prefix, .input-group .suffix{
+    padding: 11px 12px;
+    color: var(--muted);
+    font-size: 13px;
+    background: transparent;
+    display: flex; align-items: center;
+    border-right: 1px solid var(--line);
+    font-variant-numeric: tabular-nums;
+  }
+  .input-group .suffix{ border-right: none; border-left: 1px solid var(--line); }
+  .input-group input{
+    flex: 1; min-width: 0;
+    border: none; outline: none; background: transparent;
+    padding: 11px 14px;
+    font-family: var(--sans); font-size: 13.5px; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .input-group input::placeholder{ color: var(--muted); }
+
+  /* segmented control */
+  .seg{
+    display: inline-flex;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .seg button{
+    padding: 7px 14px;
+    border: none; background: transparent;
+    border-radius: 7px;
+    font-family: var(--sans); font-size: 12.5px; font-weight: 500;
+    color: var(--muted); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: all .12s ease;
+  }
+  .seg button:hover{ color: var(--ink); }
+  .seg button[aria-pressed="true"]{
+    background: var(--card); color: var(--ink);
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+
+  /* radio cards */
+  .radio-cards{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .radio-card{
+    border: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    display: flex; flex-direction: column; gap: 6px;
+    transition: all .15s ease;
+    position: relative;
+  }
+  .radio-card:hover{ border-color: var(--muted-2); }
+  .radio-card[aria-pressed="true"]{
+    background: var(--card);
+    border-color: var(--ink);
+    box-shadow: 0 0 0 1px var(--ink);
+  }
+  .radio-card .rc-ico{
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: grid; place-items: center;
+    margin-bottom: 4px;
+  }
+  .radio-card b{ font-size: 13.5px; font-weight: 500; }
+  .radio-card small{ font-size: 12px; color: var(--muted); line-height: 1.4; }
+  .radio-card .rc-mark{
+    position: absolute; top: 12px; right: 12px;
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    display: grid; place-items: center;
+  }
+  .radio-card[aria-pressed="true"] .rc-mark{
+    background: var(--ink); border-color: var(--ink); color: var(--bg);
+  }
+  .radio-card[aria-pressed="true"] .rc-mark::after{
+    content: ''; width: 6px; height: 6px;
+    background: var(--bg); border-radius: 50%;
+  }
+
+  /* checkbox chips for amenities */
+  .chip-grid{
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .chip{
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 12px 8px 10px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: 999px;
+    font-size: 12.5px; font-weight: 500;
+    color: var(--ink-2); cursor: pointer;
+    transition: all .12s ease;
+    font-family: var(--sans);
+  }
+  .chip:hover{ border-color: var(--muted-2); }
+  .chip[aria-pressed="true"]{
+    background: var(--ink); color: var(--bg); border-color: var(--ink);
+  }
+  .chip .tick{
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 1px solid var(--muted-2);
+    background: var(--card);
+    display: grid; place-items: center;
+    color: transparent;
+  }
+  .chip[aria-pressed="true"] .tick{
+    background: var(--card); border-color: var(--card); color: var(--ink);
+  }
+
+  /* upload */
+  .upload{
+    border: 1.5px dashed var(--line);
+    background: var(--bg);
+    border-radius: 14px;
+    padding: 28px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .upload:hover{ border-color: var(--accent); background: var(--card); color: var(--accent); }
+  .upload .icn{
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--card); border: 1px solid var(--line);
+    display: grid; place-items: center;
+    color: var(--ink-2);
+  }
+  .upload b{ font-size: 13.5px; font-weight: 500; color: var(--ink); }
+  .upload small{ font-size: 12px; color: var(--muted); }
+  .upload .browse{
+    color: var(--ink); font-weight: 600;
+    text-decoration: underline; text-underline-offset: 3px;
+  }
+
+  /* unit type list */
+  .unit-list{ display: flex; flex-direction: column; gap: 10px; }
+  .unit-row{
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1.2fr 36px;
+    gap: 10px;
+    align-items: center;
+  }
+  .unit-row .input-group, .unit-row .select, .unit-row .input{
+    border-radius: 8px;
+  }
+  .del-btn{
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--muted);
+    cursor: pointer;
+    display: grid; place-items: center;
+  }
+  .del-btn:hover{ color: var(--danger); border-color: var(--danger); background: var(--card); }
+  .add-row{
+    margin-top: 8px;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    border: 1px dashed var(--line);
+    background: transparent;
+    border-radius: 999px;
+    font-size: 12.5px; font-weight: 500;
+    color: var(--ink-2);
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  .add-row:hover{ color: var(--accent); border-color: var(--accent); }
+  .unit-totals{
+    margin-top: 14px;
+    padding: 12px 16px;
+    background: var(--bg);
+    border-radius: 10px;
+    display: flex; gap: 24px;
+    font-size: 12.5px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .unit-totals b{ color: var(--ink); font-weight: 600; }
+
+  /* tags input */
+  .tags{
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: 10px;
+    align-items: center;
+  }
+  .tags:focus-within{ border-color: var(--ink); background: var(--card); }
+  .tag{
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 4px 4px 10px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 999px;
+    font-size: 12px; font-weight: 500;
+  }
+  .tag .x{
+    width: 16px; height: 16px; border-radius: 50%;
+    background: rgba(0,0,0,.06);
+    display: grid; place-items: center;
+    cursor: pointer;
+    line-height: 0;
+    font-size: 12px;
+  }
+  .tags input{
+    border: none; outline: none; background: transparent;
+    font-family: var(--sans); font-size: 13px;
+    color: var(--ink); padding: 4px 0;
+    flex: 1; min-width: 100px;
+  }
+  .tags input::placeholder{ color: var(--muted); }
+
+  /* RERA chip helper */
+  .rera-hint{
+    margin-top: 8px;
+    padding: 12px 14px;
+    background: var(--accent-soft);
+    border-radius: 10px;
+    display: flex; gap: 12px; align-items: flex-start;
+    font-size: 12.5px; color: var(--ink-2);
+    line-height: 1.5;
+  }
+  .rera-hint .icn{
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); color: white;
+    display: grid; place-items: center; flex-shrink: 0;
+    font-weight: 600; font-size: 12px;
+    font-family: var(--serif); font-style: italic;
+  }
+  .rera-hint b{ color: var(--accent); font-weight: 600; }
+
+  /* footer / actions */
+  .form-foot{
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px;
+    padding: 18px 24px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    position: sticky;
+    bottom: 20px;
+    box-shadow: 0 8px 32px -16px rgba(14,18,16,.12);
+  }
+  .form-foot-left{
+    display: flex; flex-direction: column; gap: 2px;
+    font-size: 12.5px; color: var(--muted);
+  }
+  .form-foot-left b{ color: var(--ink); font-weight: 500; }
+  .form-foot-right{ display:flex; gap: 10px; align-items: center; }
+  .btn{
+    display:inline-flex; align-items:center; gap: 8px;
+    padding: 11px 18px;
+    border-radius: 999px;
+    font-size: 13.5px; font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: all .15s ease;
+    color: var(--ink);
+    background: transparent;
+  }
+  .btn-text{ padding: 11px 12px; color: var(--muted); }
+  .btn-text:hover{ color: var(--ink); }
+  .btn-ghost{
+    border-color: var(--line);
+    background: var(--bg);
+  }
+  .btn-ghost:hover{ background: var(--card); }
+  .btn-primary{
+    background: var(--ink); color: var(--bg);
+  }
+  .btn-primary:hover{ background: var(--ink-2); }
+  .btn-primary .arr{
+    width: 18px; height: 18px;
+    background: rgba(255,255,255,.15);
+    border-radius: 50%;
+    display: grid; place-items: center;
+  }
+
+  /* responsive */
+  @media (max-width: 980px){
+    .layout{ grid-template-columns: 1fr; }
+    .stepper{
+      position: static;
+      flex-direction: row; overflow-x: auto;
+      gap: 8px; padding-bottom: 8px;
+    }
+    .stepper::before{ display: none; }
+    .step{ flex-shrink: 0; }
+    .radio-cards{ grid-template-columns: 1fr; }
+    .unit-row{ grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 720px){
+    .topnav{ display: none; }
+    .wrap{ padding: 24px 16px 80px; }
+    .section{ padding: 22px 20px; }
+    .col-8, .col-6, .col-4, .col-3{ grid-column: span 12; }
+  }
+
+  /* tweaks */
+  #tweaks{ position: fixed; right: 18px; bottom: 100px; z-index: 9999; font-family: var(--sans); }
+  .tw-card{
+    width: 260px;
+    background: var(--card);
+    border:1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 22px 60px -16px rgba(14,22,18,.18), 0 2px 6px rgba(14,22,18,.04);
+  }
+  .tw-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px; }
+  .tw-title{ font-family: var(--serif); font-size: 20px; font-weight: 400; }
+  .tw-x{
+    width: 24px; height: 24px; border-radius: 50%;
+    border:1px solid var(--line); background: var(--bg);
+    color: var(--ink); cursor:pointer; font-size: 14px; line-height: 0;
+  }
+  .tw-sec + .tw-sec{ margin-top: 14px; }
+  .tw-label{
+    font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500; margin-bottom: 8px;
+  }
+  .tw-row{ display:flex; gap: 8px; flex-wrap:wrap; }
+  .tw-swatch{
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--c); cursor:pointer;
+    border: 2px solid var(--card);
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .tw-swatch[aria-pressed="true"]{ box-shadow: 0 0 0 2px var(--ink); }
+</style>
+</head>
+<body data-accent="forest">
+
+<!-- top bar -->
+<header class="topbar">
+  <div class="brand"><span class="dot"></span>deal<em>io</em></div>
+  <nav class="topnav">
+    <a href="#">Dashboard</a>
+    <a href="#" class="active">Projects</a>
+    <a href="#">Inventory</a>
+    <a href="#">Leads</a>
+    <a href="#">Analytics</a>
+  </nav>
+  <div class="top-right">
+    <button class="ic-btn" aria-label="bell">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 004 0"/></svg>
+    </button>
+    <div class="av">AR</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- crumbs -->
+  <div class="crumbs">
+    <a href="#">Workspace</a>
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    <a href="#">Projects</a>
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    <b>New project</b>
+  </div>
+
+  <!-- page head -->
+  <div class="page-head">
+    <div>
+      <h1>Add a <em>new project</em></h1>
+      <p>Fill in the basics. You can refine inventory, brochures and the launch page later — nothing here is locked in.</p>
+    </div>
+    <div class="head-meta">
+      <span class="save-state"><span class="dot"></span> Saved 2s ago — draft</span>
+    </div>
+  </div>
+
+  <!-- layout -->
+  <div class="layout">
+
+    <!-- stepper -->
+    <aside class="stepper">
+      <a href="#" class="step done">
+        <span class="step-n">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+        </span>
+        <span class="step-t"><b>Project type</b><small>Apartments — residential</small></span>
+      </a>
+      <a href="#" class="step active">
+        <span class="step-n">2</span>
+        <span class="step-t"><b>Basics</b><small>Name, location, RERA</small></span>
+      </a>
+      <a href="#" class="step">
+        <span class="step-n">3</span>
+        <span class="step-t"><b>Inventory</b><small>Unit types & pricing</small></span>
+      </a>
+      <a href="#" class="step">
+        <span class="step-n">4</span>
+        <span class="step-t"><b>Amenities & media</b><small>Photos, brochure, USPs</small></span>
+      </a>
+      <a href="#" class="step">
+        <span class="step-n">5</span>
+        <span class="step-t"><b>Review & publish</b><small>Confirm and go live</small></span>
+      </a>
+    </aside>
+
+    <!-- form -->
+    <form class="form" onsubmit="event.preventDefault();">
+
+      <!-- Project type ---------------------------- -->
+      <section class="section">
+        <div class="section-head">
+          <h2>Project <em>type</em></h2>
+          <small>Step 1</small>
+        </div>
+
+        <div class="radio-cards" role="radiogroup">
+          <button type="button" class="radio-card" data-radio="type" data-val="apartment" aria-pressed="true">
+            <div class="rc-ico">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 7h2M14 7h2M8 11h2M14 11h2M8 15h2M14 15h2M10 21v-3h4v3"/></svg>
+            </div>
+            <div class="rc-mark"></div>
+            <b>Apartments</b>
+            <small>Multi-storey residential towers, 2/3/4 BHK mix</small>
+          </button>
+          <button type="button" class="radio-card" data-radio="type" data-val="villa" aria-pressed="false">
+            <div class="rc-ico">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-8 9 8"/><path d="M5 9v12h14V9"/><path d="M10 21v-6h4v6"/></svg>
+            </div>
+            <div class="rc-mark"></div>
+            <b>Villas / plotted</b>
+            <small>Independent homes, row villas or plots</small>
+          </button>
+          <button type="button" class="radio-card" data-radio="type" data-val="mixed" aria-pressed="false">
+            <div class="rc-ico">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="9" width="8" height="12"/><rect x="13" y="3" width="8" height="18"/></svg>
+            </div>
+            <div class="rc-mark"></div>
+            <b>Mixed-use</b>
+            <small>Residential + retail / offices on the same plot</small>
+          </button>
+        </div>
+      </section>
+
+      <!-- Basics ---------------------------- -->
+      <section class="section">
+        <div class="section-head">
+          <h2><em>Basics</em></h2>
+          <small>Step 2</small>
+        </div>
+
+        <div class="grid-row">
+          <div class="field col-8">
+            <label>Project name <span class="req">*</span></label>
+            <input class="input" type="text" placeholder="e.g. Green Valley Residences" value="Aparna Cascade" />
+            <span class="hint">This appears on the listing page and brochures.</span>
+          </div>
+          <div class="field col-4">
+            <label>Short code <span class="opt">optional</span></label>
+            <input class="input" type="text" placeholder="GVR" value="APC" style="text-transform:uppercase; font-variant: tabular-nums;" maxlength="6" />
+            <span class="hint">Used internally for lead routing.</span>
+          </div>
+        </div>
+
+        <div class="grid-row">
+          <div class="field col-12">
+            <label>One-line pitch <span class="opt">optional</span></label>
+            <input class="input" type="text" placeholder="What makes this project worth a tour?" />
+          </div>
+        </div>
+
+        <div class="grid-row">
+          <div class="field col-6">
+            <label>City <span class="req">*</span></label>
+            <select class="select">
+              <option>Hyderabad</option>
+              <option>Pune</option>
+              <option>Bengaluru</option>
+              <option>Chennai</option>
+              <option>Mumbai</option>
+              <option>NCR</option>
+            </select>
+          </div>
+          <div class="field col-6">
+            <label>Locality <span class="req">*</span></label>
+            <input class="input" type="text" placeholder="e.g. Gachibowli" value="Kokapet" />
+          </div>
+        </div>
+
+        <div class="grid-row">
+          <div class="field col-12">
+            <label>Full address</label>
+            <textarea class="input" placeholder="Survey numbers, landmarks, full postal address…">Plot 22 & 23, Survey No. 184, Kokapet Village, Rajendranagar Mandal, Hyderabad — 500075</textarea>
+          </div>
+        </div>
+
+        <div class="grid-row">
+          <div class="field col-4">
+            <label>RERA number</label>
+            <input class="input" type="text" placeholder="P02400003456" value="P02400003456" style="font-variant: tabular-nums;" />
+          </div>
+          <div class="field col-4">
+            <label>Approval date</label>
+            <input class="input" type="text" placeholder="DD / MM / YYYY" value="14 / 03 / 2026" style="font-variant: tabular-nums;" />
+          </div>
+          <div class="field col-4">
+            <label>Possession by</label>
+            <input class="input" type="text" placeholder="MM / YYYY" value="Dec / 2028" style="font-variant: tabular-nums;" />
+          </div>
+        </div>
+
+        <div class="rera-hint">
+          <div class="icn">i</div>
+          <div>
+            <b>We can auto-fill this for you.</b><br/>
+            Drop your RERA number above and we'll pull project name, layout, unit counts and approval details directly from the public registry.
+          </div>
+        </div>
+      </section>
+
+      <!-- Inventory ---------------------------- -->
+      <section class="section">
+        <div class="section-head">
+          <h2>Unit <em>inventory</em></h2>
+          <small>Step 3</small>
+        </div>
+
+        <div class="grid-row">
+          <div class="field col-6">
+            <label>Total saleable area</label>
+            <div class="input-group">
+              <input type="text" placeholder="0" value="2,40,000" />
+              <span class="suffix">sq ft</span>
+            </div>
+          </div>
+          <div class="field col-6">
+            <label>Land area</label>
+            <div class="input-group">
+              <input type="text" placeholder="0" value="6.4" />
+              <span class="suffix">acres</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 22px; margin-bottom: 10px;
+                    display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; flex-direction: column;">
+            <b style="font-size: 13.5px; font-weight: 500;">Unit types</b>
+            <small style="color: var(--muted); font-size: 12px;">Add each configuration with size, count and starting price.</small>
+          </div>
+          <div class="seg">
+            <button type="button" aria-pressed="true">₹ per unit</button>
+            <button type="button" aria-pressed="false">₹ per sq ft</button>
+          </div>
+        </div>
+
+        <div class="unit-list">
+          <div class="unit-row">
+            <select class="select"><option>2 BHK</option><option>2.5 BHK</option><option>3 BHK</option><option>4 BHK</option></select>
+            <div class="input-group">
+              <input type="text" value="1,180" />
+              <span class="suffix">sq ft</span>
+            </div>
+            <div class="input-group">
+              <input type="text" value="148" />
+              <span class="suffix">units</span>
+            </div>
+            <div class="input-group">
+              <span class="prefix">₹</span>
+              <input type="text" value="78,00,000" />
+            </div>
+            <button class="del-btn" type="button" aria-label="delete">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+            </button>
+          </div>
+          <div class="unit-row">
+            <select class="select"><option>3 BHK</option><option>2 BHK</option><option>2.5 BHK</option><option>4 BHK</option></select>
+            <div class="input-group">
+              <input type="text" value="1,640" />
+              <span class="suffix">sq ft</span>
+            </div>
+            <div class="input-group">
+              <input type="text" value="212" />
+              <span class="suffix">units</span>
+            </div>
+            <div class="input-group">
+              <span class="prefix">₹</span>
+              <input type="text" value="1,12,00,000" />
+            </div>
+            <button class="del-btn" type="button" aria-label="delete">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+            </button>
+          </div>
+          <div class="unit-row">
+            <select class="select"><option>4 BHK</option><option>2 BHK</option><option>2.5 BHK</option><option>3 BHK</option></select>
+            <div class="input-group">
+              <input type="text" value="2,280" />
+              <span class="suffix">sq ft</span>
+            </div>
+            <div class="input-group">
+              <input type="text" value="60" />
+              <span class="suffix">units</span>
+            </div>
+            <div class="input-group">
+              <span class="prefix">₹</span>
+              <input type="text" value="1,82,00,000" />
+            </div>
+            <button class="del-btn" type="button" aria-label="delete">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <button class="add-row" type="button">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+          Add another unit type
+        </button>
+
+        <div class="unit-totals">
+          <span><b>420</b> total units</span>
+          <span><b>3</b> configurations</span>
+          <span>Price band <b>₹78L – ₹1.82Cr</b></span>
+        </div>
+      </section>
+
+      <!-- Amenities & media ---------------------------- -->
+      <section class="section">
+        <div class="section-head">
+          <h2>Amenities &amp; <em>media</em></h2>
+          <small>Step 4</small>
+        </div>
+
+        <div class="field" style="margin-bottom: 22px;">
+          <label>Amenities <span class="opt">tap to toggle</span></label>
+          <div class="chip-grid">
+            <button type="button" class="chip" data-chip aria-pressed="true"><span class="tick">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+            </span> Clubhouse</button>
+            <button type="button" class="chip" data-chip aria-pressed="true"><span class="tick">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+            </span> Swimming pool</button>
+            <button type="button" class="chip" data-chip aria-pressed="true"><span class="tick">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+            </span> Gym</button>
+            <button type="button" class="chip" data-chip aria-pressed="false"><span class="tick">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+            </span> Indoor games</button>
+            <button type="button" class="chip" data-chip aria-pressed="true"><span class="tick">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+            </span> Kids play area</button>
+            <button type="button" class="chip" data-chip aria-pressed="false"><span class="tick">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+            </span> Tennis court</button>
+            <button type="button" class="chip" data-chip aria-pressed="false"><span class="tick">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+            </span> Badminton</button>
+            <button type="button" class="chip" data-chip aria-pressed="true"><span class="tick">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+            </span> 24×7 security</button>
+            <button type="button" class="chip" data-chip aria-pressed="true"><span class="tick">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+            </span> Power backup</button>
+            <button type="button" class="chip" data-chip aria-pressed="false"><span class="tick">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+            </span> EV charging</button>
+            <button type="button" class="chip" data-chip aria-pressed="false"><span class="tick">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+            </span> Pet park</button>
+            <button type="button" class="chip" data-chip aria-pressed="false"><span class="tick">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+            </span> Co-working</button>
+          </div>
+        </div>
+
+        <div class="grid-row">
+          <div class="field col-12">
+            <label>Unique selling points <span class="opt">press enter to add</span></label>
+            <div class="tags">
+              <span class="tag">Lake-facing tower <span class="x">×</span></span>
+              <span class="tag">Schools within 2km <span class="x">×</span></span>
+              <span class="tag">10 min to financial district <span class="x">×</span></span>
+              <input placeholder="Add a USP…" />
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-row">
+          <div class="field col-6">
+            <label>Cover photo</label>
+            <div class="upload">
+              <div class="icn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>
+              </div>
+              <b>Drop a photo, or <span class="browse">browse</span></b>
+              <small>Landscape · JPG/PNG · max 8MB</small>
+            </div>
+          </div>
+          <div class="field col-6">
+            <label>Brochure PDF</label>
+            <div class="upload">
+              <div class="icn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6"/></svg>
+              </div>
+              <b>Upload brochure, or <span class="browse">browse</span></b>
+              <small>PDF · max 24MB · we'll auto-generate thumbnails</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer actions -->
+      <div class="form-foot">
+        <div class="form-foot-left">
+          <b>Step 2 of 5 — Basics</b>
+          <span>You can save and return to this draft anytime.</span>
+        </div>
+        <div class="form-foot-right">
+          <button class="btn btn-text" type="button">Cancel</button>
+          <button class="btn btn-ghost" type="button">Save draft</button>
+          <button class="btn btn-primary" type="submit">
+            Continue
+            <span class="arr">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </span>
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="tweaks"></div>
+
+<script>
+  /* radio cards */
+  document.querySelectorAll('[data-radio]').forEach(b => {
+    b.addEventListener('click', () => {
+      const group = b.dataset.radio;
+      document.querySelectorAll('[data-radio="'+group+'"]').forEach(x => x.setAttribute('aria-pressed','false'));
+      b.setAttribute('aria-pressed','true');
+    });
+  });
+
+  /* chips */
+  document.querySelectorAll('[data-chip]').forEach(c => {
+    c.addEventListener('click', () => {
+      c.setAttribute('aria-pressed', c.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+    });
+  });
+
+  /* segmented */
+  document.querySelectorAll('.seg').forEach(s => {
+    s.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        s.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed','false'));
+        b.setAttribute('aria-pressed','true');
+      });
+    });
+  });
+
+  /* tags input */
+  document.querySelectorAll('.tags').forEach(box => {
+    const input = box.querySelector('input');
+    input?.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' && input.value.trim()){
+        e.preventDefault();
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.innerHTML = input.value.trim() + ' <span class="x">×</span>';
+        box.insertBefore(tag, input);
+        input.value = '';
+      }
+    });
+    box.addEventListener('click', (e) => {
+      if(e.target.classList.contains('x')){ e.target.parentElement.remove(); }
+    });
+  });
+
+  /* tweaks */
+  const DEFAULTS = /*EDITMODE-BEGIN*/{ "accent": "forest" }/*EDITMODE-END*/;
+  let TWEAKS = { ...DEFAULTS };
+  function apply(){ document.body.dataset.accent = TWEAKS.accent; }
+  apply();
+  const panelEl = document.getElementById('tweaks');
+  function setKey(k, v){ TWEAKS[k] = v; apply(); renderPanel();
+    window.parent.postMessage({ type:'__edit_mode_set_keys', edits: { [k]: v } }, '*');
+  }
+  function renderPanel(){
+    if(!panelEl.dataset.open) return;
+    panelEl.innerHTML = `
+      <div class="tw-card">
+        <div class="tw-head">
+          <span class="tw-title">Tweaks</span>
+          <button class="tw-x" aria-label="close">×</button>
+        </div>
+        <div class="tw-sec">
+          <div class="tw-label">Accent</div>
+          <div class="tw-row">
+            <button class="tw-swatch" data-action="accent:forest" style="--c:#2D3A2E" aria-pressed="${TWEAKS.accent==='forest'}"></button>
+            <button class="tw-swatch" data-action="accent:ink"    style="--c:#111210" aria-pressed="${TWEAKS.accent==='ink'}"></button>
+            <button class="tw-swatch" data-action="accent:terra"  style="--c:#7A4A35" aria-pressed="${TWEAKS.accent==='terra'}"></button>
+            <button class="tw-swatch" data-action="accent:navy"   style="--c:#1F2E4A" aria-pressed="${TWEAKS.accent==='navy'}"></button>
+          </div>
+        </div>
+      </div>`;
+    panelEl.querySelectorAll('[data-action]').forEach(b => {
+      b.addEventListener('click', () => { const [k,v] = b.dataset.action.split(':'); setKey(k,v); });
+    });
+    panelEl.querySelector('.tw-x').addEventListener('click', () => {
+      panelEl.dataset.open = ''; panelEl.innerHTML = '';
+      window.parent.postMessage({ type:'__edit_mode_dismissed' }, '*');
+    });
+  }
+  window.addEventListener('message', (e) => {
+    const t = e.data && e.data.type;
+    if(t === '__activate_edit_mode'){ panelEl.dataset.open = '1'; renderPanel(); }
+    if(t === '__deactivate_edit_mode'){ panelEl.dataset.open = ''; panelEl.innerHTML = ''; }
+  });
+  window.parent.postMessage({ type:'__edit_mode_available' }, '*');
+</script>
+
+</body>
+</html>

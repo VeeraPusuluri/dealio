@@ -1,0 +1,1134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>dealio — My Projects</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<style>
+  :root{
+    --bg: #F2EEE6;
+    --bg-2: #ECE7DC;
+    --ink: #0E1612;
+    --ink-2: #2A332E;
+    --muted: #6B7269;
+    --line: #DDD6C7;
+    --card: #FBF8F1;
+    --card-2: #FFFFFF;
+    --accent: #1F5D46;
+    --accent-2: #2A7A5C;
+    --accent-ink: #F5F1E6;
+    --gold: #B98856;
+    --danger: #B5462F;
+    --launch: #6A4FB6;
+
+    --r-lg: 22px;
+    --r-md: 14px;
+    --r-sm: 10px;
+
+    --serif: "Instrument Serif", "Times New Roman", serif;
+    --sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+
+  body[data-theme="dark"]{
+    --bg: #0C100E;
+    --bg-2: #11161300;
+    --ink: #F2EEE6;
+    --ink-2: #C9C6BD;
+    --muted: #8A9088;
+    --line: #1F2723;
+    --card: #141A16;
+    --card-2: #181F1B;
+    --accent: #6BCFA4;
+    --accent-2: #87E0B8;
+    --accent-ink: #061611;
+  }
+
+  body[data-accent="gold"]{ --accent:#9C6A2E; --accent-2:#B98856; --accent-ink:#FBF6EC; }
+  body[data-accent="indigo"]{ --accent:#3340B0; --accent-2:#5560D6; --accent-ink:#F2F1FA; }
+  body[data-accent="emerald"]{ --accent:#1F5D46; --accent-2:#2A7A5C; --accent-ink:#F5F1E6; }
+  body[data-theme="dark"][data-accent="gold"]{ --accent:#E0B57A; --accent-2:#EEC795; --accent-ink:#1A130A; }
+  body[data-theme="dark"][data-accent="indigo"]{ --accent:#9AA4F0; --accent-2:#B3BBF5; --accent-ink:#0A0C1A; }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.005em;
+    min-height: 100vh;
+  }
+
+  .app{
+    display:grid;
+    grid-template-columns: 232px 1fr;
+    min-height:100vh;
+  }
+
+  /* ============ SIDEBAR ============ */
+  .side{
+    border-right: 1px solid var(--line);
+    padding: 22px 18px;
+    position: sticky; top:0; height:100vh;
+    background: var(--bg);
+    display:flex; flex-direction:column; gap: 18px;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    padding: 4px 6px 16px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .brand-mark{
+    width:32px; height:32px; border-radius:9px;
+    background: var(--ink); color: var(--bg);
+    display:grid; place-items:center;
+    font-family: var(--serif);
+    font-size: 22px; font-style: italic;
+    line-height:1; padding-bottom:2px;
+  }
+  .brand-name{
+    font-family: var(--serif); font-size: 26px;
+    line-height: 1; letter-spacing: -0.01em;
+  }
+  .brand-name em{ font-style: italic; color: var(--accent); }
+
+  .nav-section-label{
+    font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--muted); padding: 0 8px; margin-top: 6px;
+  }
+  .nav{ display:flex; flex-direction:column; gap:1px; }
+  .nav a{
+    display:flex; align-items:center; gap:10px;
+    padding: 9px 10px; border-radius: 9px;
+    color: var(--ink-2); text-decoration:none;
+    font-weight: 500; font-size: 13.5px;
+  }
+  .nav a:hover{ background: var(--card); color: var(--ink); }
+  .nav a.active{ background: var(--ink); color: var(--bg); }
+  .nav a .ico{ width:16px; height:16px; opacity:.85; }
+  .nav a .badge{
+    margin-left:auto; font-size: 11px;
+    background: var(--accent); color: var(--accent-ink);
+    padding: 1px 7px; border-radius: 99px; font-weight:600;
+  }
+  .nav a.active .badge{ background: var(--bg); color: var(--ink); }
+
+  .side-foot{
+    margin-top:auto;
+    border:1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px;
+    background: var(--card);
+    display:flex; gap:10px; align-items:center;
+  }
+  .avatar{
+    width:36px; height:36px; border-radius:50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: var(--accent-ink);
+    display:grid; place-items:center; font-weight:700; font-size: 13px;
+    flex-shrink:0;
+  }
+  .side-foot .who{ line-height:1.2; }
+  .side-foot .who b{ font-size: 13px; }
+  .side-foot .who small{ font-size: 11px; color: var(--muted); display:block; }
+
+  /* ============ MAIN ============ */
+  main{ padding: 28px 40px 80px; max-width: 1440px; }
+
+  .topbar{
+    display:flex; align-items:center; gap: 14px;
+    padding-bottom: 22px;
+  }
+  .crumbs{
+    color: var(--muted); font-size: 12.5px;
+    display:flex; gap:6px; align-items:center;
+  }
+  .crumbs b{ color: var(--ink); font-weight:600; }
+  .top-actions{ margin-left:auto; display:flex; gap: 8px; align-items:center; }
+  .icon-btn{
+    width:36px; height:36px; border-radius: 10px;
+    border:1px solid var(--line); background: var(--card);
+    display:grid; place-items:center; cursor:pointer;
+    color: var(--ink);
+  }
+  .icon-btn:hover{ background: var(--card-2); }
+
+  /* ====== HERO ====== */
+  .hero{
+    display:grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 28px;
+    align-items:end;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--line);
+  }
+  .hero-title{
+    font-family: var(--serif);
+    font-size: clamp(54px, 6.2vw, 92px);
+    line-height: 0.96;
+    letter-spacing: -0.02em;
+    margin: 0;
+    color: var(--ink);
+  }
+  .hero-title em{ font-style: italic; color: var(--accent); }
+  .hero-title .num{
+    font-family: var(--sans);
+    font-weight: 700; font-size: 0.22em;
+    letter-spacing: -0.01em; vertical-align: 0.9em;
+    margin-left: 12px;
+    color: var(--ink-2);
+    background: var(--card);
+    border:1px solid var(--line);
+    padding: 4px 12px 5px;
+    border-radius: 99px; line-height: 1;
+  }
+  .hero-sub{
+    color: var(--muted); font-size: 14.5px;
+    max-width: 520px; margin: 18px 0 0;
+  }
+  .hero-sub b{ color: var(--ink); font-weight:600; }
+
+  .hero-cta{
+    display:flex; gap: 10px; flex-wrap:wrap;
+    align-items:center; justify-content: flex-end;
+  }
+  .btn{
+    display:inline-flex; align-items:center; gap:8px;
+    padding: 11px 16px; border-radius: 99px;
+    font-weight: 600; font-size: 13.5px;
+    border: 1px solid transparent; cursor: pointer;
+    font-family: var(--sans);
+    text-decoration:none;
+    transition: transform .12s ease, background .15s ease;
+  }
+  .btn:hover{ transform: translateY(-1px); }
+  .btn-primary{ background: var(--ink); color: var(--bg); }
+  .btn-primary .plus{
+    width:18px;height:18px;border-radius:50%;
+    background: var(--accent); color: var(--accent-ink);
+    display:grid;place-items:center; font-weight:700; font-size: 13px;
+  }
+  .btn-ghost{
+    background: transparent; color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .btn-ghost:hover{ background: var(--card); }
+
+  /* ====== STATS ====== */
+  .stats{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    padding: 26px 0 28px;
+    border-bottom: 1px solid var(--line);
+  }
+  .stat{
+    padding: 4px 22px;
+    border-left: 1px solid var(--line);
+    position:relative;
+  }
+  .stat:first-child{ border-left: none; padding-left: 0; }
+  .stat-label{
+    font-size: 11px; letter-spacing:.14em; text-transform:uppercase;
+    color: var(--muted); font-weight: 600;
+  }
+  .stat-value{
+    font-family: var(--serif);
+    font-size: 44px; line-height: 1.05;
+    margin-top: 8px; letter-spacing: -0.01em;
+  }
+  .stat-value .unit{
+    font-family: var(--sans); font-size: 16px; font-weight: 600;
+    color: var(--muted); margin-left: 2px;
+  }
+  .stat-delta{
+    display:inline-flex; align-items:center; gap:4px;
+    font-size: 11.5px; font-weight: 600;
+    color: var(--accent); margin-top: 6px;
+  }
+  .stat-delta.down{ color: var(--danger); }
+  .stat-spark{
+    position:absolute; right: 22px; top: 18px;
+    width: 64px; height: 28px; opacity:.8;
+  }
+  .stat:first-child .stat-spark{ right: 0; }
+
+  /* ====== TOOLBAR ====== */
+  .toolbar{
+    display:flex; align-items:center; gap: 10px;
+    padding: 22px 0 18px;
+    flex-wrap: wrap;
+  }
+  .tabs{
+    display:flex; gap:4px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    padding: 4px; border-radius: 99px;
+  }
+  .tab{
+    padding: 7px 14px; border-radius: 99px;
+    font-size: 12.5px; font-weight: 600;
+    color: var(--ink-2);
+    cursor:pointer; border:none; background:transparent;
+    display:inline-flex; align-items:center; gap:6px;
+    font-family: var(--sans);
+  }
+  .tab .count{
+    font-size: 11px; color: var(--muted);
+    background: var(--bg);
+    border-radius: 99px; padding: 1px 6px; min-width:18px;
+    text-align:center;
+  }
+  .tab[aria-pressed="true"]{ background: var(--ink); color: var(--bg); }
+  .tab[aria-pressed="true"] .count{ background: rgba(255,255,255,0.15); color: var(--bg); }
+
+  .search{
+    margin-left:auto;
+    display:flex; align-items:center;
+    border:1px solid var(--line); background: var(--card);
+    padding: 8px 12px; border-radius: 99px;
+    width: 240px; gap:8px;
+  }
+  .search input{
+    background:transparent; border:none; outline:none;
+    color: var(--ink); font-family: var(--sans); font-size: 13px;
+    flex:1; min-width:0;
+  }
+  .search input::placeholder{ color: var(--muted); }
+
+  .view-toggle{
+    display:flex;
+    background: var(--card);
+    border:1px solid var(--line);
+    padding: 3px; border-radius: 10px;
+  }
+  .view-toggle button{
+    padding: 6px 8px; border:none; background:transparent;
+    border-radius: 7px; cursor:pointer; color: var(--muted);
+    display:grid; place-items:center;
+  }
+  .view-toggle button[aria-pressed="true"]{ background: var(--ink); color: var(--bg); }
+
+  /* ====== GRID ====== */
+  .projects-grid{
+    display:grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 18px;
+  }
+  .card{
+    grid-column: span 4;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    overflow:hidden;
+    display:flex; flex-direction:column;
+    position:relative;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  }
+  .card:hover{
+    transform: translateY(-2px);
+    box-shadow: 0 18px 40px -22px rgba(14,22,18,.18);
+    border-color: var(--ink-2);
+  }
+  .card.featured{ grid-column: span 8; flex-direction: row; min-height: 360px; }
+
+  .card-media{
+    position:relative;
+    aspect-ratio: 4/3;
+    background: var(--bg-2);
+    overflow:hidden;
+  }
+  .card.featured .card-media{
+    aspect-ratio: auto;
+    flex: 1.2; min-width: 0;
+  }
+  .card-media img{
+    width:100%; height:100%; object-fit:cover;
+    display:block;
+    transition: transform .8s ease;
+  }
+  .card:hover .card-media img{ transform: scale(1.04); }
+  .card-media::after{
+    content:'';
+    position:absolute; inset:auto 0 0 0; height: 45%;
+    background: linear-gradient(to top, rgba(8,12,10,.55), transparent);
+    pointer-events:none;
+  }
+
+  /* placeholder for missing images */
+  .placeholder{
+    width:100%; height:100%;
+    background: linear-gradient(135deg, #1F5D46 0%, #2A7A5C 60%, #6BCFA4 100%);
+    position:relative;
+    display:grid; place-items:center;
+    overflow:hidden;
+  }
+  .placeholder::before{
+    content:'';
+    position:absolute; inset:-20%;
+    background:
+      radial-gradient(circle at 20% 80%, rgba(255,255,255,.15), transparent 50%),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 1px, transparent 1px 40px),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0 1px, transparent 1px 40px);
+  }
+  .placeholder span{
+    position:relative; z-index:1;
+    background: rgba(0,0,0,.18);
+    width: 80px; height: 80px;
+    border-radius: 18px;
+    display:grid; place-items:center;
+    color: rgba(255,255,255,.9);
+    font-family: var(--serif); font-style: italic; font-size: 40px;
+  }
+
+  .pills{
+    position:absolute; left:14px; top:14px;
+    display:flex; gap:6px; z-index:2;
+  }
+  .pill{
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 5px 9px 5px 22px;
+    border-radius: 99px;
+    background: rgba(255,255,255,.92);
+    color: var(--ink);
+    position:relative;
+    backdrop-filter: blur(6px);
+  }
+  .pill::before{
+    content:''; position:absolute;
+    left: 9px; top: 50%; transform: translateY(-50%);
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #1F8A5B;
+    box-shadow: 0 0 0 3px rgba(31,138,91,.22);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100%{ box-shadow: 0 0 0 3px rgba(31,138,91,.22); }
+    50%{ box-shadow: 0 0 0 6px rgba(31,138,91,.05); }
+  }
+  .pill.draft::before{ background: #6B7269; box-shadow: 0 0 0 3px rgba(107,114,105,.18); animation:none; }
+  .pill.uc::before{ background: var(--gold); box-shadow: 0 0 0 3px rgba(185,136,86,.22); animation:none; }
+
+  .status-tag{
+    position:absolute; right:14px; top:14px; z-index:2;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    border-radius: 99px;
+    background: rgba(15,18,16,.7);
+    color: #F2EEE6;
+    backdrop-filter: blur(6px);
+  }
+  .status-tag.new{ background: var(--launch); color: white; }
+  .status-tag.live{ background: var(--accent); color: var(--accent-ink); }
+
+  .price-bubble{
+    position:absolute; left:14px; bottom: 14px; z-index:2;
+    background: rgba(251,248,241,.96);
+    color: var(--ink);
+    border-radius: 14px;
+    padding: 9px 12px;
+    display:flex; flex-direction:column;
+    box-shadow: 0 8px 24px -10px rgba(0,0,0,.3);
+    backdrop-filter: blur(8px);
+  }
+  .price-bubble small{
+    font-size: 10px; color: var(--muted);
+    text-transform:uppercase; letter-spacing: .12em; font-weight:600;
+  }
+  .price-bubble b{
+    font-family: var(--serif); font-size: 22px;
+    font-weight: 400; line-height: 1.1;
+    letter-spacing: -0.01em; margin-top: 1px;
+  }
+
+  .card-body{
+    padding: 18px 18px 16px;
+    display:flex; flex-direction:column; gap: 12px;
+    flex:1;
+  }
+  .card.featured .card-body{
+    padding: 28px 28px 24px;
+    flex: 1; justify-content: space-between;
+    min-width: 0;
+  }
+  .card-head{ display:flex; align-items:flex-start; gap:10px; }
+  .card-head .name{
+    font-family: var(--serif);
+    font-size: 24px; line-height: 1.1;
+    letter-spacing: -0.01em; margin: 0;
+    color: var(--ink); flex:1;
+  }
+  .card.featured .card-head .name{ font-size: 42px; line-height: 1.0; }
+  .card-head .more{
+    color: var(--muted); cursor:pointer;
+    width:26px; height:26px; border-radius:8px;
+    display:grid; place-items:center; flex-shrink:0;
+  }
+  .card-head .more:hover{ background: var(--bg-2); color: var(--ink); }
+
+  .loc{
+    display:flex; align-items:center; gap:6px;
+    color: var(--muted); font-size: 13px;
+    flex-wrap: wrap;
+  }
+  .loc svg{ flex-shrink:0; }
+  .loc b{ color: var(--ink-2); font-weight:600; }
+  .loc .rera{
+    display:inline-flex; align-items:center; gap:4px;
+    margin-left: 4px;
+    padding: 2px 8px;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--accent);
+    border-radius: 99px;
+    font-size: 10.5px; font-weight:700; letter-spacing:.04em;
+  }
+
+  .meta-grid{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 12px 0 4px;
+    border-top: 1px dashed var(--line);
+    margin-top: 4px;
+  }
+  .card.featured .meta-grid{ grid-template-columns: repeat(4,1fr); gap:14px; }
+  .meta{ display:flex; flex-direction:column; gap:1px; }
+  .meta .k{
+    font-size: 10px; letter-spacing:.12em; text-transform:uppercase;
+    color: var(--muted); font-weight:600;
+  }
+  .meta .v{
+    font-size: 14px; font-weight: 600; color: var(--ink);
+    font-family: var(--sans); letter-spacing: -0.01em;
+  }
+  .card.featured .meta .v{ font-size: 17px; }
+
+  .progress{ margin-top: 8px; }
+  .progress-row{
+    display:flex; justify-content:space-between;
+    font-size: 11.5px; color: var(--muted);
+    margin-bottom: 6px; font-weight:600;
+  }
+  .progress-row b{ color: var(--ink); font-family: var(--mono); font-size: 12px; }
+  .bar{
+    height: 6px; background: var(--bg-2);
+    border-radius: 99px; overflow:hidden;
+    border: 1px solid var(--line);
+  }
+  .bar > i{
+    display:block; height:100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: 99px;
+  }
+
+  .card-foot{
+    display:flex; gap: 8px; align-items:center;
+    margin-top: auto;
+  }
+  .manage{
+    flex: 1;
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 10px 14px;
+    background: var(--ink); color: var(--bg);
+    border-radius: 99px;
+    font-weight: 600; font-size: 13px;
+    text-decoration: none;
+    border:none; cursor:pointer; font-family: var(--sans);
+    transition: background .2s ease;
+  }
+  .manage:hover{ background: var(--accent); color: var(--accent-ink); }
+  .manage .arr{
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--bg); color: var(--ink);
+    display:grid; place-items:center;
+    transition: transform .2s ease;
+  }
+  .manage:hover .arr{ transform: translateX(3px); background: var(--accent-ink); color: var(--accent); }
+
+  .secondary{
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--card-2);
+    cursor:pointer;
+    display:grid; place-items:center;
+    color: var(--ink);
+  }
+  .secondary:hover{ background: var(--bg-2); }
+
+  .card-new{
+    grid-column: span 4;
+    background: transparent;
+    border: 1.5px dashed var(--line);
+    border-radius: var(--r-lg);
+    min-height: 320px;
+    display:flex; flex-direction: column;
+    align-items:center; justify-content:center;
+    gap: 12px;
+    color: var(--muted);
+    cursor:pointer;
+    font-family: var(--sans);
+    text-align:center; padding: 24px;
+  }
+  .card-new:hover{ border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  .card-new .big-plus{
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--card);
+    border:1px solid var(--line);
+    display:grid; place-items:center;
+    font-size: 26px; color: var(--ink-2);
+    font-weight: 300;
+  }
+  .card-new:hover .big-plus{ background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .card-new .lbl{ font-weight:600; font-size: 14px; }
+  .card-new .sub{ font-size: 12px; color: var(--muted); }
+
+  /* COMPACT density */
+  body[data-density="compact"] .card-body{ padding: 14px 14px 12px; gap: 8px; }
+  body[data-density="compact"] .card-head .name{ font-size: 20px; }
+  body[data-density="compact"] .meta-grid{ padding: 8px 0 2px; }
+  body[data-density="compact"] .card-media{ aspect-ratio: 16/10; }
+
+  /* LIST layout */
+  body[data-layout="list"] .projects-grid{ grid-template-columns: 1fr; gap: 12px; }
+  body[data-layout="list"] .card,
+  body[data-layout="list"] .card.featured{
+    grid-column: span 12; flex-direction: row; min-height: 200px;
+  }
+  body[data-layout="list"] .card-media{ aspect-ratio: auto; width: 300px; flex-shrink:0; }
+  body[data-layout="list"] .card.featured .card-media{ width: 380px; flex: none; }
+  body[data-layout="list"] .card-head .name{ font-size: 26px; }
+  body[data-layout="list"] .meta-grid{ grid-template-columns: repeat(4, 1fr); }
+  body[data-layout="list"] .card-new{ grid-column: span 12; min-height: 100px; flex-direction:row; }
+
+  /* responsive */
+  @media (max-width: 1180px){
+    .card{ grid-column: span 6; }
+    .card.featured{ grid-column: span 12; }
+    .card-new{ grid-column: span 6; }
+    .stats{ grid-template-columns: repeat(2, 1fr); row-gap: 20px; }
+    .stat:nth-child(3){ border-left:none; padding-left:0; }
+  }
+  @media (max-width: 860px){
+    .app{ grid-template-columns: 1fr; }
+    .side{ display:none; }
+    main{ padding: 20px; }
+    .hero{ grid-template-columns: 1fr; }
+    .hero-cta{ justify-content:flex-start; }
+    .card, .card-new{ grid-column: span 12; }
+  }
+</style>
+</head>
+<body data-theme="light" data-accent="emerald" data-layout="grid" data-density="comfortable">
+
+<div class="app">
+
+  <!-- ========================= SIDEBAR ========================= -->
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark">d</div>
+      <div class="brand-name">deal<em>io</em></div>
+    </div>
+
+    <div class="nav-section-label">Workspace</div>
+    <nav class="nav">
+      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg> Dashboard</a>
+      <a href="#" class="active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="9" width="18" height="12" rx="1"/><path d="M9 9V5h6v4"/><path d="M9 14h6M9 17h6"/></svg> Projects <span class="badge">12</span></a>
+      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h18M3 12h18M3 17h18"/></svg> Inventory</a>
+      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7"/><circle cx="17" cy="6" r="2"/><path d="M22 18c0-3-2-5-5-5"/></svg> Leads</a>
+      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg> Analytics</a>
+    </nav>
+
+    <div class="nav-section-label">Tools</div>
+    <nav class="nav">
+      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg> Campaigns</a>
+      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg> Sites</a>
+      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg> Settings</a>
+    </nav>
+
+    <div class="side-foot">
+      <div class="avatar">AR</div>
+      <div class="who"><b>Aparna Realty</b><small>Builder · Pro plan</small></div>
+    </div>
+  </aside>
+
+  <!-- ========================= MAIN ========================= -->
+  <main>
+
+    <div class="topbar">
+      <div class="crumbs">Workspace <span>›</span> <b>Projects</b></div>
+      <div class="top-actions">
+        <button class="icon-btn" aria-label="notifications">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 004 0"/></svg>
+        </button>
+        <button class="icon-btn" aria-label="help">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 0c0 2-2.5 2-2.5 4"/><circle cx="12" cy="17" r="0.7" fill="currentColor"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <section class="hero">
+      <div>
+        <h1 class="hero-title">My <em>projects</em><span class="num">12 active</span></h1>
+        <p class="hero-sub">
+          Six active developments across <b>Hyderabad</b>, <b>Pune</b> and <b>Bengaluru</b> — together moving <b>₹486 Cr</b> of inventory this quarter. Up <b>14.2%</b> from Q3.
+        </p>
+      </div>
+      <div class="hero-cta">
+        <button class="btn btn-ghost">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg>
+          Import RERA
+        </button>
+        <button class="btn btn-primary">
+          <span class="plus">+</span>
+          New Project
+        </button>
+      </div>
+    </section>
+
+    <section class="stats">
+      <div class="stat">
+        <div class="stat-label">Portfolio Value</div>
+        <div class="stat-value">₹486<span class="unit">Cr</span></div>
+        <div class="stat-delta">▲ 14.2% QoQ</div>
+        <svg class="stat-spark" viewBox="0 0 64 28" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M0 22 L10 18 L18 20 L26 14 L34 16 L42 8 L52 10 L64 4"/></svg>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Units Sold</div>
+        <div class="stat-value">1,247<span class="unit">/ 2,180</span></div>
+        <div class="stat-delta">▲ 57% sold-through</div>
+        <svg class="stat-spark" viewBox="0 0 64 28" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M0 24 L10 22 L18 16 L26 18 L34 12 L42 14 L52 8 L64 6"/></svg>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Active Leads</div>
+        <div class="stat-value">3,412</div>
+        <div class="stat-delta">▲ 8.6% this week</div>
+        <svg class="stat-spark" viewBox="0 0 64 28" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M0 18 L10 20 L18 14 L26 16 L34 12 L42 14 L52 6 L64 8"/></svg>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Avg Ticket</div>
+        <div class="stat-value">₹92<span class="unit">L</span></div>
+        <div class="stat-delta down">▼ 2.1% MoM</div>
+        <svg class="stat-spark" viewBox="0 0 64 28" fill="none" stroke="var(--danger)" stroke-width="1.5"><path d="M0 8 L10 12 L18 10 L26 16 L34 14 L42 18 L52 16 L64 22"/></svg>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <div class="tabs" role="tablist">
+        <button class="tab" aria-pressed="true">All <span class="count">12</span></button>
+        <button class="tab" aria-pressed="false">Live <span class="count">9</span></button>
+        <button class="tab" aria-pressed="false">New Launch <span class="count">2</span></button>
+        <button class="tab" aria-pressed="false">Under Construction <span class="count">5</span></button>
+        <button class="tab" aria-pressed="false">Drafts <span class="count">3</span></button>
+      </div>
+
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input placeholder="Search projects, cities, RERA…" />
+      </div>
+
+      <div class="view-toggle">
+        <button aria-pressed="true" title="Grid" data-view="grid">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+        </button>
+        <button aria-pressed="false" title="List" data-view="list">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <section class="projects-grid" id="grid">
+
+      <!-- FEATURED -->
+      <article class="card featured">
+        <div class="card-media">
+          <img src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<span>GV</span>'}))" />
+          <div class="pills"><span class="pill">Live</span></div>
+          <div class="status-tag live">Top performer</div>
+          <div class="price-bubble"><small>Price band</small><b>₹60L – ₹95L</b></div>
+        </div>
+        <div class="card-body">
+          <div>
+            <div class="card-head">
+              <h2 class="name">Green Valley<br/>Residences</h2>
+              <span class="more"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
+            </div>
+            <div class="loc">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+              Gachibowli, <b>Hyderabad</b>
+              <span class="rera">● RERA Verified</span>
+            </div>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta"><span class="k">Units</span><span class="v">420</span></div>
+            <div class="meta"><span class="k">Config</span><span class="v">2 & 3 BHK</span></div>
+            <div class="meta"><span class="k">Possession</span><span class="v">Dec 2027</span></div>
+            <div class="meta"><span class="k">Sold</span><span class="v">68%</span></div>
+          </div>
+
+          <div class="progress">
+            <div class="progress-row"><span>Construction</span><b>62%</b></div>
+            <div class="bar"><i style="width:62%"></i></div>
+          </div>
+
+          <div class="card-foot">
+            <a href="#" class="manage">Manage project <span class="arr">→</span></a>
+            <button class="secondary" title="Open site"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H9M17 7v8"/></svg></button>
+            <button class="secondary" title="Share"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="12" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><path d="M8 11l8-4M8 13l8 4"/></svg></button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Sunrise -->
+      <article class="card">
+        <div class="card-media">
+          <img src="https://images.unsplash.com/photo-1576941089067-2de3c901e126?auto=format&fit=crop&w=900&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<span>SH</span>'}))" />
+          <div class="pills"><span class="pill">Live</span></div>
+          <div class="status-tag new">New Launch</div>
+          <div class="price-bubble"><small>Price band</small><b>₹85L – ₹1.2Cr</b></div>
+        </div>
+        <div class="card-body">
+          <div class="card-head">
+            <h2 class="name">Sunrise Heights</h2>
+            <span class="more"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
+          </div>
+          <div class="loc">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            Kondapur, <b>Hyderabad</b>
+            <span class="rera">● RERA</span>
+          </div>
+          <div class="meta-grid">
+            <div class="meta"><span class="k">Units</span><span class="v">186</span></div>
+            <div class="meta"><span class="k">Config</span><span class="v">3 BHK</span></div>
+            <div class="meta"><span class="k">Launch</span><span class="v">Q2 ’26</span></div>
+          </div>
+          <div class="card-foot">
+            <a href="#" class="manage">Manage <span class="arr">→</span></a>
+          </div>
+        </div>
+      </article>
+
+      <!-- Aparna Skyline -->
+      <article class="card">
+        <div class="card-media">
+          <img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<span>AS</span>'}))" />
+          <div class="pills"><span class="pill">Live</span></div>
+          <div class="status-tag live">Active</div>
+          <div class="price-bubble"><small>Starting</small><b>₹1.4 Cr</b></div>
+        </div>
+        <div class="card-body">
+          <div class="card-head">
+            <h2 class="name">Aparna Skyline</h2>
+            <span class="more"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
+          </div>
+          <div class="loc">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            Wakad, <b>Pune</b>
+            <span class="rera">● RERA</span>
+          </div>
+          <div class="meta-grid">
+            <div class="meta"><span class="k">Units</span><span class="v">324</span></div>
+            <div class="meta"><span class="k">Config</span><span class="v">2/3/4 BHK</span></div>
+            <div class="meta"><span class="k">Sold</span><span class="v">42%</span></div>
+          </div>
+          <div class="card-foot">
+            <a href="#" class="manage">Manage <span class="arr">→</span></a>
+          </div>
+        </div>
+      </article>
+
+      <!-- Parna draft -->
+      <article class="card">
+        <div class="card-media">
+          <div class="placeholder"><span>P</span></div>
+          <div class="pills"><span class="pill draft">Draft</span></div>
+          <div class="status-tag">Setup 60%</div>
+        </div>
+        <div class="card-body">
+          <div class="card-head">
+            <h2 class="name">Parna</h2>
+            <span class="more"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
+          </div>
+          <div class="loc">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            Whitefield, <b>Bengaluru</b>
+          </div>
+          <div class="meta-grid">
+            <div class="meta"><span class="k">Status</span><span class="v">Pre-RERA</span></div>
+            <div class="meta"><span class="k">Plot</span><span class="v">3.2 acres</span></div>
+            <div class="meta"><span class="k">Type</span><span class="v">Mixed-use</span></div>
+          </div>
+          <div class="card-foot">
+            <a href="#" class="manage">Continue setup <span class="arr">→</span></a>
+          </div>
+        </div>
+      </article>
+
+      <!-- Riverpark -->
+      <article class="card">
+        <div class="card-media">
+          <img src="https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=900&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<span>RP</span>'}))" />
+          <div class="pills"><span class="pill">Live</span></div>
+          <div class="status-tag live">Active</div>
+          <div class="price-bubble"><small>Starting</small><b>₹78 L</b></div>
+        </div>
+        <div class="card-body">
+          <div class="card-head">
+            <h2 class="name">Riverpark</h2>
+            <span class="more"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
+          </div>
+          <div class="loc">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            Kokapet, <b>Hyderabad</b>
+            <span class="rera">● RERA</span>
+          </div>
+          <div class="meta-grid">
+            <div class="meta"><span class="k">Units</span><span class="v">512</span></div>
+            <div class="meta"><span class="k">Config</span><span class="v">2 & 3 BHK</span></div>
+            <div class="meta"><span class="k">Sold</span><span class="v">81%</span></div>
+          </div>
+          <div class="card-foot">
+            <a href="#" class="manage">Manage <span class="arr">→</span></a>
+          </div>
+        </div>
+      </article>
+
+      <!-- North Bloom -->
+      <article class="card">
+        <div class="card-media">
+          <img src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=900&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<span>NB</span>'}))" />
+          <div class="pills"><span class="pill uc">U/C</span></div>
+          <div class="status-tag">Under Construction</div>
+          <div class="price-bubble"><small>Price band</small><b>₹1.1 – 1.8 Cr</b></div>
+        </div>
+        <div class="card-body">
+          <div class="card-head">
+            <h2 class="name">North Bloom</h2>
+            <span class="more"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
+          </div>
+          <div class="loc">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            Hebbal, <b>Bengaluru</b>
+            <span class="rera">● RERA</span>
+          </div>
+          <div class="meta-grid">
+            <div class="meta"><span class="k">Units</span><span class="v">240</span></div>
+            <div class="meta"><span class="k">Config</span><span class="v">3 & 4 BHK</span></div>
+            <div class="meta"><span class="k">Posn.</span><span class="v">Jun 2028</span></div>
+          </div>
+          <div class="card-foot">
+            <a href="#" class="manage">Manage <span class="arr">→</span></a>
+          </div>
+        </div>
+      </article>
+
+      <!-- Aparan One -->
+      <article class="card">
+        <div class="card-media">
+          <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<span>AP</span>'}))" />
+          <div class="pills"><span class="pill">Live</span></div>
+          <div class="status-tag live">Active</div>
+          <div class="price-bubble"><small>Starting</small><b>₹64 L</b></div>
+        </div>
+        <div class="card-body">
+          <div class="card-head">
+            <h2 class="name">Aparan One</h2>
+            <span class="more"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
+          </div>
+          <div class="loc">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            Tellapur, <b>Hyderabad</b>
+          </div>
+          <div class="meta-grid">
+            <div class="meta"><span class="k">Units</span><span class="v">198</span></div>
+            <div class="meta"><span class="k">Config</span><span class="v">2 BHK</span></div>
+            <div class="meta"><span class="k">Sold</span><span class="v">23%</span></div>
+          </div>
+          <div class="card-foot">
+            <a href="#" class="manage">Manage <span class="arr">→</span></a>
+          </div>
+        </div>
+      </article>
+
+      <!-- Add New -->
+      <div class="card-new" role="button" tabindex="0">
+        <div class="big-plus">+</div>
+        <div>
+          <div class="lbl">Add a new project</div>
+          <div class="sub">RERA import, marketplace listing, or blank</div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+</div>
+
+<!-- ==== Tweaks panel ==== -->
+<div id="tweaks"></div>
+
+<script>
+  // tab behavior
+  document.querySelectorAll('.tabs .tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tabs .tab').forEach(x => x.setAttribute('aria-pressed', 'false'));
+      t.setAttribute('aria-pressed', 'true');
+    });
+  });
+
+  // view toggle
+  document.querySelectorAll('.view-toggle button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.view-toggle button').forEach(x => x.setAttribute('aria-pressed', 'false'));
+      b.setAttribute('aria-pressed', 'true');
+      document.body.dataset.layout = b.dataset.view;
+    });
+  });
+
+  /* ===== Tweaks ===== */
+  const DEFAULTS = /*EDITMODE-BEGIN*/{
+    "theme": "light",
+    "accent": "emerald",
+    "density": "comfortable",
+    "layout": "grid"
+  }/*EDITMODE-END*/;
+
+  let TWEAKS = { ...DEFAULTS };
+  function apply(){
+    document.body.dataset.theme = TWEAKS.theme;
+    document.body.dataset.accent = TWEAKS.accent;
+    document.body.dataset.density = TWEAKS.density;
+    document.body.dataset.layout = TWEAKS.layout;
+    // sync view toggle UI
+    document.querySelectorAll('.view-toggle button').forEach(b => {
+      b.setAttribute('aria-pressed', b.dataset.view === TWEAKS.layout ? 'true' : 'false');
+    });
+  }
+  apply();
+
+  const panelEl = document.getElementById('tweaks');
+  function setKey(k, v){
+    TWEAKS[k] = v;
+    apply();
+    renderPanel();
+    window.parent.postMessage({ type:'__edit_mode_set_keys', edits: { [k]: v } }, '*');
+  }
+
+  function chip(label, active, onClick){
+    return `<button class="tw-chip${active ? ' is-active' : ''}" data-action="${onClick}">${label}</button>`;
+  }
+
+  function renderPanel(){
+    if(!panelEl.dataset.open) return;
+    panelEl.innerHTML = `
+      <div class="tw-card">
+        <div class="tw-head">
+          <span class="tw-title">Tweaks</span>
+          <button class="tw-x" aria-label="close">×</button>
+        </div>
+        <div class="tw-sec">
+          <div class="tw-label">Theme</div>
+          <div class="tw-row">
+            ${chip('Light', TWEAKS.theme==='light', 'theme:light')}
+            ${chip('Dark', TWEAKS.theme==='dark', 'theme:dark')}
+          </div>
+        </div>
+        <div class="tw-sec">
+          <div class="tw-label">Accent</div>
+          <div class="tw-row">
+            <button class="tw-swatch" data-action="accent:emerald" style="--c:#1F5D46" aria-pressed="${TWEAKS.accent==='emerald'}"></button>
+            <button class="tw-swatch" data-action="accent:gold" style="--c:#9C6A2E" aria-pressed="${TWEAKS.accent==='gold'}"></button>
+            <button class="tw-swatch" data-action="accent:indigo" style="--c:#3340B0" aria-pressed="${TWEAKS.accent==='indigo'}"></button>
+          </div>
+        </div>
+        <div class="tw-sec">
+          <div class="tw-label">Density</div>
+          <div class="tw-row">
+            ${chip('Comfortable', TWEAKS.density==='comfortable', 'density:comfortable')}
+            ${chip('Compact', TWEAKS.density==='compact', 'density:compact')}
+          </div>
+        </div>
+        <div class="tw-sec">
+          <div class="tw-label">Layout</div>
+          <div class="tw-row">
+            ${chip('Grid', TWEAKS.layout==='grid', 'layout:grid')}
+            ${chip('List', TWEAKS.layout==='list', 'layout:list')}
+          </div>
+        </div>
+      </div>
+    `;
+    panelEl.querySelectorAll('[data-action]').forEach(b => {
+      b.addEventListener('click', () => {
+        const [k, v] = b.dataset.action.split(':');
+        setKey(k, v);
+      });
+    });
+    panelEl.querySelector('.tw-x').addEventListener('click', () => {
+      panelEl.dataset.open = '';
+      panelEl.innerHTML = '';
+      window.parent.postMessage({ type:'__edit_mode_dismissed' }, '*');
+    });
+  }
+
+  window.addEventListener('message', (e) => {
+    const t = e.data && e.data.type;
+    if(t === '__activate_edit_mode'){ panelEl.dataset.open = '1'; renderPanel(); }
+    if(t === '__deactivate_edit_mode'){ panelEl.dataset.open = ''; panelEl.innerHTML = ''; }
+  });
+  window.parent.postMessage({ type:'__edit_mode_available' }, '*');
+</script>
+
+<style>
+  #tweaks{ position: fixed; right: 18px; bottom: 18px; z-index: 9999; font-family: var(--sans); }
+  .tw-card{
+    width: 264px;
+    background: var(--card);
+    border:1px solid var(--line);
+    border-radius: 18px;
+    padding: 14px 14px 16px;
+    box-shadow: 0 22px 60px -16px rgba(14,22,18,.30);
+  }
+  .tw-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px; }
+  .tw-title{ font-family: var(--serif); font-size: 22px; font-style: italic; color: var(--ink); }
+  .tw-x{
+    width: 26px; height: 26px; border-radius: 50%;
+    border:1px solid var(--line); background: var(--card-2);
+    color: var(--ink); cursor:pointer; font-size: 16px; line-height: 0;
+  }
+  .tw-sec + .tw-sec{ margin-top: 12px; }
+  .tw-label{
+    font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; margin-bottom: 6px;
+  }
+  .tw-row{ display:flex; gap: 6px; flex-wrap:wrap; }
+  .tw-chip{
+    padding: 7px 11px; border-radius: 99px;
+    border:1px solid var(--line); background: var(--card-2);
+    color: var(--ink-2); cursor:pointer; font-size: 12.5px; font-weight: 600;
+    font-family: var(--sans);
+  }
+  .tw-chip:hover{ border-color: var(--ink-2); }
+  .tw-chip.is-active{ background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .tw-swatch{
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--c); cursor:pointer;
+    border: 2px solid var(--card-2);
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .tw-swatch[aria-pressed="true"]{ box-shadow: 0 0 0 2px var(--ink); }
+</style>
+
+</body>
+</html>

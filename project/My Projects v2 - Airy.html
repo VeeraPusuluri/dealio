@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>dealio — My Projects (Airy)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,400&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+  :root{
+    --bg: #FFFFFF;
+    --bg-2: #FAFAF8;
+    --ink: #0E1411;
+    --ink-2: #1F2925;
+    --muted: #8E948F;
+    --muted-2: #C7CAC5;
+    --line: #ECECE7;
+    --line-2: #F4F4F0;
+    --card: #FFFFFF;
+    --hover: #FBFBF8;
+
+    --sage:    #D8E5DA;
+    --sage-ink:#3C5A45;
+    --sand:    #F1E9DA;
+    --sand-ink:#7A5E2F;
+    --sky:     #DCE6F1;
+    --sky-ink: #3F567A;
+    --lilac:   #E6E0EE;
+    --lilac-ink:#574879;
+    --rose:    #F0DDD9;
+    --rose-ink:#874B3D;
+
+    --serif: "Fraunces", "Times New Roman", serif;
+    --sans:  "Geist", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  body[data-accent="sand"]{ --accent: var(--sand); --accent-ink: var(--sand-ink); }
+  body[data-accent="sage"]{ --accent: var(--sage); --accent-ink: var(--sage-ink); }
+  body[data-accent="sky"]{ --accent: var(--sky); --accent-ink: var(--sky-ink); }
+  body[data-accent="lilac"]{ --accent: var(--lilac); --accent-ink: var(--lilac-ink); }
+  body{ --accent: var(--sage); --accent-ink: var(--sage-ink); }
+
+  *{ box-sizing:border-box; }
+  html, body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.005em;
+    min-height: 100vh;
+    font-weight: 400;
+  }
+
+  .app{
+    display:grid;
+    grid-template-columns: 220px 1fr;
+    min-height:100vh;
+  }
+
+  /* ============= sidebar ============= */
+  .side{
+    border-right: 1px solid var(--line);
+    padding: 28px 20px;
+    position: sticky; top: 0; height: 100vh;
+    display:flex; flex-direction:column; gap: 28px;
+    background: var(--bg);
+  }
+  .brand{
+    display:flex; align-items:center; gap: 10px;
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .brand-dot{
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--accent-ink);
+  }
+  .brand em{ font-style: italic; color: var(--muted); font-weight: 300; }
+
+  .nav-group{ display:flex; flex-direction:column; gap: 2px; }
+  .nav-label{
+    font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); padding: 0 10px 6px;
+    font-weight: 500;
+  }
+  .nav a{
+    display:flex; align-items:center; gap: 11px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--ink-2);
+    text-decoration: none;
+    font-size: 13.5px;
+    font-weight: 400;
+    transition: background .12s ease, color .12s ease;
+  }
+  .nav a:hover{ background: var(--hover); }
+  .nav a.active{ background: var(--bg-2); color: var(--ink); font-weight: 500; }
+  .nav a svg{ flex-shrink: 0; opacity: .7; }
+  .nav a.active svg{ opacity: 1; color: var(--accent-ink); }
+  .nav a .num{
+    margin-left: auto;
+    font-size: 11.5px; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .side-foot{
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    display:flex; gap: 10px; align-items:center;
+  }
+  .ava{
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent);
+    color: var(--accent-ink);
+    display:grid; place-items:center;
+    font-weight: 600; font-size: 12px;
+    flex-shrink: 0;
+  }
+  .side-foot .who{ line-height: 1.25; min-width: 0; }
+  .side-foot .who b{ font-size: 13px; font-weight: 500; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .side-foot .who small{ font-size: 11.5px; color: var(--muted); }
+
+  /* ============= main ============= */
+  main{
+    padding: 48px 56px 96px;
+    max-width: 1480px;
+  }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 56px;
+  }
+  .crumbs{
+    font-size: 12.5px;
+    color: var(--muted);
+    display:flex; align-items:center; gap: 8px;
+  }
+  .crumbs b{ color: var(--ink); font-weight: 500; }
+  .top-right{ display:flex; gap: 8px; align-items: center; }
+  .icon-btn{
+    width: 34px; height: 34px; border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink-2);
+    display: grid; place-items: center;
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  .icon-btn:hover{ background: var(--hover); }
+
+  /* ============= hero ============= */
+  .hero{
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 40px;
+    margin-bottom: 48px;
+  }
+  .h-title{
+    font-family: var(--serif);
+    font-size: clamp(48px, 5.8vw, 84px);
+    font-weight: 300;
+    line-height: 1.0;
+    letter-spacing: -0.025em;
+    margin: 0;
+    color: var(--ink);
+  }
+  .h-title em{
+    font-style: italic;
+    color: var(--muted);
+    font-weight: 300;
+  }
+  .h-sub{
+    margin: 18px 0 0;
+    font-size: 14.5px;
+    color: var(--muted);
+    max-width: 540px;
+    line-height: 1.6;
+  }
+  .h-sub b{ color: var(--ink); font-weight: 500; }
+
+  .h-cta{
+    display: flex; gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .btn{
+    display:inline-flex; align-items:center; gap: 8px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 500;
+    font-family: var(--sans);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all .15s ease;
+    text-decoration: none;
+    color: var(--ink);
+  }
+  .btn-ghost{
+    border-color: var(--line);
+    background: var(--bg);
+  }
+  .btn-ghost:hover{ background: var(--hover); border-color: var(--muted-2); }
+  .btn-primary{
+    background: var(--ink);
+    color: var(--bg);
+  }
+  .btn-primary:hover{ background: var(--ink-2); }
+
+  /* ============= toolbar ============= */
+  .toolbar{
+    display: flex; align-items: center; gap: 16px;
+    padding: 18px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .tabs{
+    display:flex; gap: 4px;
+  }
+  .tab{
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font-family: var(--sans);
+    transition: all .12s ease;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .tab:hover{ color: var(--ink); }
+  .tab[aria-pressed="true"]{
+    background: var(--bg-2);
+    color: var(--ink);
+  }
+  .tab .ct{
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .tab[aria-pressed="true"] .ct{ color: var(--ink-2); }
+
+  .tool-right{ margin-left: auto; display:flex; gap: 10px; align-items: center; }
+
+  .search{
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    width: 240px;
+    background: var(--bg);
+    transition: border-color .15s ease;
+  }
+  .search:focus-within{ border-color: var(--ink-2); }
+  .search input{
+    border: none; outline: none; background: transparent;
+    font-family: var(--sans); font-size: 13px;
+    color: var(--ink); flex: 1; min-width: 0;
+  }
+  .search input::placeholder{ color: var(--muted); }
+
+  .sort{
+    padding: 7px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg);
+    font-family: var(--sans); font-size: 12.5px;
+    color: var(--ink-2);
+    cursor: pointer;
+    display:inline-flex; align-items:center; gap:8px;
+  }
+
+  /* ============= grid ============= */
+  .grid{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px 24px;
+  }
+
+  .card{
+    background: transparent;
+    border: none;
+    position: relative;
+    cursor: pointer;
+    display: flex; flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+    transition: transform .25s cubic-bezier(.2,.6,.3,1);
+  }
+  .card:hover{ transform: translateY(-2px); }
+
+  .card-media{
+    position: relative;
+    aspect-ratio: 5/4;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--bg-2);
+  }
+  .card-media img{
+    width: 100%; height: 100%; object-fit: cover;
+    display: block;
+    transition: transform .9s cubic-bezier(.2,.6,.3,1);
+  }
+  .card:hover .card-media img{ transform: scale(1.03); }
+
+  /* airy placeholder */
+  .ph{
+    width: 100%; height: 100%;
+    background: var(--accent);
+    display: grid; place-items: center;
+    position: relative; overflow: hidden;
+    color: var(--accent-ink);
+  }
+  .ph::before{
+    content:'';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(60% 60% at 30% 30%, color-mix(in srgb, white 25%, transparent), transparent 70%),
+      radial-gradient(40% 40% at 80% 90%, color-mix(in srgb, white 18%, transparent), transparent 65%);
+  }
+  .ph-letter{
+    position: relative; z-index: 1;
+    font-family: var(--serif);
+    font-size: 96px;
+    line-height: 1;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--accent-ink);
+    opacity: .55;
+  }
+
+  .pill-status{
+    position: absolute; top: 12px; left: 12px;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px 5px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(6px);
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .pill-status .dot{
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #3FA66A;
+    box-shadow: 0 0 0 3px rgba(63,166,106,.18);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  .pill-status.draft .dot{ background: #C7CAC5; box-shadow: none; animation: none; }
+  .pill-status.uc .dot{ background: #C69A5A; box-shadow: 0 0 0 3px rgba(198,154,90,.18); animation:none; }
+  @keyframes pulse{
+    0%, 100%{ box-shadow: 0 0 0 3px rgba(63,166,106,.20); }
+    50%{ box-shadow: 0 0 0 6px rgba(63,166,106,.04); }
+  }
+
+  .stage{
+    position: absolute; top: 12px; right: 12px;
+    font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(6px);
+    padding: 5px 10px;
+    border-radius: 999px;
+  }
+  .stage.new{ background: var(--lilac); color: var(--lilac-ink); }
+
+  .card-body{
+    display:flex; flex-direction:column; gap: 4px;
+    padding: 0 2px;
+  }
+  .name-row{
+    display:flex; align-items: baseline; justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+  }
+  .name-row .name{ min-width: 0; }
+  .name{
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 300;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    color: var(--ink);
+    margin: 0;
+  }
+  .price{
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .price small{
+    font-size: 11px; color: var(--muted); font-weight: 400;
+    margin-right: 2px;
+  }
+
+  .loc{
+    display:flex; align-items: center; gap: 6px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .loc svg{ opacity: .8; }
+  .loc b{ color: var(--ink-2); font-weight: 500; }
+  .rera{
+    display:inline-flex; align-items: center; gap: 4px;
+    margin-left: 6px;
+    font-size: 10.5px;
+    color: var(--accent-ink);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+  .rera::before{
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
+    background: currentColor; opacity: .7;
+  }
+
+  .meta-line{
+    display: flex; align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    row-gap: 4px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .meta-line b{ color: var(--ink-2); font-weight: 500; }
+  .meta-line .sep{
+    width: 3px; height: 3px; border-radius: 50%;
+    background: var(--muted-2);
+    display: inline-block;
+  }
+
+  .prog{
+    margin-top: 12px;
+    display:flex; align-items: center; gap: 10px;
+  }
+  .prog-bar{
+    flex: 1;
+    height: 3px;
+    background: var(--line);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .prog-bar i{
+    display:block; height: 100%;
+    background: var(--accent-ink);
+    border-radius: 99px;
+  }
+  .prog small{
+    font-size: 11.5px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+
+  /* featured = first card spans 2 cols and is taller */
+  .card.feat{
+    grid-column: span 2;
+    grid-row: span 1;
+  }
+  .card.feat .card-media{ aspect-ratio: 16/9; }
+  .card.feat .name{ font-size: 36px; }
+
+  /* add new */
+  .card-new{
+    border: 1px dashed var(--line);
+    border-radius: 16px;
+    aspect-ratio: 5/4;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap: 10px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .15s ease;
+    background: var(--bg);
+  }
+  .card-new:hover{
+    border-color: var(--accent-ink);
+    color: var(--accent-ink);
+    background: color-mix(in srgb, var(--accent) 30%, var(--bg));
+  }
+  .card-new .plus{
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 1px solid var(--line);
+    display:grid; place-items: center;
+    font-size: 22px; font-weight: 300; color: var(--ink-2);
+  }
+  .card-new:hover .plus{
+    border-color: currentColor;
+  }
+  .card-new b{ font-weight: 500; font-size: 14px; }
+  .card-new small{ font-size: 12px; }
+
+  /* footer summary */
+  .footer-strip{
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    display: flex; gap: 48px;
+    align-items: center; justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .summary{ display:flex; gap: 40px; flex-wrap: wrap; }
+  .sm{ display:flex; flex-direction: column; gap: 2px; }
+  .sm-k{
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .sm-v{
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 300;
+    line-height: 1.1;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .sm-v small{
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 400;
+    margin-left: 4px;
+  }
+
+  /* responsive */
+  @media (max-width: 1180px){
+    .grid{ grid-template-columns: repeat(2, 1fr); }
+    .card.feat{ grid-column: span 2; }
+  }
+  @media (max-width: 760px){
+    .app{ grid-template-columns: 1fr; }
+    .side{ display: none; }
+    main{ padding: 28px 24px 64px; }
+    .grid{ grid-template-columns: 1fr; }
+    .card.feat{ grid-column: span 1; }
+    .hero{ grid-template-columns: 1fr; }
+  }
+
+  /* tweaks */
+  #tweaks{ position: fixed; right: 18px; bottom: 18px; z-index: 9999; font-family: var(--sans); }
+  .tw-card{
+    width: 264px;
+    background: var(--bg);
+    border:1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 22px 60px -16px rgba(14,22,18,.18), 0 2px 6px rgba(14,22,18,.04);
+  }
+  .tw-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px; }
+  .tw-title{ font-family: var(--serif); font-size: 20px; font-weight: 400; }
+  .tw-x{
+    width: 24px; height: 24px; border-radius: 50%;
+    border:1px solid var(--line); background: var(--bg);
+    color: var(--ink); cursor:pointer; font-size: 14px; line-height: 0;
+  }
+  .tw-sec + .tw-sec{ margin-top: 14px; }
+  .tw-label{
+    font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500; margin-bottom: 8px;
+  }
+  .tw-row{ display:flex; gap: 6px; flex-wrap:wrap; }
+  .tw-chip{
+    padding: 6px 12px; border-radius: 99px;
+    border:1px solid var(--line); background: var(--bg);
+    color: var(--ink-2); cursor:pointer; font-size: 12px; font-weight: 500;
+    font-family: var(--sans);
+  }
+  .tw-chip:hover{ border-color: var(--muted-2); }
+  .tw-chip.is-active{ background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .tw-swatch{
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--c); cursor:pointer;
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .tw-swatch[aria-pressed="true"]{ box-shadow: 0 0 0 2px var(--ink); }
+</style>
+</head>
+<body data-accent="sage">
+
+<div class="app">
+
+  <!-- ========================= SIDEBAR ========================= -->
+  <aside class="side">
+    <div class="brand">
+      <span class="brand-dot"></span> deal<em>io</em>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Workspace</div>
+      <nav class="nav">
+        <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg> Dashboard</a>
+        <a href="#" class="active"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="9" width="18" height="12" rx="1"/><path d="M9 9V5h6v4"/></svg> Projects <span class="num">12</span></a>
+        <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7h18M3 12h18M3 17h12"/></svg> Inventory</a>
+        <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="8" r="3"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7"/><circle cx="17" cy="6" r="2"/></svg> Leads <span class="num">3.4k</span></a>
+        <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg> Analytics</a>
+      </nav>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Tools</div>
+      <nav class="nav">
+        <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg> Campaigns</a>
+        <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg> Sites</a>
+        <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.2 4.2l4.3 4.3M15.5 15.5l4.3 4.3M1 12h6M17 12h6M4.2 19.8l4.3-4.3M15.5 8.5l4.3-4.3"/></svg> Settings</a>
+      </nav>
+    </div>
+
+    <div class="side-foot">
+      <div class="ava">AR</div>
+      <div class="who"><b>Aparna Realty</b><small>Pro plan</small></div>
+    </div>
+  </aside>
+
+  <!-- ========================= MAIN ========================= -->
+  <main>
+
+    <div class="topbar">
+      <div class="crumbs">Workspace <span>/</span> <b>Projects</b></div>
+      <div class="top-right">
+        <button class="icon-btn" aria-label="search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        </button>
+        <button class="icon-btn" aria-label="bell">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 004 0"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <section class="hero">
+      <div>
+        <h1 class="h-title">My <em>projects.</em></h1>
+        <p class="h-sub">
+          A quiet view of <b>twelve developments</b> in motion — across Hyderabad, Pune and Bengaluru.
+          Last updated <b>this morning</b>.
+        </p>
+      </div>
+      <div class="h-cta">
+        <button class="btn btn-ghost">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17v4h16v-4M12 3v14m0 0l-5-5m5 5l5-5"/></svg>
+          Import
+        </button>
+        <button class="btn btn-primary">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+          New project
+        </button>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <div class="tabs">
+        <button class="tab" aria-pressed="true">All <span class="ct">12</span></button>
+        <button class="tab" aria-pressed="false">Live <span class="ct">9</span></button>
+        <button class="tab" aria-pressed="false">New launch <span class="ct">2</span></button>
+        <button class="tab" aria-pressed="false">Under construction <span class="ct">5</span></button>
+        <button class="tab" aria-pressed="false">Drafts <span class="ct">3</span></button>
+      </div>
+      <div class="tool-right">
+        <div class="search">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input placeholder="Search a project…" />
+        </div>
+        <button class="sort">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+          Recent
+        </button>
+      </div>
+    </section>
+
+    <section class="grid">
+
+      <!-- Featured -->
+      <article class="card feat">
+        <div class="card-media">
+          <img src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1400&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'<span class=\u0027ph-letter\u0027>G</span>'}))" />
+          <span class="pill-status"><span class="dot"></span> Live · selling well</span>
+          <span class="stage">Top performer</span>
+        </div>
+        <div class="card-body">
+          <div class="name-row">
+            <h2 class="name">Green Valley Residences</h2>
+            <span class="price"><small>from</small>₹60L</span>
+          </div>
+          <div class="loc">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            Gachibowli, <b>Hyderabad</b>
+            <span class="rera">RERA verified</span>
+          </div>
+          <div class="meta-line">
+            <b>420</b> units <span class="sep"></span>
+            <b>2 & 3</b> BHK <span class="sep"></span>
+            <b>68%</b> sold <span class="sep"></span>
+            possession <b>Dec 2027</b>
+          </div>
+          <div class="prog">
+            <div class="prog-bar"><i style="width: 62%"></i></div>
+            <small>Construction · 62%</small>
+          </div>
+        </div>
+      </article>
+
+      <!-- Sunrise Heights -->
+      <article class="card">
+        <div class="card-media">
+          <img src="https://images.unsplash.com/photo-1576941089067-2de3c901e126?auto=format&fit=crop&w=900&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'<span class=\u0027ph-letter\u0027>S</span>'}))" />
+          <span class="pill-status"><span class="dot"></span> Live</span>
+          <span class="stage new">New launch</span>
+        </div>
+        <div class="card-body">
+          <div class="name-row">
+            <h2 class="name">Sunrise Heights</h2>
+            <span class="price"><small>from</small>₹85L</span>
+          </div>
+          <div class="loc">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            Kondapur, <b>Hyderabad</b>
+            <span class="rera">RERA</span>
+          </div>
+          <div class="meta-line"><b>186</b> units <span class="sep"></span> <b>3</b> BHK <span class="sep"></span> launch Q2 ’26</div>
+        </div>
+      </article>
+
+      <!-- Aparna Skyline -->
+      <article class="card">
+        <div class="card-media">
+          <img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'<span class=\u0027ph-letter\u0027>A</span>'}))" />
+          <span class="pill-status"><span class="dot"></span> Live</span>
+        </div>
+        <div class="card-body">
+          <div class="name-row">
+            <h2 class="name">Aparna Skyline</h2>
+            <span class="price"><small>from</small>₹1.4Cr</span>
+          </div>
+          <div class="loc">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            Wakad, <b>Pune</b>
+            <span class="rera">RERA</span>
+          </div>
+          <div class="meta-line"><b>324</b> units <span class="sep"></span> 2/3/4 BHK <span class="sep"></span> <b>42%</b> sold</div>
+        </div>
+      </article>
+
+      <!-- Riverpark -->
+      <article class="card">
+        <div class="card-media">
+          <img src="https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=900&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'<span class=\u0027ph-letter\u0027>R</span>'}))" />
+          <span class="pill-status"><span class="dot"></span> Live · 81% sold</span>
+        </div>
+        <div class="card-body">
+          <div class="name-row">
+            <h2 class="name">Riverpark</h2>
+            <span class="price"><small>from</small>₹78L</span>
+          </div>
+          <div class="loc">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            Kokapet, <b>Hyderabad</b>
+            <span class="rera">RERA</span>
+          </div>
+          <div class="meta-line"><b>512</b> units <span class="sep"></span> 2 & 3 BHK <span class="sep"></span> only <b>97</b> left</div>
+        </div>
+      </article>
+
+      <!-- North Bloom -->
+      <article class="card">
+        <div class="card-media">
+          <img src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=900&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'<span class=\u0027ph-letter\u0027>N</span>'}))" />
+          <span class="pill-status uc"><span class="dot"></span> Under construction</span>
+        </div>
+        <div class="card-body">
+          <div class="name-row">
+            <h2 class="name">North Bloom</h2>
+            <span class="price"><small>from</small>₹1.1Cr</span>
+          </div>
+          <div class="loc">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            Hebbal, <b>Bengaluru</b>
+            <span class="rera">RERA</span>
+          </div>
+          <div class="meta-line"><b>240</b> units <span class="sep"></span> 3 & 4 BHK <span class="sep"></span> possession Jun ’28</div>
+        </div>
+      </article>
+
+      <!-- Parna - draft -->
+      <article class="card">
+        <div class="card-media">
+          <div class="ph"><span class="ph-letter">P</span></div>
+          <span class="pill-status draft"><span class="dot"></span> Draft · setup 60%</span>
+        </div>
+        <div class="card-body">
+          <div class="name-row">
+            <h2 class="name">Parna</h2>
+            <span class="price" style="color:var(--muted)">—</span>
+          </div>
+          <div class="loc">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            Whitefield, <b>Bengaluru</b>
+          </div>
+          <div class="meta-line">Pre-RERA <span class="sep"></span> mixed-use <span class="sep"></span> <b>3.2</b> acres</div>
+        </div>
+      </article>
+
+      <!-- Aparan One -->
+      <article class="card">
+        <div class="card-media">
+          <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'<span class=\u0027ph-letter\u0027>A</span>'}))" />
+          <span class="pill-status"><span class="dot"></span> Live</span>
+        </div>
+        <div class="card-body">
+          <div class="name-row">
+            <h2 class="name">Aparan One</h2>
+            <span class="price"><small>from</small>₹64L</span>
+          </div>
+          <div class="loc">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            Tellapur, <b>Hyderabad</b>
+          </div>
+          <div class="meta-line"><b>198</b> units <span class="sep"></span> 2 BHK <span class="sep"></span> <b>23%</b> sold</div>
+        </div>
+      </article>
+
+      <!-- Add new -->
+      <div class="card-new" role="button" tabindex="0">
+        <div class="plus">+</div>
+        <b>Add a new project</b>
+        <small>Import from RERA or start blank</small>
+      </div>
+
+    </section>
+
+    <!-- footer summary -->
+    <section class="footer-strip">
+      <div class="summary">
+        <div class="sm"><span class="sm-k">Portfolio</span><span class="sm-v">₹486<small>Cr</small></span></div>
+        <div class="sm"><span class="sm-k">Units sold</span><span class="sm-v">1,247<small>/ 2,180</small></span></div>
+        <div class="sm"><span class="sm-k">Active leads</span><span class="sm-v">3,412</span></div>
+        <div class="sm"><span class="sm-k">Avg ticket</span><span class="sm-v">₹92<small>L</small></span></div>
+      </div>
+      <div style="color:var(--muted); font-size: 12.5px;">Showing 7 of 12 — <a href="#" style="color:var(--ink); text-decoration: underline; text-underline-offset: 3px;">view all</a></div>
+    </section>
+
+  </main>
+</div>
+
+<div id="tweaks"></div>
+
+<script>
+  // tabs
+  document.querySelectorAll('.tabs .tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tabs .tab').forEach(x => x.setAttribute('aria-pressed', 'false'));
+      t.setAttribute('aria-pressed', 'true');
+    });
+  });
+
+  // tweaks
+  const DEFAULTS = /*EDITMODE-BEGIN*/{
+    "accent": "sage"
+  }/*EDITMODE-END*/;
+  let TWEAKS = { ...DEFAULTS };
+  function apply(){
+    document.body.dataset.accent = TWEAKS.accent;
+  }
+  apply();
+
+  const panelEl = document.getElementById('tweaks');
+  function setKey(k, v){
+    TWEAKS[k] = v; apply(); renderPanel();
+    window.parent.postMessage({ type:'__edit_mode_set_keys', edits: { [k]: v } }, '*');
+  }
+  function renderPanel(){
+    if(!panelEl.dataset.open) return;
+    panelEl.innerHTML = `
+      <div class="tw-card">
+        <div class="tw-head">
+          <span class="tw-title">Tweaks</span>
+          <button class="tw-x" aria-label="close">×</button>
+        </div>
+        <div class="tw-sec">
+          <div class="tw-label">Accent palette</div>
+          <div class="tw-row">
+            <button class="tw-swatch" data-action="accent:sage"  style="--c:#D8E5DA" aria-pressed="${TWEAKS.accent==='sage'}"  title="Sage"></button>
+            <button class="tw-swatch" data-action="accent:sand"  style="--c:#F1E9DA" aria-pressed="${TWEAKS.accent==='sand'}"  title="Sand"></button>
+            <button class="tw-swatch" data-action="accent:sky"   style="--c:#DCE6F1" aria-pressed="${TWEAKS.accent==='sky'}"   title="Sky"></button>
+            <button class="tw-swatch" data-action="accent:lilac" style="--c:#E6E0EE" aria-pressed="${TWEAKS.accent==='lilac'}" title="Lilac"></button>
+          </div>
+        </div>
+        <div class="tw-sec" style="color:var(--muted); font-size:11.5px; line-height:1.5;">
+          A pastel sets the mood for placeholders, RERA chips and avatars — everything else stays neutral.
+        </div>
+      </div>
+    `;
+    panelEl.querySelectorAll('[data-action]').forEach(b => {
+      b.addEventListener('click', () => {
+        const [k, v] = b.dataset.action.split(':');
+        setKey(k, v);
+      });
+    });
+    panelEl.querySelector('.tw-x').addEventListener('click', () => {
+      panelEl.dataset.open = ''; panelEl.innerHTML = '';
+      window.parent.postMessage({ type:'__edit_mode_dismissed' }, '*');
+    });
+  }
+  window.addEventListener('message', (e) => {
+    const t = e.data && e.data.type;
+    if(t === '__activate_edit_mode'){ panelEl.dataset.open = '1'; renderPanel(); }
+    if(t === '__deactivate_edit_mode'){ panelEl.dataset.open = ''; panelEl.innerHTML = ''; }
+  });
+  window.parent.postMessage({ type:'__edit_mode_available' }, '*');
+</script>
+
+</body>
+</html>

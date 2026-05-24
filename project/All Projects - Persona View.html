@@ -1,0 +1,1367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>dealio — All Projects</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<style>
+  :root{
+    --bg: #FFFFFF;
+    --bg-2: #FAFAF8;
+    --bg-3: #F4F4EF;
+    --ink: #0E1411;
+    --ink-2: #1F2925;
+    --muted: #8E948F;
+    --muted-2: #C7CAC5;
+    --line: #ECECE7;
+    --line-2: #F4F4F0;
+    --hover: #FBFBF8;
+
+    --sage: #D8E5DA;   --sage-ink: #3C5A45;   --sage-tint: #EEF3EF;
+    --sand: #F1E9DA;   --sand-ink: #7A5E2F;   --sand-tint: #F8F4EB;
+    --sky:  #DCE6F1;   --sky-ink:  #3F567A;   --sky-tint:  #ECF1F7;
+    --lilac:#E6E0EE;   --lilac-ink:#574879;   --lilac-tint:#F2EEF7;
+    --rose: #F0DDD9;   --rose-ink: #874B3D;   --rose-tint: #F8ECE9;
+
+    --serif: "Fraunces", "Times New Roman", serif;
+    --sans:  "Geist", ui-sans-serif, system-ui, sans-serif;
+    --mono:  "Geist Mono", ui-monospace, monospace;
+  }
+
+  /* Persona accents */
+  body[data-persona="builder"]   { --accent: var(--sand);  --accent-ink: var(--sand-ink);  --accent-tint: var(--sand-tint); }
+  body[data-persona="customer"]  { --accent: var(--sage);  --accent-ink: var(--sage-ink);  --accent-tint: var(--sage-tint); }
+  body[data-persona="partner"]   { --accent: var(--lilac); --accent-ink: var(--lilac-ink); --accent-tint: var(--lilac-tint); }
+
+  *{ box-sizing:border-box; }
+  html, body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.005em;
+    min-height: 100vh;
+  }
+
+  .app{ display:grid; grid-template-columns: 220px 1fr; min-height:100vh; }
+
+  /* ============= sidebar ============= */
+  .side{
+    border-right: 1px solid var(--line);
+    padding: 28px 20px;
+    position: sticky; top: 0; height: 100vh;
+    display:flex; flex-direction:column; gap: 28px;
+    background: var(--bg);
+  }
+  .brand{
+    display:flex; align-items:center; gap: 10px;
+    font-family: var(--serif);
+    font-size: 22px; font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+  .brand-dot{
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--accent-ink);
+    transition: background .3s ease;
+  }
+  .brand em{ font-style: italic; color: var(--muted); font-weight: 300; }
+
+  .nav-group{ display:flex; flex-direction:column; gap: 2px; }
+  .nav-label{
+    font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); padding: 0 10px 6px;
+    font-weight: 500;
+  }
+  .nav a{
+    display:flex; align-items:center; gap: 11px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--ink-2);
+    text-decoration: none;
+    font-size: 13.5px;
+    transition: background .12s ease, color .12s ease;
+  }
+  .nav a:hover{ background: var(--hover); }
+  .nav a.active{ background: var(--bg-2); color: var(--ink); font-weight: 500; }
+  .nav a svg{ flex-shrink: 0; opacity: .65; }
+  .nav a.active svg{ opacity: 1; color: var(--accent-ink); }
+  .nav a .num{ margin-left: auto; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .side-foot{
+    margin-top: auto; padding-top: 16px; border-top: 1px solid var(--line);
+    display:flex; gap: 10px; align-items:center;
+  }
+  .ava{
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: var(--accent-ink);
+    display:grid; place-items:center;
+    font-weight: 600; font-size: 12px;
+    transition: background .3s ease, color .3s ease;
+  }
+  .side-foot .who b{ font-size: 13px; font-weight: 500; display:block; }
+  .side-foot .who small{ font-size: 11.5px; color: var(--muted); }
+
+  /* ============= main ============= */
+  main{
+    padding: 32px 48px 96px;
+    max-width: 1480px;
+    min-width: 0;
+  }
+
+  /* ============= TOP BAR ============= */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 36px;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .crumbs{
+    font-size: 12.5px;
+    color: var(--muted);
+    display:flex; align-items:center; gap: 8px;
+  }
+  .crumbs b{ color: var(--ink); font-weight: 500; }
+  .crumbs .arr{ color: var(--muted-2); }
+
+  /* PERSONA PILL */
+  .persona-pill{
+    display: inline-flex; align-items: center;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px; gap: 2px;
+  }
+  .persona-btn{
+    border: none; background: transparent;
+    font-family: var(--sans);
+    font-size: 12.5px; font-weight: 500;
+    color: var(--muted);
+    padding: 7px 14px 7px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: color .15s ease;
+  }
+  .persona-btn .pdot{
+    width: 8px; height: 8px; border-radius: 50%;
+    transition: transform .25s ease;
+  }
+  .persona-btn[data-p="builder"] .pdot{ background: var(--sand-ink); }
+  .persona-btn[data-p="customer"] .pdot{ background: var(--sage-ink); }
+  .persona-btn[data-p="partner"] .pdot{ background: var(--lilac-ink); }
+  .persona-btn:hover{ color: var(--ink-2); }
+  .persona-btn[aria-pressed="true"]{
+    color: var(--ink);
+    background: var(--bg);
+    box-shadow: 0 1px 2px rgba(14,20,17,0.06), 0 0 0 1px var(--line);
+  }
+  .persona-btn[aria-pressed="true"] .pdot{ transform: scale(1.25); }
+
+  .top-right{ display:flex; gap: 10px; align-items: center; }
+  .icon-btn{
+    width: 34px; height: 34px; border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--bg); color: var(--ink-2);
+    display: grid; place-items: center;
+    cursor: pointer;
+  }
+  .icon-btn:hover{ background: var(--hover); }
+
+  /* ============= HERO ============= */
+  .hero{
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 40px;
+    margin-bottom: 36px;
+  }
+  .h-title{
+    font-family: var(--serif);
+    font-size: clamp(52px, 5.8vw, 88px);
+    font-weight: 300;
+    line-height: 0.98;
+    letter-spacing: -0.028em;
+    margin: 0;
+  }
+  .h-title em{ font-style: italic; color: var(--accent-ink); font-weight: 300; transition: color .3s ease; }
+  .h-sub{
+    margin: 16px 0 0;
+    font-size: 14.5px;
+    color: var(--muted);
+    max-width: 560px;
+    line-height: 1.55;
+  }
+  .h-sub b{ color: var(--ink); font-weight: 500; }
+  .h-cta{ display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+  .btn{
+    display:inline-flex; align-items:center; gap: 8px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13px; font-weight: 500;
+    font-family: var(--sans);
+    border: 1px solid transparent;
+    cursor: pointer; text-decoration: none;
+    color: var(--ink);
+    transition: all .15s ease;
+  }
+  .btn-ghost{ border-color: var(--line); background: var(--bg); }
+  .btn-ghost:hover{ background: var(--hover); }
+  .btn-primary{ background: var(--ink); color: var(--bg); }
+  .btn-accent{ background: var(--accent-ink); color: var(--bg); transition: background .3s ease; }
+
+  /* ============= TOOLBAR ============= */
+  .toolbar{
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .tabs{ display:flex; gap: 2px; }
+  .tab{
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12.5px; font-weight: 500;
+    color: var(--muted);
+    cursor: pointer; border: none;
+    background: transparent;
+    font-family: var(--sans);
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: color .12s ease;
+  }
+  .tab:hover{ color: var(--ink-2); }
+  .tab[aria-pressed="true"]{ background: var(--bg-2); color: var(--ink); }
+  .tab .ct{ font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; font-family: var(--mono); }
+  .tab[aria-pressed="true"] .ct{ color: var(--ink-2); }
+
+  .tool-right{ margin-left: auto; display:flex; gap: 10px; align-items: center; }
+  .search{
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    width: 240px; background: var(--bg);
+    transition: border-color .15s ease;
+  }
+  .search:focus-within{ border-color: var(--ink-2); }
+  .search input{
+    border: none; outline: none; background: transparent;
+    font-family: var(--sans); font-size: 13px;
+    color: var(--ink); flex: 1; min-width: 0;
+  }
+  .search input::placeholder{ color: var(--muted); }
+  .sort{
+    padding: 7px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg);
+    font-family: var(--sans); font-size: 12.5px;
+    color: var(--ink-2);
+    cursor: pointer;
+    display:inline-flex; align-items:center; gap:8px;
+  }
+
+  /* ============= GRID ============= */
+  .grid{
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 32px 24px;
+  }
+  .card{
+    background: transparent;
+    border: none;
+    position: relative;
+    cursor: pointer;
+    display: flex; flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    transition: transform .25s cubic-bezier(.2,.6,.3,1);
+  }
+  .card:hover{ transform: translateY(-3px); }
+
+  .card-media{
+    position: relative;
+    aspect-ratio: 5/4;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--bg-2);
+  }
+  .ph{
+    width: 100%; height: 100%;
+    display: grid; place-items: center;
+    position: relative; overflow: hidden;
+    color: var(--accent-ink);
+  }
+  .ph::before{
+    content:'';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(60% 60% at 30% 30%, color-mix(in srgb, white 30%, transparent), transparent 70%),
+      radial-gradient(40% 40% at 80% 90%, color-mix(in srgb, white 22%, transparent), transparent 65%);
+  }
+  .ph[data-tone="sage"]{ background: linear-gradient(135deg, var(--sage), var(--sage-tint)); color: var(--sage-ink); }
+  .ph[data-tone="sand"]{ background: linear-gradient(135deg, var(--sand), var(--sand-tint)); color: var(--sand-ink); }
+  .ph[data-tone="sky"]{  background: linear-gradient(135deg, var(--sky),  var(--sky-tint));  color: var(--sky-ink); }
+  .ph[data-tone="lilac"]{ background: linear-gradient(135deg, var(--lilac), var(--lilac-tint)); color: var(--lilac-ink); }
+  .ph[data-tone="rose"]{ background: linear-gradient(135deg, var(--rose), var(--rose-tint)); color: var(--rose-ink); }
+  .ph-letter{
+    position: relative; z-index: 1;
+    font-family: var(--serif);
+    font-size: 96px; line-height: 1;
+    font-weight: 300; font-style: italic;
+    opacity: .50;
+  }
+
+  /* MEDIA OVERLAYS (persona-specific) */
+  .ovl-tl{
+    position: absolute; top: 12px; left: 12px;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px 5px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.94);
+    backdrop-filter: blur(6px);
+    font-size: 11.5px; font-weight: 500;
+    color: var(--ink);
+  }
+  .ovl-tl .dot{
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #3FA66A;
+    box-shadow: 0 0 0 3px rgba(63,166,106,.18);
+  }
+  .ovl-tl.uc .dot{ background: #C69A5A; box-shadow: 0 0 0 3px rgba(198,154,90,.18); }
+  .ovl-tl.new .dot{ background: var(--lilac-ink); box-shadow: 0 0 0 3px var(--lilac); }
+
+  .ovl-tr{
+    position: absolute; top: 12px; right: 12px;
+    font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    background: rgba(255,255,255,0.94);
+    backdrop-filter: blur(6px);
+    padding: 5px 10px;
+    border-radius: 999px;
+  }
+  .ovl-tr.commission{
+    background: var(--ink);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 4px 10px 4px 8px;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .ovl-tr.commission::before{
+    content:''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+  }
+  .ovl-tr.high{ background: var(--accent-ink); }
+  .ovl-tr.saved{
+    background: var(--bg);
+    padding: 6px;
+    border: 1px solid var(--line);
+  }
+  .ovl-tr.saved svg{ display: block; color: var(--accent-ink); }
+  .ovl-tr.saved.on{ background: var(--accent-ink); }
+  .ovl-tr.saved.on svg{ color: #fff; }
+
+  /* metric strip overlay (bottom-left for builder, shows live count) */
+  .ovl-bl{
+    position: absolute; left: 12px; bottom: 12px;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 10px 6px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.94);
+    backdrop-filter: blur(8px);
+    font-size: 11px;
+    color: var(--ink-2);
+    border: 1px solid var(--line);
+  }
+  .ovl-bl b{ color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .ovl-bl .ppl{
+    display: flex; align-items: center;
+  }
+  .ovl-bl .ppl span{
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 1.5px solid #fff;
+    background: var(--accent);
+    margin-left: -4px;
+  }
+  .ovl-bl .ppl span:first-child{ margin-left: 0; }
+
+  /* ============= CARD BODY ============= */
+  .card-body{ display:flex; flex-direction:column; gap: 4px; padding: 0 2px; }
+  .name-row{
+    display:flex; align-items: baseline; justify-content: space-between;
+    gap: 12px;
+  }
+  .name{
+    font-family: var(--serif);
+    font-size: 24px; font-weight: 300;
+    letter-spacing: -0.015em;
+    line-height: 1.1;
+    margin: 0;
+  }
+  .price{
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
+    font-size: 13px; font-weight: 500;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .price small{
+    font-size: 10.5px; color: var(--muted); font-weight: 400;
+    margin-right: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .loc{
+    display:flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--muted);
+  }
+  .loc b{ color: var(--ink-2); font-weight: 500; }
+  .loc .sep{ width:3px; height:3px; border-radius:50%; background: var(--muted-2); }
+  .loc .rera{
+    display:inline-flex; align-items: center; gap: 4px;
+    margin-left: 4px;
+    font-size: 10.5px;
+    color: var(--accent-ink);
+    font-weight: 500;
+  }
+  .loc .rera::before{
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
+    background: currentColor; opacity: .7;
+  }
+
+  /* ============= PERSONA STRIP (the core differentiator) ============= */
+  .strip{
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: 12px;
+  }
+
+  /* Builder strip: 3-up KPI mini-grid + progress bar */
+  .strip.builder{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .strip.builder .kpi{
+    display: flex; flex-direction: column;
+  }
+  .strip.builder .kpi-k{
+    font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+  }
+  .strip.builder .kpi-v{
+    font-family: var(--serif);
+    font-size: 22px; font-weight: 300;
+    line-height: 1.05; letter-spacing: -0.015em;
+    color: var(--ink);
+    margin-top: 2px;
+  }
+  .strip.builder .kpi-v small{
+    font-family: var(--sans); font-size: 11px;
+    color: var(--muted); margin-left: 2px;
+  }
+  .strip.builder .kpi-v.accent{ color: var(--accent-ink); }
+  .strip.builder .kpi-d{
+    font-size: 10.5px; color: var(--muted);
+    margin-top: 2px;
+  }
+  .strip.builder .kpi-d .up{ color: #4A7A56; font-weight: 600; }
+  .strip.builder .kpi-d .down{ color: #B5634C; font-weight: 600; }
+
+  .strip-foot{
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 4px;
+  }
+  .strip-foot .pl{
+    flex: 1;
+    height: 3px;
+    background: var(--line);
+    border-radius: 99px; overflow: hidden;
+  }
+  .strip-foot .pl i{
+    display: block; height: 100%;
+    background: var(--ink-2);
+    border-radius: 99px;
+  }
+  .strip-foot small{
+    font-size: 11px; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    font-family: var(--mono);
+  }
+
+  /* Customer strip: 2 rows of feature pills + actions */
+  .strip.customer{ grid-template-columns: 1fr; }
+  .feat-pills{
+    display: flex; gap: 6px;
+    flex-wrap: wrap;
+  }
+  .fp{
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--ink-2);
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: var(--bg-2);
+  }
+  .fp svg{ opacity: .65; }
+  .fp.dist{ background: var(--accent-tint); color: var(--accent-ink); }
+
+  .cust-row{
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px;
+  }
+  .cust-emi{
+    font-size: 12px; color: var(--muted);
+  }
+  .cust-emi b{
+    font-family: var(--mono);
+    color: var(--ink); font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .cust-actions{ display: flex; gap: 6px; }
+  .mini-btn{
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--bg); color: var(--ink-2);
+    display: grid; place-items: center;
+    cursor: pointer;
+  }
+  .mini-btn:hover{ background: var(--hover); }
+  .mini-btn.fill{
+    background: var(--ink); color: #fff; border-color: var(--ink);
+    width: auto;
+    padding: 0 12px;
+    font-size: 12px; font-weight: 500;
+    gap: 5px;
+  }
+
+  /* Partner strip: lead counter + share */
+  .strip.partner{ grid-template-columns: 1fr; }
+  .partner-top{
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+  }
+  .com-block{
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--accent-tint);
+    border: 1px solid var(--accent);
+    display: inline-flex; flex-direction: column;
+    line-height: 1.05;
+  }
+  .com-block .ck{
+    font-size: 9.5px; letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    opacity: 0.7;
+  }
+  .com-block .cv{
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 300;
+    letter-spacing: -0.01em;
+    color: var(--accent-ink);
+  }
+  .com-block .cv small{
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 500;
+    opacity: 0.7;
+  }
+  .com-block.high{
+    background: var(--accent-ink); border-color: var(--accent-ink);
+  }
+  .com-block.high .ck, .com-block.high .cv, .com-block.high .cv small{
+    color: #fff;
+  }
+
+  .partner-meta{
+    display: flex; flex-direction: column; gap: 2px;
+    min-width: 0;
+  }
+  .partner-meta-l{ font-size: 11px; color: var(--muted); font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }
+  .partner-meta-v{
+    font-size: 13.5px; color: var(--ink); font-weight: 500;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .partner-meta-v .stagebar{
+    display: inline-flex; gap: 2px;
+  }
+  .partner-meta-v .stagebar i{
+    width: 5px; height: 14px;
+    border-radius: 2px;
+    background: var(--line);
+  }
+  .partner-meta-v .stagebar i.on{ background: var(--accent-ink); }
+
+  .partner-actions{ display: flex; gap: 6px; }
+  .wa-btn{
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px 7px 10px;
+    border-radius: 999px;
+    background: var(--accent-ink);
+    color: #fff;
+    border: none;
+    font-family: var(--sans);
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    transition: background .3s ease;
+  }
+
+  .partner-bot{
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11.5px; color: var(--muted);
+    padding-top: 8px;
+    border-top: 1px dashed var(--line);
+  }
+  .partner-bot b{ color: var(--ink-2); }
+
+  /* Featured card (first one) */
+  .card.feat{
+    grid-column: span 2;
+  }
+  .card.feat .card-media{ aspect-ratio: 16/9; }
+  .card.feat .name{ font-size: 38px; }
+
+  /* Add new card */
+  .card-new{
+    border: 1px dashed var(--line);
+    border-radius: 16px;
+    aspect-ratio: 5/4;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap: 10px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .15s ease;
+    background: var(--bg);
+  }
+  .card-new:hover{
+    border-color: var(--accent-ink);
+    color: var(--accent-ink);
+    background: color-mix(in srgb, var(--accent) 30%, var(--bg));
+  }
+  .card-new .plus{
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 1px solid var(--line);
+    display:grid; place-items: center;
+    font-size: 22px; font-weight: 300; color: var(--ink-2);
+  }
+  .card-new:hover .plus{ border-color: currentColor; color: currentColor; }
+  .card-new b{ font-weight: 500; font-size: 14px; }
+  .card-new small{ font-size: 12px; }
+
+  /* ============= FOOTER SUMMARY ============= */
+  .footer-strip{
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    display: flex; gap: 32px;
+    align-items: center; justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .summary{ display: grid; grid-template-columns: repeat(4, auto); gap: 40px; }
+  .sm{ display:flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .sm-k{
+    font-size: 10.5px; letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+  }
+  .sm-v{
+    font-family: var(--serif);
+    font-size: 30px; font-weight: 300;
+    line-height: 1.1; letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .sm-v small{
+    font-family: var(--sans); font-size: 13px;
+    color: var(--muted); font-weight: 400;
+    margin-left: 4px;
+  }
+  .sm-v.accent{ color: var(--accent-ink); }
+
+  /* Responsive */
+  @media (max-width: 1180px){
+    .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .card.feat{ grid-column: span 2; }
+    .summary{ grid-template-columns: repeat(2, auto); gap: 24px 40px; }
+  }
+  @media (max-width: 760px){
+    .app{ grid-template-columns: 1fr; }
+    .side{ display: none; }
+    main{ padding: 20px; }
+    .grid{ grid-template-columns: minmax(0, 1fr); }
+    .card.feat{ grid-column: span 1; }
+    .hero{ grid-template-columns: 1fr; }
+    .strip.builder{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>
+</head>
+<body data-persona="builder">
+
+<div class="app">
+
+  <!-- ============= SIDEBAR ============= -->
+  <aside class="side">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      dealio<em>.</em>
+    </div>
+
+    <nav class="nav nav-group">
+      <span class="nav-label">Workspace</span>
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Overview</a>
+      <a href="#" class="active"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="9" width="18" height="12" rx="1"/><path d="M9 9V5h6v4"/></svg>Projects<span class="num" id="navCount">6</span></a>
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7"/></svg>Leads</a>
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-5"/></svg>Pipeline</a>
+    </nav>
+
+    <nav class="nav nav-group">
+      <span class="nav-label">Engage</span>
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 21l1.7-5.2A9 9 0 1112 21a8.9 8.9 0 01-4.2-1l-4.8 1z"/></svg>WhatsApp</a>
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>Meetings</a>
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="14" rx="2"/></svg>Content</a>
+    </nav>
+
+    <div class="side-foot">
+      <div class="ava">G</div>
+      <div class="who">
+        <b>Ganesh</b>
+        <small id="sidefootRole">Builder · Prestige Group</small>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============= MAIN ============= -->
+  <main>
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="crumbs">
+        <b>Projects</b>
+      </div>
+
+      <div class="persona-pill" role="tablist" aria-label="Perspective">
+        <button class="persona-btn" data-p="builder" aria-pressed="true">
+          <span class="pdot"></span> Builder
+        </button>
+        <button class="persona-btn" data-p="customer" aria-pressed="false">
+          <span class="pdot"></span> Customer
+        </button>
+        <button class="persona-btn" data-p="partner" aria-pressed="false">
+          <span class="pdot"></span> Channel partner
+        </button>
+      </div>
+
+      <div class="top-right">
+        <button class="icon-btn" aria-label="grid view">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </button>
+        <button class="icon-btn" aria-label="list view">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        </button>
+        <button class="icon-btn" aria-label="more">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- HERO (persona-aware copy) -->
+    <section class="hero">
+      <div>
+        <h1 class="h-title" id="heroTitle">Six <em>projects</em>,<br/>one pipeline.</h1>
+        <p class="h-sub" id="heroSub">Across <b>1,184 units</b> in Hyderabad — track inventory, velocity and realised revenue at a glance.</p>
+      </div>
+      <div class="h-cta">
+        <button class="btn btn-ghost">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+          Filters
+        </button>
+        <button class="btn btn-accent" id="primaryCta">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+          <span id="primaryCtaLabel">Launch new project</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- TOOLBAR (persona-aware filter tabs) -->
+    <div class="toolbar">
+      <div class="tabs" id="filterTabs">
+        <!-- populated by JS -->
+      </div>
+      <div class="tool-right">
+        <div class="search">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color: var(--muted)"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="searchInput" placeholder="Search projects, location…"/>
+        </div>
+        <button class="sort">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+          Sort
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- GRID -->
+    <section class="grid" id="grid"></section>
+
+    <!-- FOOTER SUMMARY -->
+    <section class="footer-strip">
+      <div class="summary" id="summary"></div>
+      <button class="btn btn-ghost">
+        Export CSV
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      </button>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  /* ============ PROJECT DATA ============ */
+  const PROJECTS = [
+    {
+      id: 'prestige-skyline',
+      name: 'Prestige Skyline',
+      loc: 'Gachibowli, Hyderabad',
+      tone: 'sand',
+      letter: 'S',
+      status: 'live',           // live | uc | new | draft
+      configs: '3 & 4 BHK',
+      units: 220,
+      possession: 'Dec 2027',
+      priceFrom: '₹1.4 Cr',
+      priceFromN: 14000000,
+      emi: 85920,
+      distanceKm: 4.2,
+      // builder data
+      sold: 142, available: 56, hold: 22,
+      soldPct: 64.5,
+      velocityWow: 32,          // % wow
+      revenueCr: 178,
+      cpCount: 18,
+      // customer data
+      savedBy: 24,
+      youSaved: true,
+      featured: ['Sky deck', 'Smart home', 'Concierge'],
+      // partner data
+      commissionPct: 2.75,
+      commissionTier: 'high',
+      leadsCount: 4,
+      leadsStage: 3,            // 1..4
+      booked: 2,
+      hot: true,
+      isFeatured: true,
+    },
+    {
+      id: 'aparna-cascade',
+      name: 'Aparna Cascade',
+      loc: 'Kokapet, Hyderabad',
+      tone: 'sage',
+      letter: 'A',
+      status: 'live',
+      configs: '2 & 3 BHK',
+      units: 420,
+      possession: 'Jun 2027',
+      priceFrom: '₹78 L',
+      priceFromN: 7800000,
+      emi: 51400,
+      distanceKm: 6.8,
+      sold: 268, available: 122, hold: 30,
+      soldPct: 63.8,
+      velocityWow: 18,
+      revenueCr: 224,
+      cpCount: 32,
+      savedBy: 47,
+      youSaved: false,
+      featured: ['Pool', 'Café', 'Co-work'],
+      commissionPct: 2.75,
+      commissionTier: 'normal',
+      leadsCount: 3,
+      leadsStage: 2,
+      booked: 1,
+      hot: false,
+    },
+    {
+      id: 'my-home-avatar',
+      name: 'My Home Avatar',
+      loc: 'Tellapur, Hyderabad',
+      tone: 'sky',
+      letter: 'A',
+      status: 'uc',
+      configs: '3 / 4 / 5 BHK',
+      units: 412,
+      possession: 'Mar 2028',
+      priceFrom: '₹1.8 Cr',
+      priceFromN: 18000000,
+      emi: 110480,
+      distanceKm: 9.4,
+      sold: 198, available: 184, hold: 30,
+      soldPct: 48.1,
+      velocityWow: -8,
+      revenueCr: 356,
+      cpCount: 41,
+      savedBy: 18,
+      youSaved: false,
+      featured: ['Squash', 'Theatre', 'EV bays'],
+      commissionPct: 3.00,
+      commissionTier: 'high',
+      leadsCount: 6,
+      leadsStage: 4,
+      booked: 0,
+      hot: true,
+    },
+    {
+      id: 'incor-carmel',
+      name: 'Incor Carmel Heights',
+      loc: 'Miyapur, Hyderabad',
+      tone: 'rose',
+      letter: 'I',
+      status: 'live',
+      configs: '3 BHK',
+      units: 184,
+      possession: 'Sep 2026',
+      priceFrom: '₹95 L',
+      priceFromN: 9500000,
+      emi: 62120,
+      distanceKm: 12.2,
+      sold: 134, available: 38, hold: 12,
+      soldPct: 72.8,
+      velocityWow: 12,
+      revenueCr: 136,
+      cpCount: 14,
+      savedBy: 9,
+      youSaved: false,
+      featured: ['Park view', 'Pet zone'],
+      commissionPct: 2.25,
+      commissionTier: 'normal',
+      leadsCount: 2,
+      leadsStage: 2,
+      booked: 0,
+      hot: false,
+    },
+    {
+      id: 'aparna-skyline',
+      name: 'Aparna Skyline',
+      loc: 'Manikonda, Hyderabad',
+      tone: 'lilac',
+      letter: 'S',
+      status: 'new',
+      configs: '3 BHK',
+      units: 156,
+      possession: 'Aug 2028',
+      priceFrom: '₹1.1 Cr',
+      priceFromN: 11000000,
+      emi: 68900,
+      distanceKm: 5.1,
+      sold: 32, available: 116, hold: 8,
+      soldPct: 20.5,
+      velocityWow: 84,
+      revenueCr: 38,
+      cpCount: 22,
+      savedBy: 56,
+      youSaved: false,
+      featured: ['Launch offer', '5-yr maint.'],
+      commissionPct: 3.25,
+      commissionTier: 'high',
+      leadsCount: 5,
+      leadsStage: 1,
+      booked: 0,
+      hot: true,
+    },
+    {
+      id: 'brigade-cosmopolis',
+      name: 'Brigade Cosmopolis',
+      loc: 'Kondapur, Hyderabad',
+      tone: 'sand',
+      letter: 'C',
+      status: 'live',
+      configs: '2 & 3 BHK',
+      units: 192,
+      possession: 'Feb 2027',
+      priceFrom: '₹88 L',
+      priceFromN: 8800000,
+      emi: 57600,
+      distanceKm: 3.7,
+      sold: 126, available: 54, hold: 12,
+      soldPct: 65.6,
+      velocityWow: 6,
+      revenueCr: 118,
+      cpCount: 16,
+      savedBy: 31,
+      youSaved: true,
+      featured: ['Yoga', 'Library', 'Pool'],
+      commissionPct: 2.50,
+      commissionTier: 'normal',
+      leadsCount: 1,
+      leadsStage: 3,
+      booked: 1,
+      hot: false,
+    },
+  ];
+
+  /* ============ HERO / CTA COPY ============ */
+  const HERO = {
+    builder: {
+      title: 'Six <em>projects</em>,<br/>one pipeline.',
+      sub: 'Across <b>1,184 units</b> in Hyderabad — track inventory, velocity and realised revenue at a glance.',
+      cta: 'Launch new project',
+      role: 'Builder · Prestige Group',
+      summary: [
+        { k: 'Total units', v: '1,184' },
+        { k: 'Sold', v: '900', accent: true, sub: '76%' },
+        { k: 'Revenue realised', v: '₹10.5<small>Cr</small>' },
+        { k: 'Avg DOM', v: '14<small>d</small>' },
+      ],
+    },
+    customer: {
+      title: 'Find your <em>home</em>,<br/>at your pace.',
+      sub: 'Curated for you in Hyderabad — <b>6 shortlisted</b>, <b>2 saved</b>. Compare configs, EMI and possession side by side.',
+      cta: 'Shortlist a project',
+      role: 'Looking in Hyderabad',
+      summary: [
+        { k: 'Shortlisted', v: '6' },
+        { k: 'You saved', v: '2', accent: true },
+        { k: 'Lowest EMI', v: '₹51<small>k/mo</small>' },
+        { k: 'Nearest', v: '3.7<small>km</small>' },
+      ],
+    },
+    partner: {
+      title: 'Six projects, <em>endless leads</em>.',
+      sub: 'You\'ve added <b>21 leads</b> across these projects this month, with <b>₹3.4 L</b> in payouts pending.',
+      cta: 'Add a lead',
+      role: 'Platinum partner',
+      summary: [
+        { k: 'My leads · month', v: '21' },
+        { k: 'Units booked', v: '4', accent: true },
+        { k: 'Avg commission', v: '2.75<small>%</small>' },
+        { k: 'Payout pending', v: '₹3.4<small>L</small>' },
+      ],
+    },
+  };
+
+  const TABS = {
+    builder: [
+      { k: 'all',    label: 'All projects',  ct: 6 },
+      { k: 'live',   label: 'Selling',       ct: 4 },
+      { k: 'uc',     label: 'Under constr.', ct: 1 },
+      { k: 'new',    label: 'Pre-launch',    ct: 1 },
+      { k: 'hot',    label: 'High velocity', ct: 3 },
+    ],
+    customer: [
+      { k: 'all',    label: 'All',           ct: 6 },
+      { k: 'saved',  label: 'Saved',         ct: 2 },
+      { k: 'ready',  label: 'Ready by 2027', ct: 4 },
+      { k: 'budget', label: 'Under ₹1 Cr',   ct: 3 },
+      { k: 'near',   label: 'Near me',       ct: 2 },
+    ],
+    partner: [
+      { k: 'all',    label: 'All',                ct: 6 },
+      { k: 'leads',  label: 'With my leads',     ct: 5 },
+      { k: 'hot',    label: 'Hot commission',    ct: 3 },
+      { k: 'booked', label: 'I\'ve booked here', ct: 4 },
+      { k: 'new',    label: 'New on dealio',     ct: 1 },
+    ],
+  };
+
+  /* ============ RENDERERS ============ */
+  function fmtKm(n){ return n.toFixed(1) + ' km'; }
+  function fmtINR(n){
+    const s = Math.round(n).toString();
+    if (s.length <= 3) return s;
+    const last3 = s.slice(-3);
+    const rest = s.slice(0, -3);
+    return rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3;
+  }
+
+  function statusLabel(s){
+    return { live: 'Selling', uc: 'Under constr.', new: 'Pre-launch', draft: 'Draft' }[s] || s;
+  }
+  function statusClass(s){
+    return { live: '', uc: 'uc', new: 'new', draft: 'draft' }[s] || '';
+  }
+
+  function builderStrip(p){
+    const wowClass = p.velocityWow >= 0 ? 'up' : 'down';
+    const wowSym = p.velocityWow >= 0 ? '▲' : '▼';
+    return `
+      <div class="strip builder">
+        <div class="kpi">
+          <span class="kpi-k">Sold</span>
+          <span class="kpi-v accent">${p.soldPct}<small>%</small></span>
+          <span class="kpi-d">${p.sold} / ${p.units} units</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-k">Velocity</span>
+          <span class="kpi-v">${Math.abs(p.velocityWow)}<small>% WoW</small></span>
+          <span class="kpi-d"><span class="${wowClass}">${wowSym}</span> ${p.velocityWow >= 0 ? 'accelerating' : 'cooling'}</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-k">Realised</span>
+          <span class="kpi-v">₹${p.revenueCr}<small>Cr</small></span>
+          <span class="kpi-d">${p.cpCount} CP partners</span>
+        </div>
+        <div class="strip-foot">
+          <div class="pl"><i style="width: ${p.soldPct}%"></i></div>
+          <small>${p.available} avail · ${p.hold} hold</small>
+        </div>
+      </div>
+    `;
+  }
+
+  function customerStrip(p){
+    const featPills = p.featured.map(f => `
+      <span class="fp">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>
+        ${f}
+      </span>
+    `).join('');
+    return `
+      <div class="strip customer">
+        <div class="feat-pills">
+          <span class="fp dist">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            ${fmtKm(p.distanceKm)} from Gachibowli
+          </span>
+          ${featPills}
+        </div>
+        <div class="cust-row">
+          <div class="cust-emi">EMI from <b>₹${fmtINR(p.emi)}</b>/mo · ${p.configs}</div>
+          <div class="cust-actions">
+            <button class="mini-btn" title="Compare">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h13l-3-3M3 6l3 3M21 18H8l3 3M21 18l-3-3"/></svg>
+            </button>
+            <button class="mini-btn" title="Schedule visit">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>
+            </button>
+            <button class="mini-btn fill" title="View details">
+              View
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function partnerStrip(p){
+    const stagebar = [1,2,3,4].map(i => `<i class="${i <= p.leadsStage ? 'on' : ''}"></i>`).join('');
+    return `
+      <div class="strip partner">
+        <div class="partner-top">
+          <div class="com-block ${p.commissionTier === 'high' ? 'high' : ''}">
+            <span class="ck">Commission</span>
+            <span class="cv">${p.commissionPct.toFixed(2)}<small>%</small></span>
+          </div>
+          <div class="partner-meta">
+            <span class="partner-meta-l">My pipeline</span>
+            <span class="partner-meta-v">
+              <b>${p.leadsCount}</b> lead${p.leadsCount === 1 ? '' : 's'}
+              <span class="stagebar">${stagebar}</span>
+            </span>
+          </div>
+          <div class="partner-actions">
+            <button class="wa-btn">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21l1.7-5.2A9 9 0 1112 21a8.9 8.9 0 01-4.2-1l-4.8 1zM12 4a8 8 0 100 16 8 8 0 000-16z"/></svg>
+              Share
+            </button>
+          </div>
+        </div>
+        <div class="partner-bot">
+          <span>${p.booked} unit${p.booked === 1 ? '' : 's'} booked by you</span>
+          <span><b>${p.cpCount}</b> CPs on this project</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function topRightOverlay(p, persona){
+    if (persona === 'builder'){
+      return `<span class="ovl-tr">${p.units} units</span>`;
+    }
+    if (persona === 'customer'){
+      return `
+        <button class="ovl-tr saved ${p.youSaved ? 'on' : ''}" title="${p.youSaved ? 'Saved' : 'Save'}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="${p.youSaved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+        </button>
+      `;
+    }
+    // partner
+    return `<span class="ovl-tr commission ${p.commissionTier === 'high' ? 'high' : ''}">${p.commissionPct.toFixed(2)}% comm.</span>`;
+  }
+
+  function bottomLeftOverlay(p, persona){
+    if (persona === 'builder'){
+      return `
+        <span class="ovl-bl">
+          <span class="ppl"><span></span><span></span><span></span></span>
+          <span><b>${p.cpCount}</b> CPs</span>
+        </span>
+      `;
+    }
+    if (persona === 'customer'){
+      return `
+        <span class="ovl-bl">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+          <span><b>${p.savedBy}</b> others saved</span>
+        </span>
+      `;
+    }
+    // partner
+    if (p.hot){
+      return `
+        <span class="ovl-bl" style="background: var(--accent-ink); color: #fff; border-color: var(--accent-ink);">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c2 6 7 7 7 12a7 7 0 11-14 0c0-3 2-4 3-7 1.5 2 3 2 4 0z"/></svg>
+          <span>High velocity</span>
+        </span>
+      `;
+    }
+    return '';
+  }
+
+  function renderCard(p, persona, isFeat){
+    let strip = '';
+    if (persona === 'builder')  strip = builderStrip(p);
+    if (persona === 'customer') strip = customerStrip(p);
+    if (persona === 'partner')  strip = partnerStrip(p);
+
+    return `
+      <article class="card ${isFeat ? 'feat' : ''}" data-id="${p.id}">
+        <div class="card-media">
+          <div class="ph" data-tone="${p.tone}">
+            <span class="ph-letter">${p.letter}</span>
+          </div>
+          <span class="ovl-tl ${statusClass(p.status)}">
+            <span class="dot"></span>
+            ${statusLabel(p.status)}
+          </span>
+          ${topRightOverlay(p, persona)}
+          ${bottomLeftOverlay(p, persona)}
+        </div>
+        <div class="card-body">
+          <div class="name-row">
+            <h2 class="name">${p.name}</h2>
+            <span class="price"><small>from</small>${p.priceFrom}</span>
+          </div>
+          <div class="loc">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11c0 5-9 11-9 11s-9-6-9-11a9 9 0 1118 0z"/><circle cx="12" cy="11" r="3"/></svg>
+            ${p.loc.split(',')[0]}, <b>${p.loc.split(',')[1].trim()}</b>
+            <span class="sep"></span>
+            <span>${p.configs}</span>
+            <span class="rera">RERA</span>
+          </div>
+          ${strip}
+        </div>
+      </article>
+    `;
+  }
+
+  function renderGrid(persona){
+    const grid = document.getElementById('grid');
+    let html = '';
+    PROJECTS.forEach((p, i) => {
+      // featured only for builder + the first project (Skyline)
+      const isFeat = (persona === 'builder' && p.isFeatured);
+      html += renderCard(p, persona, isFeat);
+    });
+    // add-new card only for builder
+    if (persona === 'builder'){
+      html += `
+        <div class="card-new">
+          <div class="plus">+</div>
+          <b>Launch a project</b>
+          <small>It takes ~3 minutes</small>
+        </div>
+      `;
+    }
+    grid.innerHTML = html;
+
+    // wire save toggle for customer
+    grid.querySelectorAll('.ovl-tr.saved').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        btn.classList.toggle('on');
+        const svg = btn.querySelector('svg');
+        if (btn.classList.contains('on')) svg.setAttribute('fill', 'currentColor');
+        else svg.setAttribute('fill', 'none');
+      });
+    });
+    // link card -> detail
+    grid.querySelectorAll('.card[data-id]').forEach(c => {
+      c.addEventListener('click', () => {
+        if (c.dataset.id === 'prestige-skyline'){
+          window.location.href = 'Project Detail - Prestige Skyline.html';
+        }
+      });
+    });
+  }
+
+  function renderHero(persona){
+    const h = HERO[persona];
+    document.getElementById('heroTitle').innerHTML = h.title;
+    document.getElementById('heroSub').innerHTML = h.sub;
+    document.getElementById('primaryCtaLabel').textContent = h.cta;
+    document.getElementById('sidefootRole').textContent = h.role;
+
+    // Summary
+    const sumEl = document.getElementById('summary');
+    sumEl.innerHTML = h.summary.map(s => `
+      <div class="sm">
+        <span class="sm-k">${s.k}</span>
+        <span class="sm-v ${s.accent ? 'accent' : ''}">${s.v}</span>
+      </div>
+    `).join('');
+  }
+
+  function renderTabs(persona){
+    const el = document.getElementById('filterTabs');
+    el.innerHTML = TABS[persona].map((t, i) => `
+      <button class="tab" data-k="${t.k}" aria-pressed="${i === 0 ? 'true' : 'false'}">
+        ${t.label} <span class="ct">${t.ct}</span>
+      </button>
+    `).join('');
+    el.querySelectorAll('.tab').forEach(b => {
+      b.addEventListener('click', () => {
+        el.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-pressed', 'false'));
+        b.setAttribute('aria-pressed', 'true');
+      });
+    });
+  }
+
+  function setPersona(p){
+    document.body.setAttribute('data-persona', p);
+    document.querySelectorAll('.persona-btn').forEach(b => {
+      b.setAttribute('aria-pressed', b.dataset.p === p ? 'true' : 'false');
+    });
+    renderHero(p);
+    renderTabs(p);
+    renderGrid(p);
+  }
+
+  /* ============ INIT ============ */
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.persona-btn').forEach(b => {
+      b.addEventListener('click', () => setPersona(b.dataset.p));
+    });
+    setPersona('builder');
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>dealio — My Projects (Minimal)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,400&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+  :root{
+    --bg: #FAFAF7;
+    --ink: #111210;
+    --ink-2: #2A2C28;
+    --muted: #80847C;
+    --line: #E8E7E0;
+    --line-soft: #F0EFE8;
+    --card: #FFFFFF;
+    --accent: #2D3A2E;
+    --accent-soft: #E8EDE5;
+    --good: #4F8A5E;
+    --warn: #C28E3E;
+    --neutral: #B7B9B0;
+
+    --serif: "Newsreader", "Times New Roman", serif;
+    --sans: "Inter Tight", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  body[data-accent="forest"]{ --accent:#2D3A2E; --accent-soft:#E8EDE5; }
+  body[data-accent="ink"]   { --accent:#111210; --accent-soft:#EBEAE2; }
+  body[data-accent="terra"] { --accent:#7A4A35; --accent-soft:#F1E3DC; }
+  body[data-accent="navy"]  { --accent:#1F2E4A; --accent-soft:#E1E5EE; }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: -0.005em;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  /* ============ top bar ============ */
+  .topbar{
+    display:flex; align-items:center;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+    position: sticky; top:0; z-index: 10;
+    gap: 24px;
+  }
+  .brand{
+    font-family: var(--serif);
+    font-size: 22px; font-weight: 400;
+    letter-spacing: -0.02em;
+    display:flex; align-items:center; gap: 8px;
+  }
+  .brand .dot{
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+  }
+  .brand em{ font-style: italic; color: var(--muted); font-weight: 300; }
+
+  .topnav{ display:flex; gap: 4px; margin-left: 20px; }
+  .topnav a{
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 13px; font-weight: 500;
+    color: var(--muted);
+    text-decoration: none;
+    transition: all .15s ease;
+  }
+  .topnav a:hover{ color: var(--ink); }
+  .topnav a.active{ background: var(--ink); color: var(--bg); }
+
+  .top-right{ margin-left:auto; display:flex; gap:10px; align-items:center; }
+  .ic-btn{
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    display: grid; place-items: center;
+    cursor: pointer; color: var(--ink-2);
+  }
+  .ic-btn:hover{ background: var(--bg); }
+  .av{
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent); color: var(--bg);
+    display: grid; place-items:center;
+    font-size: 11px; font-weight: 600;
+  }
+
+  /* ============ container ============ */
+  .wrap{
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 48px 32px 96px;
+  }
+
+  /* ============ header row ============ */
+  .head{
+    display:flex; align-items:flex-end; justify-content: space-between;
+    gap: 32px; padding-bottom: 24px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .head-r{ display:flex; gap: 8px; align-items:center; flex-shrink: 0; }
+
+  .eyebrow{
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    margin-bottom: 14px;
+  }
+  .eyebrow .count-chip{
+    display:inline-flex; align-items:center; gap: 6px;
+    padding: 4px 10px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 999px;
+    font-size: 11px; font-weight: 600;
+    font-family: var(--sans);
+    line-height: 1;
+    white-space: nowrap;
+    letter-spacing: 0.04em;
+  }
+  .eyebrow .count-chip .dot{
+    width: 5px; height: 5px; border-radius: 50%;
+    background: currentColor;
+  }
+  .h-title{
+    font-family: var(--serif);
+    font-size: clamp(40px, 5vw, 64px);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1.0;
+    margin: 0;
+  }
+  .h-title em{ font-style: italic; color: var(--muted); font-weight: 300; }
+
+  .btn{
+    display:inline-flex; align-items:center; gap: 8px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13px; font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: all .15s ease;
+  }
+  .btn-ghost{
+    background: transparent;
+    border-color: var(--line);
+    color: var(--ink);
+  }
+  .btn-ghost:hover{ background: var(--card); }
+  .btn-primary{
+    background: var(--ink); color: var(--bg);
+  }
+  .btn-primary:hover{ background: var(--ink-2); }
+
+  /* ============ toolbar ============ */
+  .toolbar{
+    display:flex; align-items:center; gap: 14px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .filters{ display:flex; gap: 4px; flex-wrap: wrap; }
+  .flt{
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    font-family: var(--sans); font-size: 12.5px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    display:inline-flex; align-items:center; gap: 6px;
+  }
+  .flt:hover{ color: var(--ink); }
+  .flt[aria-pressed="true"]{
+    background: var(--ink); border-color: var(--ink); color: var(--bg);
+  }
+  .flt .ct{
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+    opacity: .65;
+  }
+
+  .toolbar-right{ margin-left:auto; display:flex; gap: 8px; align-items: center; }
+  .search{
+    display:flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg);
+    width: 220px;
+  }
+  .search input{
+    border: none; outline: none; background: transparent;
+    font-family: var(--sans); font-size: 12.5px;
+    color: var(--ink); flex: 1; min-width: 0;
+  }
+  .search input::placeholder{ color: var(--muted); }
+
+  /* ============ list ============ */
+  .list{
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  /* table header */
+  .list-head{
+    display: grid;
+    grid-template-columns: 56px minmax(220px, 1.4fr) 1.1fr 0.9fr 0.9fr 1fr 110px;
+    gap: 20px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+  }
+  .list-head .col{
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .list-head .col.r{ text-align: right; }
+
+  .row{
+    display: grid;
+    grid-template-columns: 56px minmax(220px, 1.4fr) 1.1fr 0.9fr 0.9fr 1fr 110px;
+    gap: 20px;
+    align-items: center;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--line-soft);
+    cursor: pointer;
+    transition: background .12s ease;
+    position: relative;
+  }
+  .row:last-child{ border-bottom: none; }
+  .row:hover{ background: var(--bg); }
+  .row:hover .arr{ transform: translateX(2px); color: var(--ink); }
+
+  .thumb{
+    width: 56px; height: 56px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--accent-soft);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .thumb img{ width:100%; height:100%; object-fit: cover; display:block; }
+  .thumb .ph{
+    width:100%; height:100%;
+    background: var(--accent-soft); color: var(--accent);
+    display:grid; place-items: center;
+    font-family: var(--serif);
+    font-size: 28px; font-style: italic; font-weight: 300;
+  }
+
+  .proj{
+    display:flex; flex-direction: column; gap: 2px;
+    min-width: 0;
+  }
+  .proj .name{
+    font-family: var(--serif);
+    font-size: 20px; font-weight: 400;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    margin: 0;
+    color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .proj .sub{
+    font-size: 12.5px;
+    color: var(--muted);
+    display:flex; align-items:center; gap: 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .proj .sub b{ color: var(--ink-2); font-weight: 500; }
+  .proj .sub .rera{
+    color: var(--good);
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+  .proj .sub .rera::before{
+    content:''; display:inline-block;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: currentColor;
+    margin-right: 4px;
+    vertical-align: 1px;
+  }
+
+  .cell-status{
+    display:inline-flex; align-items:center; gap: 6px;
+    font-size: 13px; font-weight: 500;
+    color: var(--ink-2);
+  }
+  .cell-status .dot{
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--good);
+    box-shadow: 0 0 0 3px rgba(79,138,94,.15);
+  }
+  .cell-status.uc .dot{ background: var(--warn); box-shadow: 0 0 0 3px rgba(194,142,62,.18); }
+  .cell-status.draft .dot{ background: var(--neutral); box-shadow: none; }
+  .cell-status .stage{
+    color: var(--muted); font-size: 11.5px; font-weight: 400;
+    margin-left: 2px;
+  }
+
+  .cell-units, .cell-config{
+    font-size: 13.5px;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .cell-units b{ color: var(--ink); font-weight: 600; }
+  .cell-units small{
+    display:block;
+    font-size: 11.5px; color: var(--muted); font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cell-sold{
+    display:flex; flex-direction: column; gap: 6px;
+    min-width: 0;
+  }
+  .cell-sold-row{
+    display:flex; align-items:baseline; justify-content: space-between;
+    gap: 10px;
+  }
+  .cell-sold-row b{
+    font-size: 14px; font-weight: 600; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .cell-sold-row small{
+    font-size: 11.5px; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .pbar{
+    height: 3px;
+    background: var(--line);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .pbar i{
+    display:block; height: 100%;
+    background: var(--accent);
+    border-radius: 99px;
+  }
+
+  .cell-action{
+    text-align: right;
+    display:flex; justify-content: flex-end; align-items:center; gap: 12px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .cell-action .price{
+    color: var(--ink); font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .arr{
+    transition: transform .2s ease;
+    color: var(--muted);
+  }
+
+  /* expand row at the top? - skip; keep clean */
+
+  /* footer of list */
+  .list-foot{
+    display:flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px;
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .list-foot a{ color: var(--ink); text-decoration: none; font-weight: 500; }
+  .list-foot a:hover{ text-decoration: underline; text-underline-offset: 3px; }
+  .pager{ display:flex; gap: 6px; }
+  .pager button{
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--bg); border: 1px solid var(--line);
+    color: var(--ink-2); cursor: pointer;
+    font-size: 12px;
+  }
+  .pager button[aria-pressed="true"]{
+    background: var(--ink); color: var(--bg); border-color: var(--ink);
+  }
+
+  /* summary strip */
+  .summary{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    margin-bottom: 32px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--card);
+    overflow: hidden;
+  }
+  .sm{
+    padding: 18px 22px;
+    border-right: 1px solid var(--line);
+    display:flex; flex-direction:column; gap: 4px;
+  }
+  .sm:last-child{ border-right: none; }
+  .sm-k{
+    font-size: 11px; letter-spacing: 0.10em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+  }
+  .sm-v{
+    font-family: var(--serif);
+    font-size: 32px; font-weight: 300;
+    line-height: 1.1; letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .sm-v small{
+    font-family: var(--sans);
+    font-size: 13px; color: var(--muted); font-weight: 400;
+    margin-left: 4px;
+  }
+  .sm-d{
+    font-size: 11.5px; font-weight: 500;
+    color: var(--good);
+    font-variant-numeric: tabular-nums;
+    margin-top: 2px;
+  }
+  .sm-d.down{ color: #B5462F; }
+
+  /* responsive: collapse less critical columns */
+  @media (max-width: 1080px){
+    .list-head, .row{
+      grid-template-columns: 48px minmax(180px, 1.4fr) 1fr 1fr 110px;
+    }
+    .list-head .col-units, .row .cell-units,
+    .list-head .col-config, .row .cell-config{ display:none; }
+    .summary{ grid-template-columns: repeat(2, 1fr); }
+    .sm:nth-child(2){ border-right: none; }
+    .sm:nth-child(1), .sm:nth-child(2){ border-bottom: 1px solid var(--line); }
+  }
+  @media (max-width: 720px){
+    .wrap{ padding: 32px 16px 64px; }
+    .topbar{ padding: 12px 16px; }
+    .topnav{ display: none; }
+    .list-head, .row{
+      grid-template-columns: 44px minmax(0, 1fr) auto;
+    }
+    .list-head .col-status, .row .cell-status,
+    .list-head .col-sold, .row .cell-sold{ display:none; }
+  }
+
+  /* tweaks */
+  #tweaks{ position: fixed; right: 18px; bottom: 18px; z-index: 9999; font-family: var(--sans); }
+  .tw-card{
+    width: 264px;
+    background: var(--card);
+    border:1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 22px 60px -16px rgba(14,22,18,.18), 0 2px 6px rgba(14,22,18,.04);
+  }
+  .tw-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px; }
+  .tw-title{ font-family: var(--serif); font-size: 20px; font-weight: 400; }
+  .tw-x{
+    width: 24px; height: 24px; border-radius: 50%;
+    border:1px solid var(--line); background: var(--bg);
+    color: var(--ink); cursor:pointer; font-size: 14px; line-height: 0;
+  }
+  .tw-sec + .tw-sec{ margin-top: 14px; }
+  .tw-label{
+    font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500; margin-bottom: 8px;
+  }
+  .tw-row{ display:flex; gap: 8px; flex-wrap:wrap; }
+  .tw-swatch{
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--c); cursor:pointer;
+    border: 2px solid var(--card);
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .tw-swatch[aria-pressed="true"]{ box-shadow: 0 0 0 2px var(--ink); }
+
+</style>
+</head>
+<body data-accent="forest">
+
+<!-- ============ top bar ============ -->
+<header class="topbar">
+  <div class="brand"><span class="dot"></span>deal<em>io</em></div>
+  <nav class="topnav">
+    <a href="#">Dashboard</a>
+    <a href="#" class="active">Projects</a>
+    <a href="#">Inventory</a>
+    <a href="#">Leads</a>
+    <a href="#">Analytics</a>
+  </nav>
+  <div class="top-right">
+    <button class="ic-btn" aria-label="search">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    </button>
+    <button class="ic-btn" aria-label="bell">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 004 0"/></svg>
+    </button>
+    <div class="av">AR</div>
+  </div>
+</header>
+
+<!-- ============ main ============ -->
+<div class="wrap">
+
+  <section class="head">
+    <div class="head-l">
+      <div class="eyebrow">
+        Workspace · Aparna Realty
+        <span class="count-chip"><span class="dot"></span>12 active</span>
+      </div>
+      <h1 class="h-title">My <em>projects</em></h1>
+    </div>
+    <div class="head-r">
+      <button class="btn btn-ghost">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17v4h16v-4M12 3v14m0 0l-5-5m5 5l5-5"/></svg>
+        Import
+      </button>
+      <button class="btn btn-primary">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+        New project
+      </button>
+    </div>
+  </section>
+
+  <!-- summary -->
+  <section class="summary">
+    <div class="sm">
+      <span class="sm-k">Portfolio value</span>
+      <span class="sm-v">₹486<small>Cr</small></span>
+      <span class="sm-d">▲ 14.2% this quarter</span>
+    </div>
+    <div class="sm">
+      <span class="sm-k">Units sold</span>
+      <span class="sm-v">1,247<small>/ 2,180</small></span>
+      <span class="sm-d">57% sell-through</span>
+    </div>
+    <div class="sm">
+      <span class="sm-k">Active leads</span>
+      <span class="sm-v">3,412</span>
+      <span class="sm-d">▲ 8.6% this week</span>
+    </div>
+    <div class="sm">
+      <span class="sm-k">Avg ticket</span>
+      <span class="sm-v">₹92<small>L</small></span>
+      <span class="sm-d down">▼ 2.1% month over month</span>
+    </div>
+  </section>
+
+  <!-- toolbar -->
+  <section class="toolbar">
+    <div class="filters">
+      <button class="flt" aria-pressed="true">All <span class="ct">12</span></button>
+      <button class="flt" aria-pressed="false">Live <span class="ct">9</span></button>
+      <button class="flt" aria-pressed="false">New launch <span class="ct">2</span></button>
+      <button class="flt" aria-pressed="false">Under construction <span class="ct">5</span></button>
+      <button class="flt" aria-pressed="false">Drafts <span class="ct">3</span></button>
+    </div>
+    <div class="toolbar-right">
+      <div class="search">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input placeholder="Search projects…" />
+      </div>
+      <button class="flt">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+        Recent activity
+      </button>
+    </div>
+  </section>
+
+  <!-- list -->
+  <section class="list">
+    <div class="list-head">
+      <div></div>
+      <div class="col col-project">Project</div>
+      <div class="col col-status">Status</div>
+      <div class="col col-units">Inventory</div>
+      <div class="col col-config">Config</div>
+      <div class="col col-sold">Sold</div>
+      <div class="col col-action r">Price</div>
+    </div>
+
+    <!-- 1 -->
+    <div class="row">
+      <div class="thumb">
+        <img src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=200&q=80" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'G'}))" />
+      </div>
+      <div class="proj">
+        <h3 class="name">Green Valley Residences</h3>
+        <div class="sub">Gachibowli, <b>Hyderabad</b> <span class="rera">RERA verified</span></div>
+      </div>
+      <div class="cell-status">
+        <span class="dot"></span> Live <span class="stage">· top performer</span>
+      </div>
+      <div class="cell-units">
+        <b>420</b> units <small>handover Dec ’27</small>
+      </div>
+      <div class="cell-config">2 & 3 BHK</div>
+      <div class="cell-sold">
+        <div class="cell-sold-row"><b>68%</b><small>286 / 420</small></div>
+        <div class="pbar"><i style="width:68%"></i></div>
+      </div>
+      <div class="cell-action">
+        <span class="price">₹60L</span>
+        <span class="arr">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <!-- 2 -->
+    <div class="row">
+      <div class="thumb">
+        <img src="https://images.unsplash.com/photo-1576941089067-2de3c901e126?auto=format&fit=crop&w=200&q=80" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'S'}))" />
+      </div>
+      <div class="proj">
+        <h3 class="name">Sunrise Heights</h3>
+        <div class="sub">Kondapur, <b>Hyderabad</b> <span class="rera">RERA</span></div>
+      </div>
+      <div class="cell-status">
+        <span class="dot"></span> Live <span class="stage">· new launch</span>
+      </div>
+      <div class="cell-units">
+        <b>186</b> units <small>launching Q2 ’26</small>
+      </div>
+      <div class="cell-config">3 BHK</div>
+      <div class="cell-sold">
+        <div class="cell-sold-row"><b>12%</b><small>22 / 186</small></div>
+        <div class="pbar"><i style="width:12%"></i></div>
+      </div>
+      <div class="cell-action">
+        <span class="price">₹85L</span>
+        <span class="arr">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <!-- 3 -->
+    <div class="row">
+      <div class="thumb">
+        <img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=200&q=80" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'A'}))" />
+      </div>
+      <div class="proj">
+        <h3 class="name">Aparna Skyline</h3>
+        <div class="sub">Wakad, <b>Pune</b> <span class="rera">RERA</span></div>
+      </div>
+      <div class="cell-status">
+        <span class="dot"></span> Live
+      </div>
+      <div class="cell-units">
+        <b>324</b> units <small>handover Mar ’27</small>
+      </div>
+      <div class="cell-config">2 / 3 / 4 BHK</div>
+      <div class="cell-sold">
+        <div class="cell-sold-row"><b>42%</b><small>136 / 324</small></div>
+        <div class="pbar"><i style="width:42%"></i></div>
+      </div>
+      <div class="cell-action">
+        <span class="price">₹1.4Cr</span>
+        <span class="arr">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <!-- 4 -->
+    <div class="row">
+      <div class="thumb">
+        <img src="https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=200&q=80" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'R'}))" />
+      </div>
+      <div class="proj">
+        <h3 class="name">Riverpark</h3>
+        <div class="sub">Kokapet, <b>Hyderabad</b> <span class="rera">RERA</span></div>
+      </div>
+      <div class="cell-status">
+        <span class="dot"></span> Live <span class="stage">· almost sold out</span>
+      </div>
+      <div class="cell-units">
+        <b>512</b> units <small>97 remaining</small>
+      </div>
+      <div class="cell-config">2 & 3 BHK</div>
+      <div class="cell-sold">
+        <div class="cell-sold-row"><b>81%</b><small>415 / 512</small></div>
+        <div class="pbar"><i style="width:81%"></i></div>
+      </div>
+      <div class="cell-action">
+        <span class="price">₹78L</span>
+        <span class="arr">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <!-- 5 -->
+    <div class="row">
+      <div class="thumb">
+        <img src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=200&q=80" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'N'}))" />
+      </div>
+      <div class="proj">
+        <h3 class="name">North Bloom</h3>
+        <div class="sub">Hebbal, <b>Bengaluru</b> <span class="rera">RERA</span></div>
+      </div>
+      <div class="cell-status uc">
+        <span class="dot"></span> Under construction
+      </div>
+      <div class="cell-units">
+        <b>240</b> units <small>handover Jun ’28</small>
+      </div>
+      <div class="cell-config">3 & 4 BHK</div>
+      <div class="cell-sold">
+        <div class="cell-sold-row"><b>34%</b><small>82 / 240</small></div>
+        <div class="pbar"><i style="width:34%"></i></div>
+      </div>
+      <div class="cell-action">
+        <span class="price">₹1.1Cr</span>
+        <span class="arr">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <!-- 6 -->
+    <div class="row">
+      <div class="thumb">
+        <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=200&q=80" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'A'}))" />
+      </div>
+      <div class="proj">
+        <h3 class="name">Aparan One</h3>
+        <div class="sub">Tellapur, <b>Hyderabad</b></div>
+      </div>
+      <div class="cell-status">
+        <span class="dot"></span> Live
+      </div>
+      <div class="cell-units">
+        <b>198</b> units <small>handover Sep ’27</small>
+      </div>
+      <div class="cell-config">2 BHK</div>
+      <div class="cell-sold">
+        <div class="cell-sold-row"><b>23%</b><small>45 / 198</small></div>
+        <div class="pbar"><i style="width:23%"></i></div>
+      </div>
+      <div class="cell-action">
+        <span class="price">₹64L</span>
+        <span class="arr">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <!-- 7 draft -->
+    <div class="row">
+      <div class="thumb">
+        <div class="ph">P</div>
+      </div>
+      <div class="proj">
+        <h3 class="name">Parna</h3>
+        <div class="sub">Whitefield, <b>Bengaluru</b></div>
+      </div>
+      <div class="cell-status draft">
+        <span class="dot"></span> Draft <span class="stage">· setup 60%</span>
+      </div>
+      <div class="cell-units">
+        <small>3.2 acres mixed-use</small>
+      </div>
+      <div class="cell-config">Pre-RERA</div>
+      <div class="cell-sold">
+        <div class="cell-sold-row" style="color:var(--muted)"><small>not listed</small></div>
+      </div>
+      <div class="cell-action">
+        <span class="price" style="color:var(--muted)">—</span>
+        <span class="arr">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <div class="list-foot">
+      <span>Showing 7 of 12 projects</span>
+      <div class="pager">
+        <button aria-label="prev">‹</button>
+        <button aria-pressed="true">1</button>
+        <button>2</button>
+        <button aria-label="next">›</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div id="tweaks"></div>
+
+<script>
+  document.querySelectorAll('.filters .flt').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.filters .flt').forEach(x => x.setAttribute('aria-pressed', 'false'));
+      t.setAttribute('aria-pressed', 'true');
+    });
+  });
+
+  const DEFAULTS = /*EDITMODE-BEGIN*/{
+    "accent": "forest"
+  }/*EDITMODE-END*/;
+  let TWEAKS = { ...DEFAULTS };
+  function apply(){ document.body.dataset.accent = TWEAKS.accent; }
+  apply();
+
+  const panelEl = document.getElementById('tweaks');
+  function setKey(k, v){
+    TWEAKS[k] = v; apply(); renderPanel();
+    window.parent.postMessage({ type:'__edit_mode_set_keys', edits: { [k]: v } }, '*');
+  }
+  function renderPanel(){
+    if(!panelEl.dataset.open) return;
+    panelEl.innerHTML = `
+      <div class="tw-card">
+        <div class="tw-head">
+          <span class="tw-title">Tweaks</span>
+          <button class="tw-x" aria-label="close">×</button>
+        </div>
+        <div class="tw-sec">
+          <div class="tw-label">Accent</div>
+          <div class="tw-row">
+            <button class="tw-swatch" data-action="accent:forest" style="--c:#2D3A2E" aria-pressed="${TWEAKS.accent==='forest'}" title="Forest"></button>
+            <button class="tw-swatch" data-action="accent:ink"    style="--c:#111210" aria-pressed="${TWEAKS.accent==='ink'}"    title="Ink"></button>
+            <button class="tw-swatch" data-action="accent:terra"  style="--c:#7A4A35" aria-pressed="${TWEAKS.accent==='terra'}"  title="Terra"></button>
+            <button class="tw-swatch" data-action="accent:navy"   style="--c:#1F2E4A" aria-pressed="${TWEAKS.accent==='navy'}"   title="Navy"></button>
+          </div>
+        </div>
+        <div class="tw-sec" style="color:var(--muted); font-size:11.5px; line-height:1.5;">
+          Tints the progress bars, count chip and placeholder thumbnails. Everything else stays neutral.
+        </div>
+      </div>
+    `;
+    panelEl.querySelectorAll('[data-action]').forEach(b => {
+      b.addEventListener('click', () => {
+        const [k, v] = b.dataset.action.split(':');
+        setKey(k, v);
+      });
+    });
+    panelEl.querySelector('.tw-x').addEventListener('click', () => {
+      panelEl.dataset.open = ''; panelEl.innerHTML = '';
+      window.parent.postMessage({ type:'__edit_mode_dismissed' }, '*');
+    });
+  }
+  window.addEventListener('message', (e) => {
+    const t = e.data && e.data.type;
+    if(t === '__activate_edit_mode'){ panelEl.dataset.open = '1'; renderPanel(); }
+    if(t === '__deactivate_edit_mode'){ panelEl.dataset.open = ''; panelEl.innerHTML = ''; }
+  });
+  window.parent.postMessage({ type:'__edit_mode_available' }, '*');
+</script>
+
+</body>
+</html>

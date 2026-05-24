@@ -1,0 +1,1486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>dealio — Partner Overview (Airy)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+  :root{
+    --bg: #FFFFFF;
+    --bg-2: #FAFAF7;
+    --ink: #0E1411;
+    --ink-2: #2A2C28;
+    --muted: #8E948F;
+    --muted-2: #BCBFB8;
+    --line: #EFEEE8;
+    --line-soft: #F5F4EE;
+    --hover: #FBFAF6;
+
+    /* soft pastel system */
+    --sage: #E6EFE3;
+    --sage-ink: #4F7558;
+    --sky: #E1EAF4;
+    --sky-ink: #4C6A8C;
+    --sand: #F2EADB;
+    --sand-ink: #876B3A;
+    --rose: #F2E0DD;
+    --rose-ink: #9C5E55;
+    --lilac: #ECE6F4;
+    --lilac-ink: #6A578E;
+    --mint: #DFEEE7;
+    --mint-ink: #4A7A6A;
+
+    --serif: "Fraunces", "Times New Roman", serif;
+    --sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  *{ box-sizing: border-box; }
+  html, body{ margin: 0; padding: 0; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    font-weight: 400;
+  }
+
+  .app{
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: 100vh;
+  }
+
+  /* ============= SIDEBAR ============= */
+  .side{
+    border-right: 1px solid var(--line);
+    padding: 32px 20px 24px;
+    position: sticky; top: 0; height: 100vh;
+    display: flex; flex-direction: column; gap: 28px;
+    background: var(--bg);
+    overflow-y: auto;
+  }
+  .brand{
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .brand-dot{
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--sage-ink);
+  }
+  .brand em{ font-style: italic; color: var(--muted); font-weight: 300; }
+
+  .nav-group{ display: flex; flex-direction: column; gap: 2px; }
+  .nav-label{
+    font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); padding: 0 10px 8px;
+    font-weight: 500;
+  }
+  .nav a{
+    display: flex; align-items: center; gap: 11px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--ink-2);
+    text-decoration: none;
+    font-size: 13.5px;
+    font-weight: 400;
+    transition: background .12s ease, color .12s ease;
+  }
+  .nav a:hover{ background: var(--hover); }
+  .nav a.active{ background: var(--bg-2); color: var(--ink); font-weight: 500; }
+  .nav a svg{ flex-shrink: 0; opacity: .7; }
+  .nav a.active svg{ opacity: 1; color: var(--sage-ink); }
+  .nav a .num{
+    margin-left: auto;
+    font-size: 11px; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .nav a.active .num{ color: var(--sage-ink); font-weight: 500; }
+
+  .side-foot{
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    display: flex; gap: 10px; align-items: center;
+  }
+  .av{
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--sage);
+    color: var(--sage-ink);
+    display: grid; place-items: center;
+    font-weight: 600; font-size: 12px;
+    flex-shrink: 0;
+  }
+  .side-foot .who{ line-height: 1.2; min-width: 0; }
+  .side-foot .who b{ font-size: 13px; font-weight: 500; display: block; }
+  .side-foot .who small{ font-size: 11.5px; color: var(--muted); }
+
+  /* ============= MAIN ============= */
+  main{
+    padding: 40px 56px 96px;
+    max-width: 1500px;
+  }
+
+  /* ============= TOPBAR ============= */
+  .topbar{
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 48px;
+  }
+  .crumbs{
+    font-size: 12.5px;
+    color: var(--muted);
+    display: flex; gap: 8px; align-items: center;
+  }
+  .crumbs b{ color: var(--ink); font-weight: 500; }
+  .crumbs .live{
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-left: 12px;
+    padding: 3px 10px;
+    background: var(--bg-2);
+    border-radius: 99px;
+    font-size: 11.5px;
+    color: var(--ink-2);
+  }
+  .crumbs .live::before{
+    content: '';
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--sage-ink);
+    box-shadow: 0 0 0 3px rgba(79,117,88,0.16);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%, 100%{ box-shadow: 0 0 0 3px rgba(79,117,88,0.16); }
+    50%{ box-shadow: 0 0 0 6px rgba(79,117,88,0.04); }
+  }
+  .top-right{ display: flex; gap: 8px; align-items: center; }
+  .search{
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg);
+    width: 240px;
+    transition: border-color .15s ease;
+  }
+  .search:focus-within{ border-color: var(--ink-2); }
+  .search input{
+    border: none; outline: none; background: transparent;
+    font-family: var(--sans); font-size: 13px;
+    color: var(--ink); flex: 1; min-width: 0;
+  }
+  .search input::placeholder{ color: var(--muted); }
+  .ic-btn{
+    width: 34px; height: 34px; border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink-2);
+    display: grid; place-items: center;
+    cursor: pointer; position: relative;
+    transition: background .15s ease;
+  }
+  .ic-btn:hover{ background: var(--hover); }
+  .ic-btn .dot{
+    position: absolute; top: 7px; right: 7px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--rose-ink);
+    box-shadow: 0 0 0 2px var(--bg);
+  }
+
+  /* ============= HERO ============= */
+  .hero{
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    align-items: end;
+    gap: 40px;
+    margin-bottom: 56px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid var(--line);
+  }
+  .eyebrow{
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+  .eyebrow .tier{
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px 3px 7px;
+    background: var(--lilac);
+    color: var(--lilac-ink);
+    border-radius: 99px;
+    font-size: 10.5px; font-weight: 600;
+    letter-spacing: 0.06em;
+  }
+  .eyebrow .tier .dia{
+    width: 8px; height: 8px;
+    background: linear-gradient(135deg, var(--lilac-ink), #B8A4DD);
+    transform: rotate(45deg);
+    border-radius: 1px;
+  }
+  .h-title{
+    font-family: var(--serif);
+    font-size: clamp(48px, 5.8vw, 84px);
+    font-weight: 300;
+    line-height: 0.96;
+    letter-spacing: -0.025em;
+    margin: 0;
+    color: var(--ink);
+  }
+  .h-title em{
+    font-style: italic;
+    color: var(--muted);
+    font-weight: 300;
+  }
+  .h-title .wave{
+    display: inline-block;
+    transform-origin: 70% 70%;
+    animation: wave 2.5s ease-in-out infinite;
+    font-family: var(--sans);
+  }
+  @keyframes wave{
+    0%, 60%, 100%{ transform: rotate(0deg); }
+    10%{ transform: rotate(14deg); }
+    20%{ transform: rotate(-8deg); }
+    30%{ transform: rotate(14deg); }
+    40%{ transform: rotate(-4deg); }
+    50%{ transform: rotate(10deg); }
+  }
+  .h-sub{
+    margin: 22px 0 0;
+    font-size: 14.5px;
+    color: var(--muted);
+    max-width: 560px;
+    line-height: 1.6;
+  }
+  .h-sub b{ color: var(--ink); font-weight: 500; }
+  .h-sub .ink{ color: var(--sage-ink); font-weight: 500; }
+
+  .hero-right{
+    display: flex; flex-direction: column; gap: 12px;
+    align-items: flex-end;
+  }
+  .rank-badge{
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 10px 16px 10px 12px;
+    background: var(--sage);
+    color: var(--sage-ink);
+    border-radius: 99px;
+    font-size: 12.5px; font-weight: 500;
+  }
+  .rank-badge .star{
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--sage-ink); color: var(--sage);
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 700;
+  }
+  .rank-badge b{ font-weight: 600; }
+  .hero-actions{ display: flex; gap: 8px; }
+  .btn{
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13px; font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-family: var(--sans);
+    color: var(--ink); background: transparent;
+    transition: all .15s ease;
+  }
+  .btn-primary{
+    background: var(--ink); color: var(--bg);
+  }
+  .btn-primary:hover{ background: var(--ink-2); }
+  .btn-ghost{
+    border-color: var(--line);
+    background: var(--bg);
+  }
+  .btn-ghost:hover{ background: var(--hover); border-color: var(--muted-2); }
+
+  /* ============= STAT STRIP ============= */
+  .stats{
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0;
+    margin-bottom: 56px;
+  }
+  .stat{
+    padding: 0 28px;
+    border-left: 1px solid var(--line);
+    position: relative;
+    cursor: pointer;
+  }
+  .stat:first-child{ border-left: none; padding-left: 0; }
+  .stat-k{
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+    margin-bottom: 14px;
+  }
+  .stat-v{
+    font-family: var(--serif);
+    font-size: 48px; font-weight: 300;
+    line-height: 1.0;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    display: flex; align-items: baseline; gap: 4px;
+  }
+  .stat-v small{
+    font-family: var(--sans);
+    font-size: 16px;
+    color: var(--muted);
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+  .stat-d{
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex; align-items: baseline; gap: 6px;
+    flex-wrap: wrap;
+  }
+  .stat-d .up{
+    color: var(--sage-ink); font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-d .down{
+    color: var(--rose-ink); font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-spark{
+    width: 100%; height: 28px;
+    margin-top: 16px;
+    opacity: .9;
+  }
+
+  /* ============= TWO-COL SECTIONS ============= */
+  .section{
+    margin-bottom: 56px;
+  }
+  .section-head{
+    display: flex; align-items: end; justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 24px;
+  }
+  .section-head h2{
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 36px;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+  .section-head h2 em{ font-style: italic; color: var(--muted); font-weight: 300; }
+  .section-head .meta{
+    font-size: 12.5px; color: var(--muted);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .section-head .meta a{
+    color: var(--ink); text-decoration: none; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .section-head .meta a:hover{ color: var(--sage-ink); }
+  .tabs{
+    display: flex; gap: 4px;
+    background: var(--bg-2);
+    border-radius: 99px;
+    padding: 3px;
+  }
+  .tabs button{
+    padding: 5px 12px;
+    border-radius: 99px; border: none; background: transparent;
+    color: var(--muted); cursor: pointer;
+    font-size: 12px; font-weight: 500;
+    font-family: var(--sans);
+  }
+  .tabs button[aria-pressed="true"]{
+    background: var(--bg); color: var(--ink);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  /* ============= ROW: FOLLOWUPS + HOT + LB ============= */
+  .row-3{
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 1fr;
+    gap: 48px;
+  }
+  .panel-h{
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .panel-h h3{
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 24px; font-weight: 300;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .panel-h h3 em{ font-style: italic; color: var(--muted); font-weight: 300; }
+  .panel-h h3 .num-pill{
+    font-family: var(--sans);
+    font-size: 11px; font-weight: 600;
+    padding: 3px 9px;
+    background: var(--rose);
+    color: var(--rose-ink);
+    border-radius: 99px;
+    letter-spacing: 0.04em;
+  }
+  .panel-h .more{
+    font-size: 12px; color: var(--muted);
+    text-decoration: none; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .panel-h .more:hover{ color: var(--ink); }
+
+  /* Follow-ups */
+  .fu-list{ display: flex; flex-direction: column; }
+  .fu{
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    gap: 16px;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .fu:first-child{ padding-top: 4px; }
+  .fu:last-child{ border-bottom: none; }
+  .fu-av{
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--bg-2);
+    color: var(--ink-2);
+    display: grid; place-items: center;
+    font-size: 12.5px; font-weight: 500;
+  }
+  .fu-av.hot{ background: var(--rose); color: var(--rose-ink); }
+  .fu-av.sky{ background: var(--sky); color: var(--sky-ink); }
+  .fu-av.sand{ background: var(--sand); color: var(--sand-ink); }
+  .fu-body{ min-width: 0; }
+  .fu-name{
+    font-family: var(--serif);
+    font-size: 18px; font-weight: 400;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    line-height: 1.15;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .fu-name .stage{
+    font-family: var(--sans);
+    font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 2px 8px;
+    background: var(--bg-2);
+    color: var(--muted);
+    border-radius: 99px;
+    line-height: 1.4;
+  }
+  .fu-name .stage.hot{ background: var(--rose); color: var(--rose-ink); }
+  .fu-name .stage.warm{ background: var(--sand); color: var(--sand-ink); }
+  .fu-meta{
+    font-size: 12.5px; color: var(--muted);
+    margin-top: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .fu-meta b{ color: var(--ink-2); font-weight: 500; }
+  .fu-act{
+    display: flex; gap: 6px;
+  }
+  .mini-btn{
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink-2);
+    display: grid; place-items: center;
+    cursor: pointer; transition: all .12s ease;
+  }
+  .mini-btn:hover{ background: var(--hover); border-color: var(--muted-2); color: var(--ink); }
+  .mini-btn.wa{
+    background: var(--mint);
+    color: var(--mint-ink);
+    border-color: var(--mint);
+  }
+  .mini-btn.wa:hover{
+    background: var(--mint-ink);
+    color: var(--mint);
+  }
+
+  /* Hot leads empty */
+  .empty{
+    padding: 24px 0;
+    display: flex; flex-direction: column; align-items: flex-start;
+    gap: 14px;
+    min-height: 220px;
+    justify-content: center;
+  }
+  .empty .halo{
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--sand);
+    color: var(--sand-ink);
+    display: grid; place-items: center;
+    font-size: 22px;
+    position: relative;
+  }
+  .empty .halo::before, .empty .halo::after{
+    content: '';
+    position: absolute; inset: -8px;
+    border-radius: 50%;
+    border: 1px dashed rgba(135,107,58,0.30);
+    animation: rotate 18s linear infinite;
+  }
+  .empty .halo::after{
+    inset: -16px;
+    animation-direction: reverse;
+    animation-duration: 30s;
+    border-color: rgba(135,107,58,0.14);
+  }
+  @keyframes rotate{ to{ transform: rotate(360deg); } }
+  .empty b{ font-family: var(--serif); font-size: 22px; font-weight: 400; letter-spacing: -0.01em; color: var(--ink); }
+  .empty p{
+    margin: 0; font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    max-width: 240px;
+  }
+  .empty .empty-cta{
+    margin-top: 4px;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px;
+    background: var(--sand);
+    color: var(--sand-ink);
+    border-radius: 99px;
+    font-size: 12.5px; font-weight: 600;
+    text-decoration: none; border: none; cursor: pointer;
+    font-family: var(--sans);
+  }
+  .empty .empty-cta:hover{
+    background: var(--sand-ink);
+    color: var(--sand);
+  }
+
+  /* Leaderboard */
+  .lb{ display: flex; flex-direction: column; }
+  .lb-row{
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .lb-row:first-child{ padding-top: 4px; }
+  .lb-row:last-of-type{ border-bottom: none; }
+  .lb-rank{
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--muted);
+    line-height: 1;
+    width: 28px;
+    text-align: center;
+    letter-spacing: -0.02em;
+  }
+  .lb-row.gold .lb-rank{ color: var(--sand-ink); font-style: italic; }
+  .lb-row.silver .lb-rank{ color: var(--ink-2); font-style: italic; }
+  .lb-row.bronze .lb-rank{ color: var(--rose-ink); font-style: italic; }
+  .lb-name{
+    font-size: 14px; font-weight: 500; color: var(--ink);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .lb-name .you{
+    font-size: 10px; font-weight: 600;
+    padding: 1px 7px;
+    background: var(--sage); color: var(--sage-ink);
+    border-radius: 99px;
+    letter-spacing: 0.06em;
+  }
+  .lb-deals{
+    font-size: 13px; font-weight: 500;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .lb-deals small{ color: var(--muted); font-weight: 400; }
+  .lb-name-wrap{ min-width: 0; }
+  .lb-progress{
+    height: 2px; margin-top: 6px;
+    background: var(--line);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .lb-progress i{
+    display: block; height: 100%;
+    background: var(--ink-2);
+    border-radius: 99px;
+  }
+  .lb-row.you .lb-progress i{ background: var(--sage-ink); }
+  .lb-foot{
+    margin-top: 16px;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .lb-foot b{ color: var(--sage-ink); font-weight: 600; }
+
+  /* ============= ROW: FUNNEL + TREND ============= */
+  .row-2{
+    display: grid;
+    grid-template-columns: 1fr 1.1fr;
+    gap: 48px;
+  }
+  .funnel{
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .fn{
+    display: grid;
+    grid-template-columns: 96px 1fr 70px;
+    gap: 16px;
+    align-items: center;
+    font-size: 13px;
+  }
+  .fn-label{ color: var(--ink-2); font-weight: 500; }
+  .fn-bar{
+    height: 4px;
+    background: var(--line);
+    border-radius: 99px;
+    overflow: hidden;
+    position: relative;
+  }
+  .fn-bar i{
+    display: block; height: 100%;
+    background: var(--sage-ink);
+    border-radius: 99px;
+  }
+  .fn-bar i.s2{ background: var(--sky-ink); }
+  .fn-bar i.s3{ background: var(--lilac-ink); }
+  .fn-bar i.s4{ background: var(--sand-ink); }
+  .fn-bar i.s5{ background: var(--rose-ink); }
+  .fn-value{
+    font-size: 13px; font-weight: 500;
+    color: var(--ink);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .fn-value small{ color: var(--muted); font-weight: 400; }
+
+  .funnel-stats{
+    margin-top: 24px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .fs{ display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .fs .k{
+    font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+    white-space: nowrap;
+  }
+  .fs .v{
+    font-family: var(--serif);
+    font-size: 28px; font-weight: 300;
+    line-height: 1.1; letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .fs .v small{ font-family: var(--sans); font-size: 12px; color: var(--muted); font-weight: 400; }
+  .fs.accent .v{ color: var(--sage-ink); font-style: italic; font-size: 22px; padding-top: 5px; }
+
+  /* Commission trend */
+  .trend-stats{ display: flex; gap: 32px; margin-bottom: 18px; }
+  .ts{ display: flex; flex-direction: column; gap: 4px; }
+  .ts .k{
+    font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+  }
+  .ts .v{
+    font-family: var(--serif);
+    font-size: 32px; font-weight: 300;
+    line-height: 1.0; letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .ts .v small{ font-family: var(--sans); font-size: 13px; color: var(--muted); font-weight: 400; }
+  .trend-chart{
+    width: 100%; height: 220px;
+  }
+
+  /* ============= NETWORK ============= */
+  .net-grid{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+  }
+  .nc{
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex; flex-direction: column;
+    gap: 14px;
+    transition: transform .2s cubic-bezier(.2,.6,.3,1);
+  }
+  .nc:hover{ transform: translateY(-2px); }
+  .nc-media{
+    aspect-ratio: 5/4;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--bg-2);
+    position: relative;
+  }
+  .nc-media img{
+    width: 100%; height: 100%; object-fit: cover;
+    transition: transform .9s cubic-bezier(.2,.6,.3,1);
+  }
+  .nc:hover .nc-media img{ transform: scale(1.04); }
+  .nc-media .ph{
+    width: 100%; height: 100%;
+    display: grid; place-items: center;
+    color: var(--sage-ink);
+    background: var(--sage);
+    font-family: var(--serif);
+    font-size: 64px; font-style: italic;
+    font-weight: 300;
+    opacity: .8;
+  }
+  .nc-badges{
+    position: absolute; top: 12px; left: 12px;
+    display: flex; gap: 6px;
+  }
+  .pill-comm{
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 11px 5px 8px;
+    border-radius: 99px;
+    background: rgba(255,255,255,0.94);
+    color: var(--ink);
+    backdrop-filter: blur(8px);
+    font-size: 11.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 4px 14px rgba(14,20,17,0.06);
+  }
+  .pill-comm .dot{
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--sage-ink);
+    box-shadow: 0 0 0 3px rgba(79,117,88,0.18);
+  }
+  .pill-comm.high .dot{
+    background: var(--rose-ink);
+    box-shadow: 0 0 0 3px rgba(156,94,85,0.18);
+  }
+  .pill-new{
+    padding: 5px 10px;
+    background: rgba(255,255,255,0.94);
+    backdrop-filter: blur(8px);
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 600; letter-spacing: 0.10em;
+    text-transform: uppercase;
+    border-radius: 99px;
+  }
+  .pill-new.live{ color: var(--sage-ink); }
+
+  .nc-body{
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 0 2px;
+  }
+  .nc-row{
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+  }
+  .nc-name{
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 22px; font-weight: 300;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    color: var(--ink);
+    min-width: 0;
+  }
+  .nc-price{
+    font-size: 13px; font-weight: 500;
+    color: var(--ink-2);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .nc-price small{
+    color: var(--muted); font-weight: 400;
+    margin-right: 2px;
+  }
+  .nc-loc{
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+  .nc-loc b{ color: var(--ink-2); font-weight: 500; }
+  .nc-loc .sep{
+    width: 3px; height: 3px; border-radius: 50%;
+    background: var(--muted-2);
+    display: inline-block;
+  }
+  .nc-foot{
+    margin-top: 8px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+  }
+  .nc-share{
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px 6px 10px;
+    background: var(--mint);
+    color: var(--mint-ink);
+    border-radius: 99px;
+    border: none;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: all .15s ease;
+  }
+  .nc-share:hover{
+    background: var(--mint-ink);
+    color: var(--mint);
+  }
+  .nc-meta{
+    font-size: 11.5px; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ============= RESPONSIVE ============= */
+  @media (max-width: 1320px){
+    .row-3{ grid-template-columns: 1fr 1fr; }
+    .row-3 > div:nth-child(3){ grid-column: span 2; }
+    .net-grid{ grid-template-columns: repeat(3, 1fr); }
+    .stats{ grid-template-columns: repeat(5, 1fr); }
+    .stat-v{ font-size: 40px; }
+  }
+  @media (max-width: 1080px){
+    main{ padding: 32px; }
+    .hero{ grid-template-columns: 1fr; align-items: start; }
+    .hero-right{ align-items: flex-start; }
+    .stats{ grid-template-columns: repeat(2, 1fr); row-gap: 32px; }
+    .stat{ border-left: none; padding-left: 0; padding-right: 0; }
+    .row-3{ grid-template-columns: 1fr; }
+    .row-3 > div:nth-child(3){ grid-column: span 1; }
+    .row-2{ grid-template-columns: 1fr; }
+    .net-grid{ grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 720px){
+    .app{ grid-template-columns: 1fr; }
+    .side{ display: none; }
+    main{ padding: 24px 16px 64px; }
+    .net-grid{ grid-template-columns: 1fr; }
+    .search{ display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============= SIDEBAR ============= -->
+  <aside class="side">
+    <div class="brand">
+      <span class="brand-dot"></span> deal<em>io</em>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Main</div>
+      <nav class="nav">
+        <a href="#" class="active">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          Overview
+        </a>
+        <a href="#">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="9" width="18" height="12" rx="1"/><path d="M9 9V5h6v4"/></svg>
+          Projects <span class="num">12</span>
+        </a>
+        <a href="#">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="8" r="3"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7"/><circle cx="17" cy="6" r="2"/></svg>
+          Leads <span class="num">12</span>
+        </a>
+        <a href="#">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-5"/></svg>
+          Pipeline
+        </a>
+        <a href="#">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/><path d="M12 3v3M3 12h3M18 12h3M12 18v3"/></svg>
+          AI Lead Intel
+        </a>
+      </nav>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Marketing</div>
+      <nav class="nav">
+        <a href="#">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>
+          Content Studio
+        </a>
+        <a href="#">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+          Social Analytics
+        </a>
+        <a href="#">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21l1.7-5.2A9 9 0 1112 21a8.9 8.9 0 01-4.2-1l-4.8 1z"/></svg>
+          WA Broadcast
+        </a>
+        <a href="#">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>
+          Meetings
+        </a>
+        <a href="#">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          Follow-ups
+        </a>
+      </nav>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Earnings</div>
+      <nav class="nav">
+        <a href="#">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 100 7H15a3.5 3.5 0 110 7H6"/></svg>
+          Commissions
+        </a>
+        <a href="#">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 9V5a6 6 0 1112 0v4"/><rect x="4" y="9" width="16" height="12" rx="2"/></svg>
+          Leaderboard
+        </a>
+        <a href="#">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/><path d="M12 7v4M6 17l5-6M18 17l-5-6"/></svg>
+          Referral Tree
+        </a>
+        <a href="#">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M3 21c0-4 2.5-7 6-7s6 3 6 7"/></svg>
+          Community
+        </a>
+      </nav>
+    </div>
+
+    <div class="side-foot">
+      <div class="av">G</div>
+      <div class="who">
+        <b>Ganesh P</b>
+        <small>Channel partner</small>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============= MAIN ============= -->
+  <main>
+
+    <!-- topbar -->
+    <div class="topbar">
+      <div class="crumbs">
+        Workspace <span>/</span> <b>Overview</b>
+        <span class="live">Live · 10:44 IST</span>
+      </div>
+      <div class="top-right">
+        <div class="search">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input placeholder="Search…" />
+        </div>
+        <button class="ic-btn" aria-label="bell">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 004 0"/></svg>
+          <span class="dot"></span>
+        </button>
+        <button class="ic-btn" aria-label="settings">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 010 0M5 12a7 7 0 010 0M12 5v2M12 17v2"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div>
+        <div class="eyebrow">
+          <span class="tier"><span class="dia"></span>Platinum partner</span>
+          Channel partner · since Mar ’23
+        </div>
+        <h1 class="h-title">
+          Good morning,<br/>
+          <em>Ganesh</em> <span class="wave">👋</span>
+        </h1>
+        <p class="h-sub">
+          A quiet, sunny morning. You're on a <b>3-day streak</b>, with <span class="ink">2 follow-ups</span> due before noon — clearing them takes you closer to the <b>₹1.5L</b> month target.
+        </p>
+      </div>
+      <div class="hero-right">
+        <div class="rank-badge">
+          <span class="star">★</span>
+          <span><b>Rank #1</b> this month</span>
+        </div>
+        <div class="hero-actions">
+          <button class="btn btn-ghost">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21l1.7-5.2A9 9 0 1112 21a8.9 8.9 0 01-4.2-1l-4.8 1z"/></svg>
+            WA broadcast
+          </button>
+          <button class="btn btn-primary">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+            New lead
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <section class="stats">
+      <div class="stat">
+        <div class="stat-k">Active leads</div>
+        <div class="stat-v">12</div>
+        <div class="stat-d"><span class="up">▲ 3</span> this week · warmth 68%</div>
+        <svg class="stat-spark" viewBox="0 0 96 28" fill="none" stroke="var(--sage-ink)" stroke-width="1.4" preserveAspectRatio="none"><path d="M0 22 L12 20 L24 14 L36 16 L48 10 L60 12 L72 6 L84 8 L96 4"/></svg>
+      </div>
+      <div class="stat">
+        <div class="stat-k">Meetings · week</div>
+        <div class="stat-v">5</div>
+        <div class="stat-d"><span class="up">▲ 2</span> · 2 site visits</div>
+        <svg class="stat-spark" viewBox="0 0 96 28" fill="none" stroke="var(--sky-ink)" stroke-width="1.4" preserveAspectRatio="none"><path d="M0 18 L12 20 L24 12 L36 16 L48 10 L60 14 L72 6 L84 10 L96 4"/></svg>
+      </div>
+      <div class="stat">
+        <div class="stat-k">Deals · month</div>
+        <div class="stat-v">6</div>
+        <div class="stat-d"><span class="up">▲ 50%</span> MoM · target 8</div>
+        <svg class="stat-spark" viewBox="0 0 96 28" fill="none" stroke="var(--lilac-ink)" stroke-width="1.4" preserveAspectRatio="none"><path d="M0 24 L12 22 L24 18 L36 20 L48 12 L60 14 L72 8 L84 10 L96 4"/></svg>
+      </div>
+      <div class="stat">
+        <div class="stat-k">Earnings</div>
+        <div class="stat-v">₹1.24<small>L</small></div>
+        <div class="stat-d"><span class="up">▲ ₹38k</span> MoM</div>
+        <svg class="stat-spark" viewBox="0 0 96 28" fill="none" stroke="var(--sand-ink)" stroke-width="1.4" preserveAspectRatio="none"><path d="M0 22 L12 20 L24 14 L36 16 L48 18 L60 8 L72 12 L84 6 L96 4"/></svg>
+      </div>
+      <div class="stat">
+        <div class="stat-k">Referral bonus</div>
+        <div class="stat-v">₹8,500</div>
+        <div class="stat-d">2 referrals · tier +10%</div>
+        <svg class="stat-spark" viewBox="0 0 96 28" fill="none" stroke="var(--rose-ink)" stroke-width="1.4" preserveAspectRatio="none"><path d="M0 14 L12 16 L24 12 L36 14 L48 10 L60 12 L72 8 L84 10 L96 6"/></svg>
+      </div>
+    </section>
+
+    <!-- ROW 3: FOLLOWUPS · HOT · LEADERBOARD -->
+    <section class="section">
+      <div class="row-3">
+
+        <!-- Follow-ups -->
+        <div>
+          <div class="panel-h">
+            <h3>Follow-up <em>due</em> <span class="num-pill">3 OVERDUE</span></h3>
+            <a class="more">View all
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+            </a>
+          </div>
+
+          <div class="fu-list">
+            <div class="fu">
+              <div class="fu-av hot">MK</div>
+              <div class="fu-body">
+                <div class="fu-name">Meera Krishnan <span class="stage hot">Hot</span></div>
+                <div class="fu-meta">New lead · first follow-up · <b>2 days overdue</b></div>
+              </div>
+              <div class="fu-act">
+                <button class="mini-btn" title="Call">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 1.7c.1.9.3 1.7.5 2.5a2 2 0 01-.5 2.1l-1.3 1.2a16 16 0 006 6L15 14.2a2 2 0 012.1-.5 13 13 0 002.5.5 2 2 0 011.7 2.7z"/></svg>
+                </button>
+                <button class="mini-btn wa" title="WhatsApp">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21l1.7-5.2A9 9 0 1112 21a8.9 8.9 0 01-4.2-1l-4.8 1zM12 4a8 8 0 100 16 8 8 0 000-16z"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="fu">
+              <div class="fu-av sky">PM</div>
+              <div class="fu-body">
+                <div class="fu-name">Priya Menon <span class="stage warm">Site visit</span></div>
+                <div class="fu-meta">First follow-up · <b>today 4 PM</b> · Aparna Cascade</div>
+              </div>
+              <div class="fu-act">
+                <button class="mini-btn" title="Call">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 1.7c.1.9.3 1.7.5 2.5a2 2 0 01-.5 2.1l-1.3 1.2a16 16 0 006 6L15 14.2a2 2 0 012.1-.5 13 13 0 002.5.5 2 2 0 011.7 2.7z"/></svg>
+                </button>
+                <button class="mini-btn wa" title="WhatsApp">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21l1.7-5.2A9 9 0 1112 21a8.9 8.9 0 01-4.2-1l-4.8 1zM12 4a8 8 0 100 16 8 8 0 000-16z"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="fu">
+              <div class="fu-av sand">VA</div>
+              <div class="fu-body">
+                <div class="fu-name">Vijay Anand <span class="stage">Negotiation</span></div>
+                <div class="fu-meta">Meeting completed 2d ago · needs push on price</div>
+              </div>
+              <div class="fu-act">
+                <button class="mini-btn" title="Call">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 1.7c.1.9.3 1.7.5 2.5a2 2 0 01-.5 2.1l-1.3 1.2a16 16 0 006 6L15 14.2a2 2 0 012.1-.5 13 13 0 002.5.5 2 2 0 011.7 2.7z"/></svg>
+                </button>
+                <button class="mini-btn wa" title="WhatsApp">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21l1.7-5.2A9 9 0 1112 21a8.9 8.9 0 01-4.2-1l-4.8 1zM12 4a8 8 0 100 16 8 8 0 000-16z"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hot leads empty -->
+        <div>
+          <div class="panel-h">
+            <h3>Hot <em>leads</em></h3>
+            <a class="more">Manage</a>
+          </div>
+          <div class="empty">
+            <div class="halo">🔥</div>
+            <b>All caught up.</b>
+            <p>Your top 3 prospects haven't been touched in 4 days. A quick WhatsApp will re-warm them.</p>
+            <button class="empty-cta">
+              Run broadcast
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div>
+          <div class="panel-h">
+            <h3>Leader<em>board</em></h3>
+            <a class="more">May ’26</a>
+          </div>
+          <div class="lb">
+            <div class="lb-row you gold">
+              <div class="lb-rank">1</div>
+              <div class="lb-name-wrap">
+                <div class="lb-name">Ganesh P <span class="you">YOU</span></div>
+                <div class="lb-progress"><i style="width:100%"></i></div>
+              </div>
+              <div class="lb-deals">6 <small>deals</small></div>
+            </div>
+            <div class="lb-row silver">
+              <div class="lb-rank">2</div>
+              <div class="lb-name-wrap">
+                <div class="lb-name">Ravi Kumar</div>
+                <div class="lb-progress"><i style="width:100%"></i></div>
+              </div>
+              <div class="lb-deals">6 <small>deals</small></div>
+            </div>
+            <div class="lb-row bronze">
+              <div class="lb-rank">3</div>
+              <div class="lb-name-wrap">
+                <div class="lb-name">Suresh Babu</div>
+                <div class="lb-progress"><i style="width:83%"></i></div>
+              </div>
+              <div class="lb-deals">5 <small>deals</small></div>
+            </div>
+            <div class="lb-row">
+              <div class="lb-rank">4</div>
+              <div class="lb-name-wrap">
+                <div class="lb-name">Mohammed Salim</div>
+                <div class="lb-progress"><i style="width:66%"></i></div>
+              </div>
+              <div class="lb-deals">4 <small>deals</small></div>
+            </div>
+            <div class="lb-row">
+              <div class="lb-rank">5</div>
+              <div class="lb-name-wrap">
+                <div class="lb-name">Anita Reddy</div>
+                <div class="lb-progress"><i style="width:50%"></i></div>
+              </div>
+              <div class="lb-deals">3 <small>deals</small></div>
+            </div>
+          </div>
+          <div class="lb-foot">
+            <b>Tied for #1.</b> One more close before June 1 locks the rank — and the tier bonus.
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ROW 2: FUNNEL + TREND -->
+    <section class="section">
+      <div class="section-head">
+        <h2>This <em>month</em>, in motion.</h2>
+        <div class="meta">
+          <div class="tabs">
+            <button aria-pressed="true">May</button>
+            <button aria-pressed="false">Quarter</button>
+            <button aria-pressed="false">YTD</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row-2">
+
+        <!-- Funnel -->
+        <div>
+          <div class="panel-h">
+            <h3>Lead <em>funnel</em></h3>
+            <span style="font-size:12px; color:var(--muted)">25% conversion</span>
+          </div>
+
+          <div class="funnel">
+            <div class="fn">
+              <span class="fn-label">New leads</span>
+              <div class="fn-bar"><i style="width: 100%"></i></div>
+              <span class="fn-value">24</span>
+            </div>
+            <div class="fn">
+              <span class="fn-label">Qualified</span>
+              <div class="fn-bar"><i class="s2" style="width: 83%"></i></div>
+              <span class="fn-value">20</span>
+            </div>
+            <div class="fn">
+              <span class="fn-label">Meetings</span>
+              <div class="fn-bar"><i class="s3" style="width: 67%"></i></div>
+              <span class="fn-value">16</span>
+            </div>
+            <div class="fn">
+              <span class="fn-label">Negotiation</span>
+              <div class="fn-bar"><i class="s4" style="width: 50%"></i></div>
+              <span class="fn-value">12</span>
+            </div>
+            <div class="fn">
+              <span class="fn-label">Booked</span>
+              <div class="fn-bar"><i class="s5" style="width: 33%"></i></div>
+              <span class="fn-value">8</span>
+            </div>
+            <div class="fn">
+              <span class="fn-label">Closed</span>
+              <div class="fn-bar"><i class="s5" style="width: 25%"></i></div>
+              <span class="fn-value">6 <small>25%</small></span>
+            </div>
+          </div>
+
+          <div class="funnel-stats">
+            <div class="fs">
+              <span class="k">Conversion</span>
+              <span class="v">25<small>%</small></span>
+            </div>
+            <div class="fs">
+              <span class="k">Avg cycle</span>
+              <span class="v">18<small>d</small></span>
+            </div>
+            <div class="fs accent">
+              <span class="k">Drop-off</span>
+              <span class="v">Negotiation</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Commission trend -->
+        <div>
+          <div class="panel-h">
+            <h3>Commission <em>trend</em></h3>
+            <span style="font-size:12px; color:var(--muted)">7 months</span>
+          </div>
+
+          <div class="trend-stats">
+            <div class="ts">
+              <span class="k">Last 6 months</span>
+              <span class="v">₹6.84<small>L</small></span>
+            </div>
+            <div class="ts">
+              <span class="k">Best · Nov</span>
+              <span class="v">₹1.45<small>L</small></span>
+            </div>
+            <div class="ts">
+              <span class="k">Avg / month</span>
+              <span class="v">₹97<small>k</small></span>
+            </div>
+          </div>
+
+          <svg class="trend-chart" viewBox="0 0 700 220" preserveAspectRatio="none">
+            <!-- grid -->
+            <g stroke="#EFEEE8" stroke-width="1">
+              <line x1="0" y1="40" x2="700" y2="40"/>
+              <line x1="0" y1="80" x2="700" y2="80"/>
+              <line x1="0" y1="120" x2="700" y2="120"/>
+              <line x1="0" y1="160" x2="700" y2="160"/>
+            </g>
+
+            <defs>
+              <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#4F7558" stop-opacity="0.18"/>
+                <stop offset="100%" stop-color="#4F7558" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+
+            <path d="M 0 145 L 116 130 L 232 50 L 350 100 L 466 110 L 584 90 L 700 70 L 700 220 L 0 220 Z"
+                  fill="url(#tg)"/>
+
+            <path d="M 0 145 L 116 130 L 232 50 L 350 100 L 466 110 L 584 90 L 700 70"
+                  fill="none" stroke="#4F7558" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+
+            <!-- dots -->
+            <circle cx="0" cy="145" r="3" fill="#FFFFFF" stroke="#4F7558" stroke-width="1.5"/>
+            <circle cx="116" cy="130" r="3" fill="#FFFFFF" stroke="#4F7558" stroke-width="1.5"/>
+            <circle cx="232" cy="50" r="5" fill="#4F7558" stroke="#FFFFFF" stroke-width="2"/>
+            <circle cx="350" cy="100" r="3" fill="#FFFFFF" stroke="#4F7558" stroke-width="1.5"/>
+            <circle cx="466" cy="110" r="3" fill="#FFFFFF" stroke="#4F7558" stroke-width="1.5"/>
+            <circle cx="584" cy="90" r="3" fill="#FFFFFF" stroke="#4F7558" stroke-width="1.5"/>
+            <circle cx="700" cy="70" r="3" fill="#FFFFFF" stroke="#4F7558" stroke-width="1.5"/>
+
+            <!-- peak tooltip on Nov -->
+            <g transform="translate(232, 50)">
+              <rect x="-46" y="-46" width="92" height="36" rx="8" fill="#FFFFFF" stroke="#EFEEE8"/>
+              <text x="0" y="-30" text-anchor="middle" font-family="Geist, sans-serif" font-size="9" fill="#8E948F" font-weight="500" letter-spacing="1">NOV ’25</text>
+              <text x="0" y="-16" text-anchor="middle" font-family="Fraunces, serif" font-size="15" fill="#0E1411" font-weight="400">₹1,45,000</text>
+              <path d="M-5 -10 L0 -2 L5 -10 Z" fill="#FFFFFF" stroke="#EFEEE8"/>
+            </g>
+
+            <g font-family="Geist, sans-serif" font-size="10" fill="#8E948F">
+              <text x="0" y="210">Nov</text>
+              <text x="116" y="210">Dec</text>
+              <text x="232" y="210" fill="#4F7558" font-weight="600">Jan</text>
+              <text x="350" y="210">Feb</text>
+              <text x="466" y="210">Mar</text>
+              <text x="584" y="210">Apr</text>
+              <text x="700" y="210" text-anchor="end">May</text>
+            </g>
+          </svg>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- NETWORK -->
+    <section class="section">
+      <div class="section-head">
+        <h2>New <em>in network.</em></h2>
+        <div class="meta">
+          <div class="tabs">
+            <button aria-pressed="true">All</button>
+            <button aria-pressed="false">Highest commission</button>
+            <button aria-pressed="false">Near me</button>
+          </div>
+          <a href="#">Browse marketplace
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H9M17 7v8"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div class="net-grid">
+
+        <article class="nc">
+          <div class="nc-media">
+            <img src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=900&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'P'}))" />
+            <div class="nc-badges">
+              <span class="pill-comm"><span class="dot"></span>2.5%</span>
+              <span class="pill-new live">New</span>
+            </div>
+          </div>
+          <div class="nc-body">
+            <div class="nc-row">
+              <h4 class="nc-name">Prestige Skyline</h4>
+              <span class="nc-price"><small>from</small>₹1.4Cr</span>
+            </div>
+            <div class="nc-loc"><b>Gachibowli</b> <span class="sep"></span> 3 / 4 BHK <span class="sep"></span> 220 units</div>
+            <div class="nc-foot">
+              <span class="nc-meta">Listed 2d ago</span>
+              <button class="nc-share">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21l1.7-5.2A9 9 0 1112 21a8.9 8.9 0 01-4.2-1l-4.8 1zM12 4a8 8 0 100 16 8 8 0 000-16z"/></svg>
+                Share
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article class="nc">
+          <div class="nc-media">
+            <img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'M'}))" />
+            <div class="nc-badges">
+              <span class="pill-comm high"><span class="dot"></span>3.0%</span>
+              <span class="pill-new">Hot</span>
+            </div>
+          </div>
+          <div class="nc-body">
+            <div class="nc-row">
+              <h4 class="nc-name">My Home Avatar</h4>
+              <span class="nc-price"><small>from</small>₹1.8Cr</span>
+            </div>
+            <div class="nc-loc"><b>Tellapur</b> <span class="sep"></span> 3 / 4 / 5 BHK <span class="sep"></span> 412 units</div>
+            <div class="nc-foot">
+              <span class="nc-meta">82% sold</span>
+              <button class="nc-share">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21l1.7-5.2A9 9 0 1112 21a8.9 8.9 0 01-4.2-1l-4.8 1zM12 4a8 8 0 100 16 8 8 0 000-16z"/></svg>
+                Share
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article class="nc">
+          <div class="nc-media">
+            <img src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=900&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'I'}))" />
+            <div class="nc-badges">
+              <span class="pill-comm"><span class="dot"></span>2.25%</span>
+            </div>
+          </div>
+          <div class="nc-body">
+            <div class="nc-row">
+              <h4 class="nc-name">Incor Carmel</h4>
+              <span class="nc-price"><small>from</small>₹95L</span>
+            </div>
+            <div class="nc-loc"><b>Miyapur</b> <span class="sep"></span> 3 BHK <span class="sep"></span> 184 units</div>
+            <div class="nc-foot">
+              <span class="nc-meta">Listed 1w ago</span>
+              <button class="nc-share">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21l1.7-5.2A9 9 0 1112 21a8.9 8.9 0 01-4.2-1l-4.8 1zM12 4a8 8 0 100 16 8 8 0 000-16z"/></svg>
+                Share
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article class="nc">
+          <div class="nc-media">
+            <img src="https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=900&q=80" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',innerHTML:'A'}))" />
+            <div class="nc-badges">
+              <span class="pill-comm"><span class="dot"></span>2.75%</span>
+              <span class="pill-new live">New</span>
+            </div>
+          </div>
+          <div class="nc-body">
+            <div class="nc-row">
+              <h4 class="nc-name">Aparna Cascade</h4>
+              <span class="nc-price"><small>from</small>₹78L</span>
+            </div>
+            <div class="nc-loc"><b>Kokapet</b> <span class="sep"></span> 2 / 3 BHK <span class="sep"></span> 420 units</div>
+            <div class="nc-foot">
+              <span class="nc-meta">Listed today</span>
+              <button class="nc-share">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21l1.7-5.2A9 9 0 1112 21a8.9 8.9 0 01-4.2-1l-4.8 1zM12 4a8 8 0 100 16 8 8 0 000-16z"/></svg>
+                Share
+              </button>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('.tabs').forEach(g => {
+    g.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        g.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed','false'));
+        b.setAttribute('aria-pressed','true');
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
