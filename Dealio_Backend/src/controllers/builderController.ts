@@ -130,7 +130,8 @@ export const builderController = {
                   userId: customer.id,
                   title: notifTitle,
                   message: notifMessage,
-                  type: 'info'
+                  type: 'info',
+                  link: '/customer'
                 }
               })
             ])
@@ -147,6 +148,35 @@ export const builderController = {
           timestamp: new Date().toISOString()
         });
       }
+    }
+
+    // Notify all CPs about the new project in real-time
+    const cpUsers = await prisma.user.findMany({ where: { role: 'CP' }, select: { id: true } });
+    if (cpUsers.length > 0) {
+      const locality    = projectData.locality ? `, ${projectData.locality}` : '';
+      const cpTitle     = 'New Project Listed';
+      const cpMessage   = `"${newProject.name}"${locality}, ${newProject.city ?? ''} is now on the marketplace.`;
+      const cpTimestamp = new Date().toISOString();
+
+      await Promise.all(
+        cpUsers.map(cp =>
+          prisma.notification.create({
+            data: { userId: cp.id, title: cpTitle, message: cpMessage, type: 'info', link: '/cp/projects' },
+          })
+        )
+      );
+
+      cpUsers.forEach(cp =>
+        channelManager.publish(`user:${cp.id}`, {
+          type: 'new_project',
+          title: cpTitle,
+          message: cpMessage,
+          projectId: newProject.id,
+          city: newProject.city ?? '',
+          link: `/cp/projects`,
+          timestamp: cpTimestamp,
+        })
+      );
     }
 
     res.json({ ok: true, data: toProjectDto(newProject as unknown as Record<string, unknown>) });
@@ -460,7 +490,7 @@ export const builderController = {
       const notifMessage = `${meetingData.customerName} wants to visit "${projectName}" on ${meetingData.preferredDate} at ${meetingData.preferredTime}.`;
 
       await prisma.notification.create({
-        data: { userId: builder.userId, title: notifTitle, message: notifMessage, type: 'info' }
+        data: { userId: builder.userId, title: notifTitle, message: notifMessage, type: 'info', link: '/builder/meetings' }
       });
 
       channelManager.publish(`user:${builder.userId}`, {
@@ -525,6 +555,40 @@ export const builderController = {
       } catch {
         // Deal sync is best-effort — don't fail the meeting update because of it
       }
+    }
+
+    // Notify the customer about the meeting status change
+    const notifMeta: Record<string, { title: string; type: string; evtType: string }> = {
+      Confirmed:            { title: 'Site Visit Confirmed',    type: 'success', evtType: 'meeting_confirmed' },
+      Cancelled:            { title: 'Site Visit Cancelled',    type: 'error',   evtType: 'meeting_cancelled' },
+      Completed:            { title: 'Site Visit Completed',    type: 'success', evtType: 'meeting_completed' },
+      'Follow-up Required': { title: 'Follow-up Requested',     type: 'info',    evtType: 'meeting_followup'  },
+    };
+    const meta = notifMeta[status];
+    if (meta) {
+      const projectName = meeting.project?.name ?? 'your project';
+      const dateStr     = meeting.confirmedDate ?? meeting.preferredDate;
+      const msgByStatus: Record<string, string> = {
+        Confirmed: `Your visit to "${projectName}" is confirmed for ${dateStr}.`,
+        Cancelled: `Your visit to "${projectName}" has been cancelled.`,
+        Completed: `Your visit to "${projectName}" is marked as completed.`,
+        'Follow-up Required': `The builder has requested a follow-up for "${projectName}".`,
+      };
+      const notifMessage = msgByStatus[status] ?? `Your meeting status is now: ${status}.`;
+
+      await prisma.notification.create({
+        data: { userId: meeting.customerId, title: meta.title, message: notifMessage, type: meta.type, link: '/customer/meeting' },
+      });
+
+      channelManager.publish(`user:${meeting.customerId}`, {
+        type: meta.evtType as any,
+        title: meta.title,
+        message: notifMessage,
+        meetingId: meeting.id,
+        city: '',
+        link: '/customer/meeting',
+        timestamp: new Date().toISOString(),
+      });
     }
 
     res.json({ ok: true, data: { ...meeting, projectName: meeting.project?.name } });
@@ -785,5 +849,27 @@ export const builderController = {
       });
     }
     res.json({ ok: true, data: notifications });
+  },
+
+  // Follows a maps.app.goo.gl short link server-side and returns the expanded URL
+  // so the client can extract precise coordinates (CORS blocks doing this in-browser).
+  resolveMapsLink: async (req: Request, res: Response) => {
+    const url = String(req.query.url ?? '');
+    if (!url.startsWith('https://maps.app.goo.gl/') && !url.startsWith('https://goo.gl/maps/')) {
+      return res.status(400).json({ ok: false, message: 'Only Google Maps short links are supported' });
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch(url, { redirect: 'follow', signal: controller.signal });
+      return res.json({ ok: true, data: { resolvedUrl: response.url } });
+    } catch (err) {
+      const message = err instanceof Error && err.name === 'AbortError'
+        ? 'Timed out resolving link'
+        : 'Failed to resolve link';
+      return res.status(502).json({ ok: false, message });
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 };

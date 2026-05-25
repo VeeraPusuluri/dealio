@@ -118,9 +118,9 @@ const BuilderOverview = () => {
 
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard title="Active Projects" value={stats.projects} icon={Building2} color="#0A7E8C" />
-              <StatCard title="Total Leads" value={stats.leads} icon={Users} color="#2E5D8E" />
-              <StatCard title="Deals Booked" value={stats.booked} icon={TrendingUp} color="#16A34A" />
+              <StatCard title="Active Projects" value={stats.projects} icon={Building2} color="#0A7E8C" to="/builder/projects" />
+              <StatCard title="Total Leads" value={stats.leads} icon={Users} color="#2E5D8E" to="/builder/leads" />
+              <StatCard title="Deals Booked" value={stats.booked} icon={TrendingUp} color="#16A34A" to="/builder/deals" />
               <StatCard title="Revenue Booked" value={formatCurrency(stats.revenue)} icon={DollarSign} color="#E87722" />
             </div>
 

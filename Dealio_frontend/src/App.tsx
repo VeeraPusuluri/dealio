@@ -38,7 +38,6 @@ import CPCommissions from "./pages/cp/CPCommissions";
 import CPReferral from "./pages/cp/CPReferral";
 import CPBrochure from "./pages/cp/CPBrochure";
 import CPCommunity from "./pages/cp/CPCommunity";
-import CPServices from "./pages/cp/CPServices";
 import CPFollowUps from "./pages/cp/CPFollowUps";
 import CPLeaderboard from "./pages/cp/CPLeaderboard";
 import CPMeetingRequests from "./pages/cp/CPMeetingRequests";
@@ -158,7 +157,6 @@ const App = () => (
           <Route path="/cp/referral" element={<ProtectedRoute><CPReferral /></ProtectedRoute>} />
           <Route path="/cp/brochure" element={<ProtectedRoute><CPBrochure /></ProtectedRoute>} />
           <Route path="/cp/community" element={<ProtectedRoute><CPCommunity /></ProtectedRoute>} />
-          <Route path="/cp/services" element={<ProtectedRoute><CPServices /></ProtectedRoute>} />
           <Route path="/cp/followups" element={<ProtectedRoute><CPFollowUps /></ProtectedRoute>} />
           <Route path="/cp/leaderboard" element={<ProtectedRoute><CPLeaderboard /></ProtectedRoute>} />
           <Route path="/cp/loan" element={<ProtectedRoute><LoanPortal /></ProtectedRoute>} />

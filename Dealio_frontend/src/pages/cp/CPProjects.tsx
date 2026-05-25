@@ -1,16 +1,18 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { builderApi, cpApi } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 import FlyerModal from '@/components/shared/FlyerModal';
+import ProjectPlaceholder from '@/components/shared/ProjectPlaceholder';
 import {
   Building2, MapPin, Share2, Loader2, CheckCircle2, Calendar,
-  X, ChevronRight, Home, TrendingUp,
+  X, Home, TrendingUp,
   MessageSquare, FileText, Layers, Download,
   Copy, IndianRupee, Calculator, Star, Clock, Shield,
   Image as ImageIcon, Video, Bookmark,
   Map, Newspaper, LayoutGrid, Link2, ExternalLink,
-  Users, Search, Check, SlidersHorizontal,
+  Users, Search, Check, Sparkles, Filter, ArrowUpDown,
+  ChevronDown, Briefcase, Flame, Percent, ArrowUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -80,45 +82,56 @@ function deriveNewsFeed(project: ProjectSummary): NewsItem[] {
     const d = new Date(project.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
     items.push({ date: d, headline: `${project.name} listed on Dealio`, icon: '🏗️', color: '#E87722' });
   }
-  if (project.reraNumber) {
-    items.push({ date: 'RERA', headline: `RERA Approved — ${project.reraNumber}`, icon: '✅', color: '#16A34A' });
-  }
-  if (project.featured) {
-    items.push({ date: 'Featured', headline: 'Marked as Featured Project by builder', icon: '⭐', color: '#D97706' });
-  }
+  if (project.reraNumber) items.push({ date: 'RERA', headline: `RERA Approved — ${project.reraNumber}`, icon: '✅', color: '#16A34A' });
+  if (project.featured) items.push({ date: 'Featured', headline: 'Marked as Featured Project by builder', icon: '⭐', color: '#D97706' });
   const avail = project.availableUnits ?? 0;
   const total = project.totalUnits ?? 0;
-  if (total > 0 && avail > 0 && avail / total < 0.25) {
+  if (total > 0 && avail > 0 && avail / total < 0.25)
     items.push({ date: 'Inventory', headline: `Only ${avail} of ${total} units remaining — selling fast!`, icon: '🔥', color: '#DC2626' });
-  }
   if (project.possessionDate) {
     const diff = new Date(project.possessionDate).getTime() - Date.now();
     const months = Math.round(diff / (30 * 24 * 60 * 60 * 1000));
-    if (months >= 0 && months <= 18) {
+    if (months >= 0 && months <= 18)
       items.push({ date: 'Possession', headline: `Possession in ${months} month${months !== 1 ? 's' : ''}`, icon: '📅', color: '#7C3AED' });
-    }
   }
-  if (project.closingSoon) {
-    items.push({ date: 'Alert', headline: 'Project closing soon — last chance to register!', icon: '⏰', color: '#DC2626' });
-  }
+  if (project.closingSoon) items.push({ date: 'Alert', headline: 'Project closing soon — last chance to register!', icon: '⏰', color: '#DC2626' });
   return items;
 }
 
 /* ─── Helpers ────────────────────────────────────────────────────── */
-const STATUS_COLOR: Record<string, string> = {
-  PRE_LAUNCH: 'bg-purple-100 text-purple-700',
-  LAUNCHED: 'bg-blue-100 text-blue-700',
-  UNDER_CONSTRUCTION: 'bg-amber-100 text-amber-700',
-  READY_TO_MOVE: 'bg-green-100 text-green-700',
-  NEW_LAUNCH: 'bg-purple-100 text-purple-700',
-  ACTIVE: 'bg-emerald-100 text-emerald-700',
-  CLOSING_SOON: 'bg-red-100 text-red-700',
-};
 const STATUS_LABEL: Record<string, string> = {
   PRE_LAUNCH: 'Pre-Launch', LAUNCHED: 'Launched',
   UNDER_CONSTRUCTION: 'Under Construction', READY_TO_MOVE: 'Ready to Move',
   NEW_LAUNCH: 'New Launch', ACTIVE: 'Active', CLOSING_SOON: 'Closing Soon',
 };
+
+const STATUS_LABEL_SHORT: Record<string, string> = {
+  PRE_LAUNCH: 'Pre-launch', NEW_LAUNCH: 'New launch',
+  LAUNCHED: 'Selling', ACTIVE: 'Selling',
+  UNDER_CONSTRUCTION: 'Under constr.',
+  READY_TO_MOVE: 'Ready to move',
+  CLOSING_SOON: 'Closing soon',
+};
+
+const STATUS_BADGE: Record<string, string> = {
+  PRE_LAUNCH:         'bg-violet-50 text-violet-600 border-violet-100',
+  NEW_LAUNCH:         'bg-violet-50 text-violet-600 border-violet-100',
+  LAUNCHED:           'bg-sky-50 text-sky-600 border-sky-100',
+  ACTIVE:             'bg-emerald-50 text-emerald-700 border-emerald-100',
+  UNDER_CONSTRUCTION: 'bg-amber-50 text-amber-700 border-amber-100',
+  READY_TO_MOVE:      'bg-green-50 text-green-700 border-green-100',
+  CLOSING_SOON:       'bg-red-50 text-red-600 border-red-100',
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  PRE_LAUNCH: 'bg-purple-100 text-purple-700', LAUNCHED: 'bg-blue-100 text-blue-700',
+  UNDER_CONSTRUCTION: 'bg-amber-100 text-amber-700', READY_TO_MOVE: 'bg-green-100 text-green-700',
+  NEW_LAUNCH: 'bg-purple-100 text-purple-700', ACTIVE: 'bg-emerald-100 text-emerald-700',
+  CLOSING_SOON: 'bg-red-100 text-red-700',
+};
+
+const NUM_WORDS = ['Zero','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve'];
+const toWord = (n: number) => n < NUM_WORDS.length ? NUM_WORDS[n] : n.toString();
 
 const fmt = (n: number) => {
   if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(2)} Cr`;
@@ -149,9 +162,7 @@ function SectionHead({ icon: Icon, label, color = '#64748b' }: { icon: React.Ele
   );
 }
 
-function Divider() {
-  return <div className="border-t border-slate-50 my-5" />;
-}
+function Divider() { return <div className="border-t border-slate-50 my-5" />; }
 
 function UnitBar({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
   const pct = total > 0 ? Math.min(100, Math.round((value / total) * 100)) : 0;
@@ -168,9 +179,7 @@ function UnitBar({ label, value, total, color }: { label: string; value: number;
 }
 
 /* ─── BHK matching ───────────────────────────────────────────────── */
-function normBhk(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, '').replace('bhk', 'bhk');
-}
+function normBhk(s: string): string { return s.toLowerCase().replace(/\s+/g, '').replace('bhk', 'bhk'); }
 function bhkMatches(contactBhk: string | null | undefined, configs: string[] | undefined): boolean {
   if (!contactBhk || !configs?.length) return false;
   const n = normBhk(contactBhk);
@@ -192,7 +201,6 @@ function buildShareMsg(contact: Contact, project: ProjectSummary, shareLink: str
   const firstName = contact.name.split(' ')[0];
   const hasBhkMatch = bhkMatches(contact.bhkPreference, project.configurations);
   const priceStr = fmtPrice(project.priceMin, project.priceMax);
-
   return (
     `Hi ${firstName}! 👋\n\n` +
     (hasBhkMatch
@@ -218,12 +226,12 @@ function ShareToContactsModal({
   cpId?: string | number | null;
   onClose: () => void;
 }) {
-  const [contacts, setContacts]           = useState<Contact[]>([]);
-  const [loading, setLoading]             = useState(true);
-  const [search, setSearch]               = useState('');
-  const [matchFilter, setMatchFilter]     = useState<MatchFilter>('best');
-  const [selectedIds, setSelectedIds]     = useState<Set<number>>(new Set());
-  const [sending, setSending]             = useState(false);
+  const [contacts, setContacts]       = useState<Contact[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [search, setSearch]           = useState('');
+  const [matchFilter, setMatchFilter] = useState<MatchFilter>('best');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [sending, setSending]         = useState(false);
 
   const shareLink = `${window.location.origin}/p/${btoa(`${project.id}:${cpId ?? 'guest'}`)}`;
 
@@ -233,20 +241,14 @@ function ShareToContactsModal({
       .then(d => {
         const list = (d as Contact[]) ?? [];
         setContacts(list);
-        // Auto-select best-match contacts
-        const autoSelected = new Set(
-          list.filter(c => matchScore(c, project) >= 2).map(c => c.id)
-        );
+        const autoSelected = new Set(list.filter(c => matchScore(c, project) >= 2).map(c => c.id));
         setSelectedIds(autoSelected);
       })
       .catch(() => setContacts([]))
       .finally(() => setLoading(false));
   }, [cpId, project.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const scored = contacts
-    .map(c => ({ ...c, score: matchScore(c, project) }))
-    .sort((a, b) => b.score - a.score);
-
+  const scored = contacts.map(c => ({ ...c, score: matchScore(c, project) })).sort((a, b) => b.score - a.score);
   const filtered = scored.filter(c => {
     const matchesSearch = !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search);
     const matchesFilter = matchFilter === 'all' || c.score > 0;
@@ -254,7 +256,6 @@ function ShareToContactsModal({
   });
 
   const allVisible = filtered.length > 0 && filtered.every(c => selectedIds.has(c.id));
-
   const toggleAll = () => {
     setSelectedIds(prev => {
       const next = new Set(prev);
@@ -263,13 +264,8 @@ function ShareToContactsModal({
       return next;
     });
   };
-
   const toggle = (id: number) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+    setSelectedIds(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
   };
 
   const handleSend = () => {
@@ -296,24 +292,19 @@ function ShareToContactsModal({
       <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px]" style={{ zIndex: 60 }} onClick={onClose} />
       <div className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ zIndex: 70 }}>
         <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh]">
-
-          {/* Header */}
           <div className="flex items-start gap-3 p-5 border-b border-slate-100 shrink-0">
             <div className="w-11 h-11 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
               <Users size={20} className="text-green-600" />
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-bold text-slate-900">Share with My Contacts</h3>
-              <p className="text-xs text-slate-500 mt-0.5 truncate">
-                {project.name} · {project.city}
-              </p>
+              <p className="text-xs text-slate-500 mt-0.5 truncate">{project.name} · {project.city}</p>
             </div>
             <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg shrink-0">
               <X size={17} className="text-slate-500" />
             </button>
           </div>
 
-          {/* Project mini-card */}
           <div className="mx-5 mt-4 p-3.5 bg-orange-50 rounded-xl border border-orange-100 flex items-center gap-3 shrink-0">
             {project.imageUrl
               ? <img src={project.imageUrl} className="w-12 h-12 rounded-lg object-cover shrink-0" alt="" />
@@ -328,24 +319,15 @@ function ShareToContactsModal({
             </div>
           </div>
 
-          {/* Filter tabs */}
           <div className="flex gap-1.5 mx-5 mt-4 shrink-0">
-            {([
-              ['best', `Best Match${bestCount > 0 ? ` (${bestCount})` : ''}`, '✦'],
-              ['all', `All (${contacts.length})`, '≡'],
-            ] as [MatchFilter, string, string][]).map(([id, label, icon]) => (
+            {([['best', `Best Match${bestCount > 0 ? ` (${bestCount})` : ''}`, '✦'], ['all', `All (${contacts.length})`, '≡']] as [MatchFilter, string, string][]).map(([id, label, icon]) => (
               <button key={id} onClick={() => setMatchFilter(id)}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${
-                  matchFilter === id
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                }`}>
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${matchFilter === id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
                 {icon} {label}
               </button>
             ))}
           </div>
 
-          {/* Search */}
           <div className="mx-5 mt-3 relative shrink-0">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input value={search} onChange={e => setSearch(e.target.value)}
@@ -353,7 +335,6 @@ function ShareToContactsModal({
               className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#E87722]/20 focus:border-[#E87722]" />
           </div>
 
-          {/* Contact list */}
           <div className="flex-1 overflow-y-auto mx-5 mt-3 mb-1">
             {loading ? (
               <div className="flex justify-center py-12"><Loader2 size={22} className="animate-spin text-slate-300" /></div>
@@ -364,48 +345,31 @@ function ShareToContactsModal({
                 <p className="text-xs mt-1">Add contacts in "My Contacts" to share projects</p>
               </div>
             ) : filtered.length === 0 ? (
-              <div className="text-center py-8 text-slate-400 text-sm">
-                No contacts match {matchFilter === 'best' ? 'this project' : 'your search'}
-              </div>
+              <div className="text-center py-8 text-slate-400 text-sm">No contacts match {matchFilter === 'best' ? 'this project' : 'your search'}</div>
             ) : (
               <div className="border border-slate-100 rounded-xl overflow-hidden">
-                {/* Select all */}
                 <label className="flex items-center gap-3 px-4 py-2.5 bg-slate-50 border-b border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors">
-                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
-                    allVisible ? 'bg-[#E87722] border-[#E87722]' : 'border-slate-300 bg-white'
-                  }`} onClick={toggleAll}>
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${allVisible ? 'bg-[#E87722] border-[#E87722]' : 'border-slate-300 bg-white'}`} onClick={toggleAll}>
                     {allVisible && <Check size={10} className="text-white" strokeWidth={3} />}
                   </div>
                   <span className="text-xs font-semibold text-slate-500 select-none" onClick={toggleAll}>
                     {allVisible ? 'Deselect all' : `Select all visible (${filtered.length})`}
                   </span>
                 </label>
-
-                {/* Contact rows */}
                 {filtered.map(contact => {
                   const isSel = selectedIds.has(contact.id);
                   const hasBhk = bhkMatches(contact.bhkPreference, project.configurations);
                   const hasCity = cityMatches(contact, project.city);
                   return (
-                    <label key={contact.id}
-                      onClick={() => toggle(contact.id)}
-                      className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors border-b border-slate-50 last:border-0 ${
-                        isSel ? 'bg-green-50/60' : 'hover:bg-slate-50'
-                      }`}>
-                      {/* Checkbox */}
-                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
-                        isSel ? 'bg-green-600 border-green-600' : 'border-slate-300 bg-white'
-                      }`}>
+                    <label key={contact.id} onClick={() => toggle(contact.id)}
+                      className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors border-b border-slate-50 last:border-0 ${isSel ? 'bg-green-50/60' : 'hover:bg-slate-50'}`}>
+                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isSel ? 'bg-green-600 border-green-600' : 'border-slate-300 bg-white'}`}>
                         {isSel && <Check size={10} className="text-white" strokeWidth={3} />}
                       </div>
-
-                      {/* Avatar */}
                       <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
                         style={{ background: 'linear-gradient(135deg,#E87722,#D4691C)' }}>
                         {contact.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
-
-                      {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-sm font-semibold text-slate-800">{contact.name}</span>
@@ -413,9 +377,7 @@ function ShareToContactsModal({
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           <span className="text-[11px] text-slate-400">{contact.phone}</span>
                           {contact.bhkPreference && (
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5 ${
-                              hasBhk ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
-                            }`}>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5 ${hasBhk ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
                               <Home size={8} /> {contact.bhkPreference}
                               {hasBhk && <Check size={8} strokeWidth={3} />}
                             </span>
@@ -427,13 +389,9 @@ function ShareToContactsModal({
                           )}
                         </div>
                       </div>
-
-                      {/* Match score */}
                       {contact.score > 0 && (
                         <div className="shrink-0 text-right">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            contact.score >= 2 ? 'bg-green-100 text-green-700' : 'bg-amber-50 text-amber-600'
-                          }`}>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${contact.score >= 2 ? 'bg-green-100 text-green-700' : 'bg-amber-50 text-amber-600'}`}>
                             {contact.score >= 2 ? '★★ Top match' : '★ Match'}
                           </span>
                         </div>
@@ -445,39 +403,19 @@ function ShareToContactsModal({
             )}
           </div>
 
-          {/* Footer */}
           <div className="p-5 border-t border-slate-100 space-y-2.5 shrink-0">
-            <button
-              onClick={handleSend}
-              disabled={selectedIds.size === 0 || sending}
+            <button onClick={handleSend} disabled={selectedIds.size === 0 || sending}
               className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-90"
               style={{ backgroundColor: '#25D366' }}>
               {sending
                 ? <><Loader2 size={16} className="animate-spin" /> Opening WhatsApp…</>
-                : <><MessageSquare size={17} /> Send to {selectedIds.size} contact{selectedIds.size !== 1 ? 's' : ''} via WhatsApp</>
-              }
+                : <><MessageSquare size={17} /> Send to {selectedIds.size} contact{selectedIds.size !== 1 ? 's' : ''} via WhatsApp</>}
             </button>
-            <p className="text-center text-[11px] text-slate-400">
-              Each contact gets a personalised message · WhatsApp opens per contact
-            </p>
+            <p className="text-center text-[11px] text-slate-400">Each contact gets a personalised message · WhatsApp opens per contact</p>
           </div>
         </div>
       </div>
     </>
-  );
-}
-
-function StarButton({ projectId, bookmarks, onToggle }: {
-  projectId: number; bookmarks: Set<number>; onToggle: (id: number, e: React.MouseEvent) => void;
-}) {
-  const starred = bookmarks.has(projectId);
-  return (
-    <button
-      onClick={e => onToggle(projectId, e)}
-      title={starred ? 'Remove bookmark' : 'Bookmark project'}
-      className={`p-1.5 rounded-lg transition-colors ${starred ? 'text-amber-500 bg-amber-50' : 'text-slate-300 hover:text-amber-400 hover:bg-amber-50'}`}>
-      <Bookmark size={16} fill={starred ? 'currentColor' : 'none'} />
-    </button>
   );
 }
 
@@ -518,9 +456,7 @@ function ProjectDetailDrawer({
 
   const dealNum     = parseFloat(dealValue.replace(/[^0-9.]/g, '')) || 0;
   const commEarning = dealNum > 0 && commRate > 0 ? (dealNum * commRate) / 100 : 0;
-  const midPrice    = project.priceMin && project.priceMax
-    ? (project.priceMin + project.priceMax) / 2
-    : project.priceMin || project.priceMax || 0;
+  const midPrice    = project.priceMin && project.priceMax ? (project.priceMin + project.priceMax) / 2 : project.priceMin || project.priceMax || 0;
   const exampleComm = midPrice && commRate ? (midPrice * commRate) / 100 : 0;
 
   const shareMsg =
@@ -540,19 +476,8 @@ function ProjectDetailDrawer({
   const otherDocs  = docs.filter(d => d.docType !== 'FLOOR_PLAN');
   const newsFeed   = deriveNewsFeed(project);
 
-  const copyShareMsg = () => {
-    navigator.clipboard.writeText(shareMsg).then(() => {
-      setCopied(true); setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
-  const copyShareLink = () => {
-    navigator.clipboard.writeText(shareLink).then(() => {
-      setLinkCopied(true);
-      toast.success('Share link copied!');
-      setTimeout(() => setLinkCopied(false), 2500);
-    });
-  };
+  const copyShareMsg  = () => { navigator.clipboard.writeText(shareMsg).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); };
+  const copyShareLink = () => { navigator.clipboard.writeText(shareLink).then(() => { setLinkCopied(true); toast.success('Share link copied!'); setTimeout(() => setLinkCopied(false), 2500); }); };
 
   useEffect(() => {
     builderApi.getDocuments(project.builderId, project.id)
@@ -564,16 +489,14 @@ function ProjectDetailDrawer({
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[2px]" onClick={onClose} />
-
       <div className="fixed right-0 top-0 bottom-0 z-50 w-full sm:max-w-[540px] bg-white shadow-2xl flex flex-col">
 
-        {/* ── Hero image ── */}
-        <div className="relative h-48 shrink-0 overflow-hidden bg-gradient-to-br from-slate-100 to-orange-50">
+        <div className="relative h-48 shrink-0 overflow-hidden bg-gradient-to-br from-slate-100 to-teal-50/40">
           {project.imageUrl
             ? <img src={project.imageUrl} alt={project.name} className="w-full h-full object-cover" />
             : <div className="w-full h-full flex items-center justify-center"><Building2 size={56} className="text-slate-200" /></div>
           }
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/15 to-transparent" />
 
           <div className="absolute top-4 left-4 right-4 flex items-start justify-between">
             <div className="flex gap-1.5 flex-wrap">
@@ -593,23 +516,21 @@ function ProjectDetailDrawer({
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               <div onClick={e => e.stopPropagation()}>
-                <StarButton projectId={project.id} bookmarks={bookmarks} onToggle={onToggleBookmark} />
+                <button onClick={e => onToggleBookmark(project.id, e)}
+                  className={`p-1.5 rounded-lg transition-colors ${bookmarks.has(project.id) ? 'text-amber-500 bg-amber-50' : 'text-slate-300 hover:text-amber-400 hover:bg-amber-50'}`}>
+                  <Bookmark size={16} fill={bookmarks.has(project.id) ? 'currentColor' : 'none'} />
+                </button>
               </div>
-              <button onClick={onClose}
-                className="w-8 h-8 rounded-full bg-white/90 hover:bg-white flex items-center justify-center shadow transition-colors">
+              <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/90 hover:bg-white flex items-center justify-center shadow transition-colors">
                 <X size={15} className="text-slate-600" />
               </button>
             </div>
           </div>
 
           <div className="absolute bottom-4 left-5 right-5">
-            <h2 className="text-xl font-black text-white leading-tight">{project.name}</h2>
+            <h2 className="text-xl font-bold text-white leading-tight" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontStyle: 'italic' }}>{project.name}</h2>
             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-              {project.builderName && (
-                <span className="text-xs text-white/80 flex items-center gap-1">
-                  <Building2 size={10} /> {project.builderName}
-                </span>
-              )}
+              {project.builderName && <span className="text-xs text-white/80 flex items-center gap-1"><Building2 size={10} /> {project.builderName}</span>}
               {project.builderName && (project.address || project.city) && <span className="text-white/50">·</span>}
               <span className="text-xs text-white/80 flex items-center gap-1">
                 <MapPin size={10} /> {[project.address, project.city].filter(Boolean).join(', ')}
@@ -618,38 +539,26 @@ function ProjectDetailDrawer({
           </div>
         </div>
 
-        {/* ── Tab navigation ── */}
         <div className="flex border-b border-slate-100 shrink-0 bg-white">
           {DRAWER_TABS.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-1 py-3 text-[11px] font-semibold transition-colors border-b-2 ${
-                activeTab === tab.id
-                  ? 'text-[#E87722] border-[#E87722]'
-                  : 'text-slate-400 border-transparent hover:text-slate-600'
-              }`}>
+              className={`flex-1 flex items-center justify-center gap-1 py-3 text-[11px] font-semibold transition-colors border-b-2 ${activeTab === tab.id ? 'text-teal-600 border-teal-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>
               <tab.icon size={11} /> {tab.label}
             </button>
           ))}
         </div>
 
-        {/* ── Tab content ── */}
         <div className="flex-1 overflow-y-auto">
-
-          {/* ══ OVERVIEW TAB ══ */}
           {activeTab === 'overview' && (
             <div>
-              {/* Commission highlight */}
-              <div className="mx-5 mt-5 rounded-2xl p-4 flex items-center gap-4"
-                style={{ background: 'linear-gradient(135deg,#fff7ed,#ffedd5)' }}>
-                <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
-                  <IndianRupee size={20} className="text-orange-600" />
+              <div className="mx-5 mt-5 rounded-2xl p-4 flex items-center gap-4" style={{ background: 'linear-gradient(135deg,#f0fdfa,#ccfbf1)' }}>
+                <div className="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
+                  <Percent size={20} className="text-teal-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide">Your Commission</p>
-                  <p className="text-2xl font-black text-orange-700">{commRate > 0 ? `${commRate}%` : '—'}</p>
-                  {exampleComm > 0 && (
-                    <p className="text-xs text-orange-500 mt-0.5">Est. {fmt(exampleComm)} on avg. deal</p>
-                  )}
+                  <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide">Your Commission</p>
+                  <p className="text-2xl font-black text-teal-700">{commRate > 0 ? `${commRate}%` : '—'}</p>
+                  {exampleComm > 0 && <p className="text-xs text-teal-500 mt-0.5">Est. {fmt(exampleComm)} on avg. deal</p>}
                 </div>
                 {avail > 0 && (
                   <div className="text-right">
@@ -660,9 +569,8 @@ function ProjectDetailDrawer({
               </div>
 
               <div className="p-5 space-y-0">
-                {/* Price */}
                 <Divider />
-                <SectionHead icon={IndianRupee} label="Pricing" color="#E87722" />
+                <SectionHead icon={IndianRupee} label="Pricing" color="#0D9488" />
                 <div className="grid grid-cols-2 gap-3 mb-2">
                   <div className="bg-slate-50 rounded-xl p-3.5">
                     <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mb-1">Starting from</p>
@@ -674,15 +582,13 @@ function ProjectDetailDrawer({
                   </div>
                 </div>
 
-                {/* Commission Calculator */}
                 <Divider />
                 <SectionHead icon={Calculator} label="Commission Calculator" color="#7C3AED" />
                 <div className="bg-violet-50 rounded-xl p-4">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="flex-1">
                       <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-wide mb-1">Deal value (₹)</p>
-                      <input type="number" placeholder="e.g. 8500000" value={dealValue}
-                        onChange={e => setDealValue(e.target.value)}
+                      <input type="number" placeholder="e.g. 8500000" value={dealValue} onChange={e => setDealValue(e.target.value)}
                         className="w-full px-3 py-2 rounded-lg border border-violet-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-300" />
                     </div>
                     <div className="text-right shrink-0">
@@ -690,19 +596,16 @@ function ProjectDetailDrawer({
                       <p className="text-xl font-black text-violet-700">{commEarning > 0 ? fmt(commEarning) : '—'}</p>
                     </div>
                   </div>
-                  <p className="text-[10px] text-violet-400">
-                    @ {commRate > 0 ? `${commRate}% commission rate` : 'Commission rate not set'}
-                  </p>
+                  <p className="text-[10px] text-violet-400">@ {commRate > 0 ? `${commRate}% commission rate` : 'Commission rate not set'}</p>
                 </div>
 
-                {/* Unit availability */}
                 {total > 0 && (
                   <>
                     <Divider />
                     <SectionHead icon={Home} label="Unit Availability" color="#0D9488" />
                     <div className="space-y-2.5 mb-1">
                       <UnitBar label="Available" value={avail}  total={total} color="#16A34A" />
-                      <UnitBar label="Booked"    value={booked} total={total} color="#E87722" />
+                      <UnitBar label="Booked"    value={booked} total={total} color="#f59e0b" />
                       <UnitBar label="Sold"      value={sold}   total={total} color="#0D9488" />
                     </div>
                     <div className="flex items-center justify-between mt-3 px-1">
@@ -712,7 +615,6 @@ function ProjectDetailDrawer({
                   </>
                 )}
 
-                {/* Configurations */}
                 {project.configurations && project.configurations.length > 0 && (
                   <>
                     <Divider />
@@ -725,7 +627,6 @@ function ProjectDetailDrawer({
                   </>
                 )}
 
-                {/* Key info grid */}
                 <Divider />
                 <SectionHead icon={FileText} label="Project Details" color="#64748b" />
                 <div className="grid grid-cols-2 gap-3">
@@ -747,7 +648,6 @@ function ProjectDetailDrawer({
                   ))}
                 </div>
 
-                {/* Description */}
                 {project.description && (
                   <>
                     <Divider />
@@ -756,7 +656,6 @@ function ProjectDetailDrawer({
                   </>
                 )}
 
-                {/* RERA */}
                 {project.reraNumber && (
                   <>
                     <Divider />
@@ -764,9 +663,7 @@ function ProjectDetailDrawer({
                     <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-slate-500">Registration Number</span>
-                        <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                          <CheckCircle2 size={12} /> {project.reraNumber}
-                        </span>
+                        <span className="text-xs font-bold text-emerald-700 flex items-center gap-1"><CheckCircle2 size={12} /> {project.reraNumber}</span>
                       </div>
                       {project.reraExpiry && (
                         <div className="flex items-center justify-between">
@@ -778,7 +675,6 @@ function ProjectDetailDrawer({
                   </>
                 )}
 
-                {/* Video */}
                 {project.videoUrl && (
                   <>
                     <Divider />
@@ -797,7 +693,6 @@ function ProjectDetailDrawer({
                   </>
                 )}
 
-                {/* Other documents */}
                 <Divider />
                 <SectionHead icon={Download} label="Documents" color="#0D9488" />
                 {docsLoading ? (
@@ -812,9 +707,7 @@ function ProjectDetailDrawer({
                         <span className="text-lg">{DOC_ICON[doc.docType] ?? '📄'}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-slate-700 truncate">{doc.fileName}</p>
-                          <p className="text-[10px] text-slate-400">
-                            {doc.docType.replace(/_/g, ' ')} · {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </p>
+                          <p className="text-[10px] text-slate-400">{doc.docType.replace(/_/g, ' ')} · {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                         </div>
                         <Download size={14} className="text-slate-400 group-hover:text-teal-600 transition-colors shrink-0" />
                       </a>
@@ -822,7 +715,6 @@ function ProjectDetailDrawer({
                   </div>
                 )}
 
-                {/* Unique Share Link */}
                 <Divider />
                 <SectionHead icon={Link2} label="Your Unique Share Link" color="#2563EB" />
                 <div className="bg-blue-50 rounded-xl p-3.5 mb-3 flex items-center gap-3">
@@ -831,25 +723,18 @@ function ProjectDetailDrawer({
                     <p className="text-xs font-mono text-blue-700 truncate">{shareLink}</p>
                   </div>
                   <button onClick={copyShareLink}
-                    className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                      linkCopied ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                    }`}>
+                    className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${linkCopied ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}>
                     <Copy size={11} /> {linkCopied ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
 
-                {/* Share section */}
                 <Divider />
                 <SectionHead icon={Share2} label="Share with Prospects" color="#25D366" />
-
-                {/* Primary CTA — share to contacts */}
-                <button
-                  onClick={onShare}
+                <button onClick={onShare}
                   className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl text-white font-bold text-sm mb-3 hover:opacity-90 transition-opacity shadow-md"
                   style={{ background: 'linear-gradient(135deg,#25D366,#1da851)' }}>
                   <Users size={16} /> Share to My Contacts (with filters)
                 </button>
-
                 <div className="bg-slate-50 rounded-xl p-3.5 mb-3">
                   <p className="text-[11px] font-semibold text-slate-500 mb-1.5">Or share manually</p>
                   <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line font-mono line-clamp-4">{shareMsg}</p>
@@ -865,13 +750,11 @@ function ProjectDetailDrawer({
                     <Copy size={15} /> {copied ? 'Copied!' : 'Copy Text'}
                   </button>
                 </div>
-
                 <div className="pb-6" />
               </div>
             </div>
           )}
 
-          {/* ══ FLOOR PLANS TAB ══ */}
           {activeTab === 'floorplans' && (
             <div className="p-5">
               {docsLoading ? (
@@ -891,20 +774,15 @@ function ProjectDetailDrawer({
                       <div key={doc.id} className="border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
                         {isImage ? (
                           <a href={doc.fileUrl} target="_blank" rel="noreferrer">
-                            <img src={doc.fileUrl} alt={doc.fileName}
-                              className="w-full object-contain max-h-64 bg-slate-50 hover:opacity-95 transition-opacity" />
+                            <img src={doc.fileUrl} alt={doc.fileName} className="w-full object-contain max-h-64 bg-slate-50 hover:opacity-95 transition-opacity" />
                           </a>
                         ) : (
-                          <div className="h-32 bg-slate-50 flex items-center justify-center">
-                            <Layers size={36} className="text-slate-200" />
-                          </div>
+                          <div className="h-32 bg-slate-50 flex items-center justify-center"><Layers size={36} className="text-slate-200" /></div>
                         )}
                         <div className="p-3.5 flex items-center justify-between">
                           <div>
                             <p className="text-sm font-semibold text-slate-700 truncate max-w-[220px]">{doc.fileName}</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">
-                              Uploaded {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                            </p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">Uploaded {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                           </div>
                           <a href={doc.fileUrl} target="_blank" rel="noreferrer"
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 text-xs font-semibold transition-colors">
@@ -919,50 +797,34 @@ function ProjectDetailDrawer({
             </div>
           )}
 
-          {/* ══ LOCATION TAB ══ */}
           {activeTab === 'location' && (
             <div className="p-5 space-y-4">
               <div className="bg-blue-50 rounded-2xl p-4">
-                <p className="text-xs font-bold text-blue-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                  <MapPin size={11} /> Full Address
-                </p>
+                <p className="text-xs font-bold text-blue-500 uppercase tracking-wide mb-2 flex items-center gap-1.5"><MapPin size={11} /> Full Address</p>
                 <p className="text-sm font-semibold text-slate-800 leading-relaxed">
                   {[project.address, project.locality, project.city].filter(Boolean).join(', ') || 'Address not available'}
                 </p>
               </div>
-
-              {/* Map embed */}
               {(project.address || project.city) && (
                 <div className="rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
                   <iframe
-                    title="Project Location Map"
-                    width="100%"
-                    height="220"
-                    loading="lazy"
+                    title="Project Location Map" width="100%" height="220" loading="lazy"
                     src={`https://maps.google.com/maps?q=${encodeURIComponent([project.address, project.locality, project.city].filter(Boolean).join(', '))}&output=embed`}
-                    className="border-0 block"
-                    referrerPolicy="no-referrer-when-downgrade"
-                  />
+                    className="border-0 block" referrerPolicy="no-referrer-when-downgrade" />
                 </div>
               )}
-
-              {/* Map action buttons */}
               <div className="grid grid-cols-2 gap-3">
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([project.address, project.locality, project.city].filter(Boolean).join(', '))}`}
+                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([project.address, project.locality, project.city].filter(Boolean).join(', '))}`}
                   target="_blank" rel="noreferrer"
                   className="flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors">
                   <ExternalLink size={14} /> Google Maps
                 </a>
-                <a
-                  href={`https://maps.apple.com/?q=${encodeURIComponent([project.address, project.locality, project.city].filter(Boolean).join(', '))}`}
+                <a href={`https://maps.apple.com/?q=${encodeURIComponent([project.address, project.locality, project.city].filter(Boolean).join(', '))}`}
                   target="_blank" rel="noreferrer"
                   className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-800 text-white text-sm font-bold hover:bg-slate-700 transition-colors">
                   <Map size={14} /> Apple Maps
                 </a>
               </div>
-
-              {/* Share location on WhatsApp */}
               <button
                 onClick={() => {
                   const addr = [project.address, project.locality, project.city].filter(Boolean).join(', ');
@@ -976,7 +838,6 @@ function ProjectDetailDrawer({
             </div>
           )}
 
-          {/* ══ NEWS / UPDATES TAB ══ */}
           {activeTab === 'news' && (
             <div className="p-5">
               {newsFeed.length === 0 ? (
@@ -992,9 +853,7 @@ function ProjectDetailDrawer({
                     <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-100" />
                     {newsFeed.map((item, i) => (
                       <div key={i} className="flex gap-4 mb-5 relative">
-                        <div className="w-8 h-8 rounded-full bg-white border-2 border-slate-100 flex items-center justify-center shrink-0 z-10 text-base">
-                          {item.icon}
-                        </div>
+                        <div className="w-8 h-8 rounded-full bg-white border-2 border-slate-100 flex items-center justify-center shrink-0 z-10 text-base">{item.icon}</div>
                         <div className="flex-1 bg-white border border-slate-100 rounded-xl p-3.5 shadow-sm">
                           <p className="text-sm font-semibold text-slate-800 leading-snug">{item.headline}</p>
                           <p className="text-[10px] font-medium mt-1" style={{ color: item.color }}>{item.date}</p>
@@ -1008,7 +867,6 @@ function ProjectDetailDrawer({
           )}
         </div>
 
-        {/* ── Sticky footer ── */}
         <div className="shrink-0 border-t border-slate-100 bg-white p-4 flex gap-2.5">
           <button onClick={onShare}
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-90"
@@ -1016,7 +874,7 @@ function ProjectDetailDrawer({
             <Users size={15} /> Share to Contacts
           </button>
           <button onClick={onFlyer}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors border border-orange-100">
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors border border-teal-100">
             <ImageIcon size={15} /> Generate Flyer
           </button>
         </div>
@@ -1026,18 +884,173 @@ function ProjectDetailDrawer({
 }
 
 /* ─── Main page ──────────────────────────────────────────────────── */
-type FilterTab = 'all' | 'starred';
+type FilterTab = 'all' | 'myLeads' | 'hotComm' | 'backed' | 'newDeals';
+type SortKey   = 'recent' | 'commission' | 'priceLow' | 'priceHigh';
 
+const SORT_OPTIONS: [SortKey, string][] = [
+  ['recent',     'Recently listed'],
+  ['commission', 'Highest commission'],
+  ['priceLow',   'Price: low → high'],
+  ['priceHigh',  'Price: high → low'],
+];
+
+/* ─── Project Card ───────────────────────────────────────────────── */
+function ProjectCard({
+  project, bookmarks, onSelect, onShare, onFlyer, onToggleBookmark,
+}: {
+  project: ProjectSummary;
+  bookmarks: Set<number>;
+  onSelect: (p: ProjectSummary) => void;
+  onShare: (p: ProjectSummary) => void;
+  onFlyer: (p: ProjectSummary) => void;
+  onToggleBookmark: (id: number, e: React.MouseEvent) => void;
+}) {
+  const commRate  = project.commissionValue ?? 0;
+  const startPrice = project.priceMin ?? project.priceMax ?? 0;
+  const hasPrice  = project.priceMin != null || project.priceMax != null;
+  const isHighVelocity = project.featured || (
+    (project.availableUnits ?? 0) > 0 &&
+    (project.totalUnits ?? 0) > 0 &&
+    (project.availableUnits ?? 0) / (project.totalUnits ?? 1) < 0.25
+  );
+
+  const configStr = project.configurations?.length
+    ? project.configurations.slice(0, 3).join('-') + ' BHK'
+    : '';
+
+  return (
+    <div
+      onClick={() => onSelect(project)}
+      className="group bg-white rounded-2xl overflow-hidden cursor-pointer flex flex-col border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all duration-200">
+
+      {/* ── Image area ── */}
+      <div className="relative overflow-hidden bg-gray-50" style={{ aspectRatio: '4/5' }}>
+        {project.imageUrl ? (
+          <img src={project.imageUrl} alt={project.name}
+            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
+        ) : (
+          <ProjectPlaceholder seed={project.id} />
+        )}
+
+        {/* Status badge top-left */}
+        <div className="absolute top-2.5 left-2.5">
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${STATUS_BADGE[project.status] ?? 'bg-gray-50 text-gray-600 border-gray-100'}`}>
+            {STATUS_LABEL_SHORT[project.status] ?? project.status}
+          </span>
+        </div>
+
+        {/* Commission badge top-right */}
+        {commRate > 0 && (
+          <div className="absolute top-2.5 right-2.5">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+              +{commRate}% comm.
+            </span>
+          </div>
+        )}
+
+        {/* High velocity badge bottom-left */}
+        {isHighVelocity && (
+          <div className="absolute bottom-2.5 left-2.5">
+            <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">
+              <Flame size={9} /> High velocity
+            </span>
+          </div>
+        )}
+
+        {/* Bookmark top-right (below commission badge) */}
+        <div className="absolute top-9 right-2.5" onClick={e => { e.stopPropagation(); onToggleBookmark(project.id, e); }}>
+          <button className={`w-6 h-6 rounded-full bg-white/90 backdrop-blur flex items-center justify-center transition-colors ${bookmarks.has(project.id) ? 'text-amber-500' : 'text-gray-400 hover:text-amber-500'}`}>
+            <Bookmark size={11} fill={bookmarks.has(project.id) ? 'currentColor' : 'none'} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Card body ── */}
+      <div className="px-3 pt-2.5 pb-0">
+        <div className="flex items-start justify-between gap-1 mb-0.5">
+          <h3 className="font-bold text-slate-800 text-[13px] leading-snug line-clamp-1 flex-1 group-hover:text-teal-700 transition-colors">
+            {project.name}
+          </h3>
+          {hasPrice && (
+            <div className="shrink-0 text-right ml-1">
+              <p className="text-[9px] text-slate-400 uppercase tracking-wide leading-none">FROM</p>
+              <p className="text-[11px] font-black text-slate-800 leading-tight">{fmt(startPrice)}</p>
+            </div>
+          )}
+        </div>
+        <p className="text-[10px] text-slate-400 line-clamp-1 mb-2.5">
+          {[project.locality, project.city].filter(Boolean).join(', ')}
+          {configStr ? ` · ${configStr}` : ''}
+          {project.reraNumber ? ' · RERA' : ''}
+        </p>
+      </div>
+
+      {/* ── Bottom 3-col bar ── */}
+      <div className="flex items-stretch border-t border-gray-100 mt-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex-1 px-2.5 py-2 border-r border-gray-100">
+          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">Commission</p>
+          <p className="text-[13px] font-black text-slate-800 leading-none">{commRate > 0 ? `${commRate}%` : '—'}</p>
+        </div>
+        <div className="flex-1 px-2.5 py-2 border-r border-gray-100">
+          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">My Pipeline</p>
+          <p className="text-[13px] font-black text-slate-800 leading-none">
+            0 <span className="text-[9px] font-medium text-slate-400">leads</span>
+          </p>
+        </div>
+        <button
+          onClick={() => onShare(project)}
+          className="px-3 flex items-center justify-center gap-1 text-[11px] font-bold text-teal-700 hover:bg-teal-50 transition-colors">
+          <Share2 size={12} /> Share
+        </button>
+      </div>
+
+      {/* ── Meta row ── */}
+      <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50 border-t border-gray-100 text-[9px] text-slate-400">
+        <span>0 units booked by you</span>
+        <button onClick={e => { e.stopPropagation(); onFlyer(project); }}
+          className="flex items-center gap-0.5 text-orange-500 font-semibold hover:text-orange-600 transition-colors">
+          <ImageIcon size={9} /> Flyer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Skeleton card ──────────────────────────────────────────────── */
+function CardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 animate-pulse">
+      <div className="bg-gray-100" style={{ aspectRatio: '4/5' }} />
+      <div className="p-3 space-y-2">
+        <div className="flex justify-between">
+          <div className="h-3 bg-gray-100 rounded w-1/2" />
+          <div className="h-3 bg-gray-100 rounded w-1/4" />
+        </div>
+        <div className="h-2.5 bg-gray-100 rounded w-3/4" />
+      </div>
+      <div className="flex border-t border-gray-100">
+        <div className="flex-1 h-10 bg-gray-50" />
+        <div className="flex-1 h-10 bg-gray-50 border-x border-gray-100" />
+        <div className="w-16 h-10 bg-gray-50" />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main CPProjects component ──────────────────────────────────── */
 const CPProjects = () => {
-  const { user } = useAuthStore();
-  const [projects, setProjects]             = useState<ProjectSummary[]>([]);
-  const [loading, setLoading]               = useState(true);
-  const [error, setError]                   = useState('');
-  const [flyerProject, setFlyerProject]     = useState<ProjectSummary | null>(null);
-  const [selected, setSelected]             = useState<ProjectSummary | null>(null);
-  const [bookmarks, setBookmarks]           = useState<Set<number>>(loadBookmarks);
-  const [filterTab, setFilterTab]           = useState<FilterTab>('all');
+  const { user }    = useAuthStore();
+  const [projects, setProjects]       = useState<ProjectSummary[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState('');
+  const [flyerProject, setFlyerProject] = useState<ProjectSummary | null>(null);
+  const [selected, setSelected]       = useState<ProjectSummary | null>(null);
+  const [bookmarks, setBookmarks]     = useState<Set<number>>(loadBookmarks);
+  const [filterTab, setFilterTab]     = useState<FilterTab>('all');
   const [shareModalProject, setShareModalProject] = useState<ProjectSummary | null>(null);
+  const [search, setSearch]           = useState('');
+  const [sortKey, setSortKey]         = useState<SortKey>('recent');
+  const [sortOpen, setSortOpen]       = useState(false);
 
   useEffect(() => {
     builderApi.getPublicProjects()
@@ -1057,15 +1070,45 @@ const CPProjects = () => {
     });
   }, []);
 
-  const displayed = filterTab === 'starred'
-    ? projects.filter(p => bookmarks.has(p.id))
-    : projects;
+  /* ── Tab counts ── */
+  const tabCounts = useMemo(() => ({
+    all:      projects.length,
+    myLeads:  bookmarks.size,
+    hotComm:  projects.filter(p => (p.commissionValue ?? 0) >= 3).length,
+    backed:   bookmarks.size,
+    newDeals: projects.filter(p => ['NEW_LAUNCH', 'PRE_LAUNCH'].includes(p.status)).length,
+  }), [projects, bookmarks]);
 
-  if (loading) return (
-    <DashboardLayout>
-      <div className="flex justify-center py-24"><Loader2 className="animate-spin text-muted-foreground" size={32} /></div>
-    </DashboardLayout>
-  );
+  /* ── Filter + sort pipeline ── */
+  const displayed = useMemo(() => {
+    let list = [...projects];
+
+    if (filterTab === 'myLeads') list = list.filter(p => bookmarks.has(p.id));
+    if (filterTab === 'hotComm') list = list.filter(p => (p.commissionValue ?? 0) >= 3);
+    if (filterTab === 'backed')  list = list.filter(p => bookmarks.has(p.id));
+    if (filterTab === 'newDeals') list = list.filter(p => ['NEW_LAUNCH', 'PRE_LAUNCH'].includes(p.status));
+
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(p =>
+        p.name?.toLowerCase().includes(q) ||
+        p.builderName?.toLowerCase().includes(q) ||
+        p.locality?.toLowerCase().includes(q) ||
+        p.city?.toLowerCase().includes(q),
+      );
+    }
+
+    list.sort((a, b) => {
+      switch (sortKey) {
+        case 'commission': return (b.commissionValue ?? 0) - (a.commissionValue ?? 0);
+        case 'priceLow':   return (a.priceMin ?? a.priceMax ?? Infinity) - (b.priceMin ?? b.priceMax ?? Infinity);
+        case 'priceHigh':  return (b.priceMax ?? b.priceMin ?? 0) - (a.priceMax ?? a.priceMin ?? 0);
+        default:           return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
+      }
+    });
+
+    return list;
+  }, [projects, filterTab, bookmarks, search, sortKey]);
 
   if (error) return (
     <DashboardLayout>
@@ -1076,143 +1119,140 @@ const CPProjects = () => {
     </DashboardLayout>
   );
 
+  const TABS: { id: FilterTab; label: string }[] = [
+    { id: 'all',      label: 'All' },
+    { id: 'myLeads',  label: 'With my leads' },
+    { id: 'hotComm',  label: 'Hot commission' },
+    { id: 'backed',   label: "I've backed here" },
+    { id: 'newDeals', label: 'New on deals' },
+  ];
+
+  const sortLabel = SORT_OPTIONS.find(([k]) => k === sortKey)?.[1] ?? 'Sort';
+
   return (
     <DashboardLayout>
-      <div className="space-y-4">
+      <div className="space-y-0">
 
-        {/* Filter tabs */}
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
-          {([['all', 'All Projects'], ['starred', 'Bookmarked']] as [FilterTab, string][]).map(([id, label]) => (
-            <button key={id} onClick={() => setFilterTab(id)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                filterTab === id
-                  ? 'bg-white text-slate-800 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}>
-              {id === 'starred' && <Bookmark size={12} className="inline mr-1.5 mb-0.5" />}{label}
-              {id === 'starred' && bookmarks.size > 0 && (
-                <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 font-bold px-1.5 py-0.5 rounded-full">{bookmarks.size}</span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {displayed.length === 0 ? (
-          <div className="text-center py-24 border border-dashed border-border rounded-xl">
-            <Bookmark className="mx-auto mb-3 text-muted-foreground" size={36} />
-            <h3 className="font-semibold text-foreground mb-1">
-              {filterTab === 'starred' ? 'No bookmarked projects' : 'No projects available yet'}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {filterTab === 'starred' ? 'Star projects you like to see them here' : 'Projects added by builders will appear here.'}
+        {/* ══ HEADER ══ */}
+        <div className="flex items-start justify-between gap-4 pt-1 pb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 leading-tight tracking-tight">
+              {toWord(projects.length)} projects,{' '}
+              <em style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontStyle: 'italic', fontWeight: 400 }}>
+                endless leads.
+              </em>
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              You've added <strong className="text-slate-700">0 leads</strong> across these projects this month, with ₹— in payouts pending.
             </p>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
-            {displayed.map(project => (
-              <div key={project.id}
-                onClick={() => setSelected(project)}
-                className="group bg-white rounded-2xl overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-200 flex flex-col"
-                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)' }}>
+          <div className="flex items-center gap-2 shrink-0 mt-1">
+            <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 text-sm font-medium text-slate-600 hover:bg-gray-50 transition-colors">
+              <Filter size={13} /> Filters
+            </button>
+            <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold text-white transition-colors hover:opacity-90"
+              style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
+              + Add a lead
+            </button>
+          </div>
+        </div>
 
-                {/* ── Image ──────────────────────────────────────────────── */}
-                <div className="relative aspect-[3/4] overflow-hidden flex-shrink-0">
-                  {project.imageUrl ? (
-                    <img src={project.imageUrl} alt={project.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  ) : (
-                    <div className="w-full h-full relative overflow-hidden"
-                      style={{ background: 'linear-gradient(135deg, #0b2545 0%, #1a4a7a 30%, #0A7E8C 65%, #0eb89a 100%)' }}>
-                      <div className="absolute inset-0 opacity-[0.06]"
-                        style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)', backgroundSize: '20px 20px' }} />
-                      <div className="absolute bottom-0 left-0 right-0 flex items-end justify-center gap-0.5 px-3 opacity-20">
-                        {[14, 22, 18, 32, 22, 38, 26, 20].map((h, i) => (
-                          <div key={i} className="bg-white rounded-t-sm flex-1" style={{ height: `${h}px` }} />
-                        ))}
-                      </div>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Building2 size={40} className="text-white/25" />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Top-left: commission + status badges */}
-                  <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
-                    {project.commissionValue != null && (
-                      <span className="bg-green-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-sm">
-                        + {project.commissionValue}%
-                      </span>
-                    )}
-                    {(project.status === 'NEW_LAUNCH' || project.status === 'PRE_LAUNCH') && (
-                      <span className="bg-purple-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
-                        NEW
-                      </span>
-                    )}
-                    {project.closingSoon && (
-                      <span className="bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
-                        HOT
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Top-right: bookmark */}
-                  <div className="absolute top-2 right-2" onClick={e => e.stopPropagation()}>
-                    <StarButton projectId={project.id} bookmarks={bookmarks} onToggle={toggleBookmark} />
-                  </div>
-
-                  {/* Bottom: price overlay */}
-                  {(project.priceMin || project.priceMax) && (
-                    <div className="absolute bottom-0 left-0 right-0 px-3 py-3"
-                      style={{ background: 'linear-gradient(to top, rgba(15,42,69,0.82) 0%, transparent 100%)' }}>
-                      <p className="text-white/60 text-[9px] font-medium leading-none mb-0.5">From</p>
-                      <p className="text-white font-black text-sm leading-none">
-                        {project.priceMin ? fmt(project.priceMin) : fmt(project.priceMax!)}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* ── Body ───────────────────────────────────────────────── */}
-                <div className="p-3.5 flex flex-col flex-1 gap-0.5">
-                  <h3 className="font-bold text-slate-800 text-[13px] leading-snug line-clamp-1 group-hover:text-teal-600 transition-colors">
-                    {project.name}
-                  </h3>
-                  <p className="flex items-center gap-1 text-[11px] text-slate-400 line-clamp-1">
-                    <MapPin size={9} className="shrink-0 text-teal-500/70" />
-                    {[project.locality, project.city].filter(Boolean).join(', ') || '—'}
-                  </p>
-                  {project.configurations && project.configurations.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-0.5">
-                      {project.configurations.slice(0, 3).map(c => (
-                        <span key={c} className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">{c}</span>
-                      ))}
-                    </div>
-                  )}
-                  {project.reraNumber && (
-                    <p className="text-[10px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
-                      <CheckCircle2 size={9} /> RERA Registered
-                    </p>
-                  )}
-
-                  {/* Action row */}
-                  <div className="mt-auto pt-2.5 flex gap-1.5" onClick={e => e.stopPropagation()}>
-                    <button
-                      onClick={() => setShareModalProject(project)}
-                      className="flex-1 py-1.5 rounded-xl text-[11px] font-semibold text-white hover:opacity-90 flex items-center justify-center gap-1 transition-opacity"
-                      style={{ backgroundColor: '#25D366' }}>
-                      <Users size={10} /> Share
-                    </button>
-                    <button
-                      onClick={() => setFlyerProject(project)}
-                      className="flex-1 py-1.5 rounded-xl text-[11px] font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors flex items-center justify-center">
-                      Flyer
-                    </button>
-                  </div>
-                </div>
-              </div>
+        {/* ══ TABS + SEARCH ══ */}
+        <div className="flex items-center gap-0 border-b border-gray-200 overflow-x-auto scrollbar-none">
+          <div className="flex items-center shrink-0">
+            {TABS.map(tab => (
+              <button key={tab.id} onClick={() => setFilterTab(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                  filterTab === tab.id
+                    ? 'border-teal-600 text-teal-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                }`}>
+                {tab.label}
+                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
+                  filterTab === tab.id ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-slate-500'
+                }`}>
+                  {tabCounts[tab.id]}
+                </span>
+              </button>
             ))}
           </div>
-        )}
+
+          {/* Search + Sort pushed right */}
+          <div className="ml-auto flex items-center gap-2 pb-1 pl-4 shrink-0">
+            <div className="relative">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search projects, locality…"
+                className="pl-7 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-gray-50 w-48 focus:outline-none focus:ring-1 focus:ring-teal-300 focus:border-teal-300 transition-all"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X size={10} />
+                </button>
+              )}
+            </div>
+            <div className="relative">
+              <button onClick={() => setSortOpen(o => !o)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-slate-600 hover:bg-gray-50 transition-colors whitespace-nowrap">
+                <ArrowUpDown size={11} /> {sortLabel}
+                <ChevronDown size={10} className={`transition-transform ${sortOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {sortOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setSortOpen(false)} />
+                  <div className="absolute z-40 right-0 mt-1.5 min-w-[180px] bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
+                    {SORT_OPTIONS.map(([k, label]) => (
+                      <button key={k} onClick={() => { setSortKey(k); setSortOpen(false); }}
+                        className={`w-full text-left px-3.5 py-2 text-xs font-medium flex items-center justify-between transition-colors ${sortKey === k ? 'bg-teal-50 text-teal-700' : 'text-slate-600 hover:bg-gray-50'}`}>
+                        {label} {sortKey === k && <Check size={11} strokeWidth={3} />}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ══ GRID ══ */}
+        <div className="pt-5">
+          {loading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
+            </div>
+          ) : displayed.length === 0 ? (
+            <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
+              <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                <Building2 size={26} className="text-gray-400" />
+              </div>
+              <h3 className="font-bold text-slate-700 mb-1">No projects found</h3>
+              <p className="text-sm text-slate-400">
+                {search ? 'No projects match your search.' : 'Projects added by builders will appear here.'}
+              </p>
+              {search && (
+                <button onClick={() => setSearch('')} className="mt-3 px-4 py-1.5 rounded-lg bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors">
+                  Clear search
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+              {displayed.map(project => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  bookmarks={bookmarks}
+                  onSelect={setSelected}
+                  onShare={setShareModalProject}
+                  onFlyer={setFlyerProject}
+                  onToggleBookmark={toggleBookmark}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {selected && (

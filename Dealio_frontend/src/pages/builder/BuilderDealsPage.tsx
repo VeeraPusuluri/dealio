@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useDealStore } from '@/stores/useDealStore';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -11,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Handshake, CreditCard, MessageSquare, FileText, Clock, User, Building2, Loader2 } from 'lucide-react';
+import { Handshake, CreditCard, MessageSquare, FileText, Clock, User, Building2, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 const DealDetail = ({ deal, onClose }: { deal: any; onClose: () => void }) => {
@@ -191,6 +192,7 @@ const DealDetail = ({ deal, onClose }: { deal: any; onClose: () => void }) => {
 };
 
 const BuilderDeals = () => {
+  const navigate = useNavigate();
   const { deals, fetchDeals, loading } = useDealStore();
   const user = useAuthStore((s) => s.user);
   const [filter, setFilter] = useState('all');
@@ -218,7 +220,12 @@ const BuilderDeals = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="la-banner px-5 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-800">Deal Management</h2>
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors" title="Back">
+              <ArrowLeft size={16} />
+            </button>
+            <h2 className="text-xl font-bold text-slate-800">Deal Management</h2>
+          </div>
           <Select value={filter} onValueChange={setFilter}>
             <SelectTrigger className="w-52 rounded-xl border-slate-200 shadow-sm"><SelectValue placeholder="Filter by status" /></SelectTrigger>
             <SelectContent>

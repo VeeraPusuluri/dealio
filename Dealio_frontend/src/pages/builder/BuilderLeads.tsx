@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { builderApi } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -11,7 +12,7 @@ import { useFollowUpStore } from '@/stores/useFollowUpStore';
 import CallLogModal from '@/components/shared/CallLogModal';
 import { outcomeColors } from '@/components/shared/CallLogModal';
 import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
-import { Phone, FileText, Search, Download, ChevronRight, Loader2, Building2, X, Mail, MapPin, Clock, User, Calendar, IndianRupee, Tag, MessageSquare } from 'lucide-react';
+import { Phone, FileText, Search, Download, ChevronRight, Loader2, Building2, X, Mail, MapPin, Clock, User, Calendar, IndianRupee, Tag, MessageSquare, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 const stages: LeadStage[] = ['New Lead', 'Meeting Requested', 'Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Booked', 'Closed'];
@@ -122,6 +123,7 @@ const NEXT_STAGES: Record<string, LeadStage[]> = {
 };
 
 const BuilderLeads = () => {
+  const navigate = useNavigate();
   const { callLogs } = useFollowUpStore();
   const [apiLeads, setApiLeads] = useState<ReturnType<typeof apiLeadToRow>[]>([]);
   const [loading, setLoading] = useState(true);
@@ -230,7 +232,12 @@ const BuilderLeads = () => {
     <DashboardLayout>
       <div className="space-y-4">
         <div className="la-banner px-5 py-3.5 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-800">Leads & Meetings</h2>
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors" title="Back">
+              <ArrowLeft size={16} />
+            </button>
+            <h2 className="text-lg font-bold text-slate-800">Leads & Meetings</h2>
+          </div>
         </div>
 
         <div className="space-y-3">

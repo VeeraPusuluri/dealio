@@ -125,6 +125,9 @@ export const builderApi = {
   getPublicBuilders: () =>
     builderReq('/builder/builders'),
 
+  resolveMapsLink: (url: string): Promise<{ resolvedUrl: string }> =>
+    builderReq(`/builder/resolve-maps-link?url=${encodeURIComponent(url)}`) as Promise<{ resolvedUrl: string }>,
+
   getPublicProject: (id: number | string) =>
     builderReq(`/builder/projects/${id}`),
 
@@ -290,6 +293,9 @@ export const cpApi = {
 
   updateProfile: (cpUserId: string | number, data: { fullName?: string; email?: string; city?: string; bio?: string; reraNumber?: string }) =>
     cpReq(`/cp/${cpUserId}/profile`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  getNotifications: () =>
+    cpReq('/cp/notifications'),
 
   sendPhoneOtp: (phone: string) =>
     cpReq('/cp/verify-phone/send-otp', { method: 'POST', body: JSON.stringify({ phone }) }),

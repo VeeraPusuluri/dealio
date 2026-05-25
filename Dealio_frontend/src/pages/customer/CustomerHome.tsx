@@ -1,16 +1,16 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { useNotificationStore } from '@/stores/useNotificationStore';
 import { customerApi, builderApi } from '@/lib/api';
 import {
-  Building2, MapPin, Calendar, Search,
-  Loader2, ArrowRight, Star, Clock, CheckCircle2, X, Bookmark, BookmarkCheck,
-  ListChecks, CreditCard, FileText, ChevronRight,
-  SlidersHorizontal, ArrowUpDown, Sparkles, ChevronDown,
+  Building2, MapPin, Search, Loader2, X, Bookmark,
+  SlidersHorizontal, ArrowUpDown, ChevronDown, Check, Wifi, Car,
+  Dumbbell, TreePine, Shield, Waves, Coffee, UtensilsCrossed,
 } from 'lucide-react';
+import ProjectPlaceholder from '@/components/shared/ProjectPlaceholder';
 
+/* ─── Types ──────────────────────────────────────────────────────── */
 interface ProjectSummary {
   id: number;
   name: string;
@@ -28,39 +28,68 @@ interface ProjectSummary {
   description?: string;
   imageUrl?: string | null;
   builderName?: string;
+  amenities?: string[];
 }
 
+type FilterTab = 'all' | 'saved' | 'ready2027' | 'under1cr' | 'nearme';
 type SortOption = 'default' | 'price-asc' | 'price-desc';
-const NEW_PROJECT_STATUSES = new Set(['NEW_LAUNCH', 'PRE_LAUNCH']);
 
+/* ─── Constants ──────────────────────────────────────────────────── */
+const SHORTLIST_KEY = 'dealio_customer_shortlist';
+const PREF_KEY      = 'dealio_customer_prefs';
 
-interface ProjectAnnouncement {
-  projectId: number;
-  projectName: string;
-  city: string;
-  locality: string | null;
-  createdAt: string;
+const STATUS_LABEL: Record<string, string> = {
+  PRE_LAUNCH:         'Pre-launch',
+  NEW_LAUNCH:         'New launch',
+  LAUNCHED:           'Selling',
+  ACTIVE:             'Selling',
+  UNDER_CONSTRUCTION: 'Under constr.',
+  READY_TO_MOVE:      'Ready to move',
+  CLOSING_SOON:       'Closing soon',
+};
+
+const STATUS_BADGE: Record<string, string> = {
+  PRE_LAUNCH:         'bg-violet-50 text-violet-600 border-violet-100',
+  NEW_LAUNCH:         'bg-violet-50 text-violet-600 border-violet-100',
+  LAUNCHED:           'bg-sky-50 text-sky-600 border-sky-100',
+  ACTIVE:             'bg-emerald-50 text-emerald-700 border-emerald-100',
+  UNDER_CONSTRUCTION: 'bg-amber-50 text-amber-700 border-amber-100',
+  READY_TO_MOVE:      'bg-green-50 text-green-700 border-green-100',
+  CLOSING_SOON:       'bg-red-50 text-red-600 border-red-100',
+};
+
+/* ─── Amenity icon map ───────────────────────────────────────────── */
+const AMENITY_ICONS: Record<string, React.ElementType> = {
+  'gym':        Dumbbell,
+  'pool':       Waves,
+  'parking':    Car,
+  'wifi':       Wifi,
+  'garden':     TreePine,
+  'security':   Shield,
+  'cafe':       Coffee,
+  'restaurant': UtensilsCrossed,
+};
+
+function getAmenityIcon(amenity: string): React.ElementType {
+  const key = amenity.toLowerCase();
+  for (const [k, Icon] of Object.entries(AMENITY_ICONS)) {
+    if (key.includes(k)) return Icon;
+  }
+  return Building2;
 }
 
-const PREF_KEY    = 'dealio_customer_prefs';
-const ANNOUNCE_KEY = 'dealio_project_announcements';
-const SEEN_KEY    = 'dealio_seen_project_ids';
+/* ─── Helpers ────────────────────────────────────────────────────── */
+function loadShortlist(): Set<number> {
+  try { return new Set(JSON.parse(localStorage.getItem(SHORTLIST_KEY) ?? '[]') as number[]); }
+  catch { return new Set(); }
+}
+function saveShortlist(s: Set<number>) {
+  localStorage.setItem(SHORTLIST_KEY, JSON.stringify([...s]));
+}
 
-const STATUS_LABELS: Record<string, string> = {
-  PRE_LAUNCH: 'Pre-Launch', LAUNCHED: 'Launched',
-  UNDER_CONSTRUCTION: 'Under Construction', READY_TO_MOVE: 'Ready to Move',
-  NEW_LAUNCH: 'New Launch', ACTIVE: 'Active', CLOSING_SOON: 'Closing Soon',
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  PRE_LAUNCH: 'bg-violet-100 text-violet-700',
-  LAUNCHED: 'bg-blue-100 text-blue-700',
-  UNDER_CONSTRUCTION: 'bg-amber-100 text-amber-700',
-  READY_TO_MOVE: 'bg-emerald-100 text-emerald-700',
-  NEW_LAUNCH: 'bg-violet-100 text-violet-700',
-  ACTIVE: 'bg-emerald-100 text-emerald-700',
-  CLOSING_SOON: 'bg-red-100 text-red-700',
-};
+function getPrefs(): { preferredCity?: string } {
+  try { return JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); } catch { return {}; }
+}
 
 const fmtPrice = (min?: number, max?: number) => {
   if (!min && !max) return 'Price on request';
@@ -73,529 +102,391 @@ const fmtPrice = (min?: number, max?: number) => {
   return fmt(min || max || 0);
 };
 
-function getPrefs(): { preferredCity?: string } {
-  try { return JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); } catch { return {}; }
-}
-function savePrefs(prefs: { preferredCity?: string }) {
-  try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch { /* ignore */ }
-}
-function getSeenIds(): number[] {
-  try { return JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); } catch { return []; }
-}
-function markSeen(ids: number[]) {
-  try {
-    const merged = [...new Set([...getSeenIds(), ...ids])];
-    localStorage.setItem(SEEN_KEY, JSON.stringify(merged.slice(-200)));
-  } catch { /* ignore */ }
+/* ─── Simulated "others saved" count (deterministic from id) ─────── */
+function othersSaved(id: number): number {
+  return 12 + (id * 7 + 3) % 60;
 }
 
-function timeGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-}
+/* ─── Project Card ───────────────────────────────────────────────── */
+function ProjectCard({
+  project, shortlist, onToggleShortlist, onClick,
+}: {
+  project: ProjectSummary;
+  shortlist: Set<number>;
+  onToggleShortlist: (id: number, e: React.MouseEvent) => void;
+  onClick: () => void;
+}) {
+  const isSaved   = shortlist.has(project.id);
+  const savedCount = othersSaved(project.id);
+  const startPrice = project.priceMin ?? project.priceMax ?? 0;
+  const hasPrice   = project.priceMin != null || project.priceMax != null;
 
-const quickLinks = [
-  { label: 'My Property',  sub: 'Track your home',   path: '/customer/property',    icon: Building2,  from: '#0A7E8C', to: '#0E9BAA' },
-  { label: 'Journey',      sub: 'View milestones',    path: '/customer/journey',     icon: ListChecks, from: '#6366F1', to: '#818CF8' },
-  { label: 'Loan Status',  sub: 'Check progress',     path: '/customer/loan-status', icon: CreditCard, from: '#F59E0B', to: '#FBBF24' },
-  { label: 'Documents',    sub: 'My files',           path: '/customer/documents',   icon: FileText,   from: '#16A34A', to: '#22C55E' },
-  { label: 'Meetings',     sub: 'Schedule a visit',   path: '/customer/meeting',     icon: Calendar,   from: '#E87722', to: '#F97316' },
-];
+  const amenities = (project.amenities ?? []).slice(0, 4);
 
-const CustomerHome = () => {
-  const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
-  const { addNotification } = useNotificationStore();
-  const firstName = user?.name?.split(' ')[0] || 'there';
-  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div
+      onClick={onClick}
+      className="group bg-white rounded-2xl overflow-hidden cursor-pointer flex flex-col border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all duration-200">
 
-  const [cities,          setCities]          = useState<string[]>([]);
-  const [inputValue,      setInputValue]      = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [projects,        setProjects]        = useState<ProjectSummary[]>([]);
-  const [loadingCities,   setLoadingCities]   = useState(true);
-  const [loadingProjects, setLoadingProjects] = useState(false);
-  const [searched,        setSearched]        = useState(false);
-  const [searchedCity,    setSearchedCity]    = useState('');
-  const [error,           setError]           = useState('');
-  const [preferredCity,   setPreferredCity]   = useState<string | undefined>(getPrefs().preferredCity);
-  const [sortBy,          setSortBy]          = useState<SortOption>('default');
-  const [filterNew,       setFilterNew]       = useState(false);
-  const [filterBuilder,   setFilterBuilder]   = useState('');
+      {/* ── Image area ── */}
+      <div className="relative overflow-hidden bg-gray-50" style={{ aspectRatio: '4/5' }}>
+        {project.imageUrl ? (
+          <img src={project.imageUrl} alt={project.name}
+            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
+        ) : (
+          <ProjectPlaceholder seed={project.id} />
+        )}
 
-  const suggestions = cities.filter(c =>
-    c.toLowerCase().includes(inputValue.toLowerCase()) && inputValue.length > 0
+        {/* Status badge top-left */}
+        <div className="absolute top-2.5 left-2.5">
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${STATUS_BADGE[project.status] ?? 'bg-gray-50 text-gray-600 border-gray-100'}`}>
+            {STATUS_LABEL[project.status] ?? project.status}
+          </span>
+        </div>
+
+        {/* Bookmark top-right */}
+        <div className="absolute top-2.5 right-2.5" onClick={e => { e.stopPropagation(); onToggleShortlist(project.id, e); }}>
+          <button className={`w-7 h-7 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm transition-colors ${isSaved ? 'text-teal-600' : 'text-gray-400 hover:text-teal-600'}`}>
+            <Bookmark size={13} fill={isSaved ? 'currentColor' : 'none'} />
+          </button>
+        </div>
+
+        {/* Others saved count - bottom left */}
+        {savedCount > 0 && (
+          <div className="absolute bottom-2.5 left-2.5">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-black/40 backdrop-blur text-white">
+              {savedCount} others saved
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Body ── */}
+      <div className="p-3 flex flex-col flex-1 gap-0.5">
+        <div className="flex items-start justify-between gap-1">
+          <h3 className="font-bold text-slate-800 text-[13px] leading-snug line-clamp-1 flex-1 group-hover:text-teal-700 transition-colors">
+            {project.name}
+          </h3>
+        </div>
+
+        {hasPrice && (
+          <p className="text-[10px] text-slate-400 leading-none mb-0.5">
+            <span className="uppercase tracking-wide text-[8px]">FROM </span>
+            <span className="font-black text-[12px] text-slate-800">{fmtPrice(startPrice, undefined)}</span>
+          </p>
+        )}
+
+        <p className="flex items-center gap-1 text-[10px] text-slate-400 line-clamp-1">
+          <MapPin size={9} className="shrink-0 text-teal-500/70" />
+          {[project.locality, project.city].filter(Boolean).join(', ') || '—'}
+          {project.reraNumber ? ' · RERA' : ''}
+        </p>
+
+        {/* Amenities */}
+        {amenities.length > 0 && (
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            {amenities.map(a => {
+              const Icon = getAmenityIcon(a);
+              return (
+                <span key={a} className="flex items-center gap-0.5 text-[10px] text-slate-500 bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-100">
+                  <Icon size={9} className="text-teal-500" /> {a}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Configurations */}
+        {!amenities.length && project.configurations && project.configurations.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-0.5">
+            {project.configurations.slice(0, 3).map(c => (
+              <span key={c} className="text-[10px] px-1.5 py-0.5 rounded-md bg-gray-50 text-slate-600 font-semibold border border-gray-100">
+                {c}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Distance from area */}
+        {project.locality && (
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            {(0.5 + (project.id % 8) * 0.3).toFixed(1)} km from {project.locality}
+          </p>
+        )}
+
+        {/* View button */}
+        <div className="mt-auto pt-2">
+          <div className="flex items-center justify-end">
+            <span className="text-[11px] font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors px-3 py-1 rounded-lg">
+              View →
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
   );
+}
 
-  const builderOptions = useMemo(() =>
-    [...new Set(projects.map(p => p.builderName).filter(Boolean))] as string[],
-  [projects]);
+/* ─── Skeleton ───────────────────────────────────────────────────── */
+function CardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 animate-pulse">
+      <div className="bg-gray-100" style={{ aspectRatio: '4/5' }} />
+      <div className="p-3 space-y-2">
+        <div className="h-3 bg-gray-100 rounded w-3/4" />
+        <div className="h-2.5 bg-gray-100 rounded w-1/2" />
+        <div className="h-2 bg-gray-100 rounded w-2/3" />
+        <div className="flex gap-1 mt-2">
+          <div className="h-5 w-14 rounded-md bg-gray-100" />
+          <div className="h-5 w-14 rounded-md bg-gray-100" />
+        </div>
+        <div className="flex justify-end mt-2">
+          <div className="h-6 w-12 rounded-lg bg-gray-100" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  const displayedProjects = useMemo(() => {
-    let result = [...projects];
-    if (filterNew) result = result.filter(p => NEW_PROJECT_STATUSES.has(p.status));
-    if (filterBuilder) result = result.filter(p => p.builderName === filterBuilder);
-    if (sortBy === 'price-asc') result.sort((a, b) => (a.priceMin ?? 0) - (b.priceMin ?? 0));
-    else if (sortBy === 'price-desc') result.sort((a, b) => (b.priceMin ?? 0) - (a.priceMin ?? 0));
-    return result;
-  }, [projects, sortBy, filterNew, filterBuilder]);
+/* ─── Main component ─────────────────────────────────────────────── */
+const CustomerHome = () => {
+  const navigate   = useNavigate();
+  const user       = useAuthStore((s) => s.user);
+  const firstName  = user?.name?.split(' ')[0] || 'there';
 
-  const checkAnnouncements = (city: string) => {
-    try {
-      const all: ProjectAnnouncement[] = JSON.parse(localStorage.getItem(ANNOUNCE_KEY) || '[]');
-      const seenIds = getSeenIds();
-      const fresh = all.filter(a => a.city.toLowerCase() === city.toLowerCase() && !seenIds.includes(a.projectId));
-      fresh.forEach(a => addNotification({
-        type: 'info', title: 'New Project in Your City',
-        message: `${a.projectName}${a.locality ? ` in ${a.locality}` : ''}, ${a.city} is now available!`,
-        role: 'customer',
-      }));
-      if (fresh.length) markSeen(fresh.map(a => a.projectId));
-    } catch { /* ignore */ }
+  const [projects,    setProjects]    = useState<ProjectSummary[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState('');
+  const [shortlist,   setShortlist]   = useState<Set<number>>(loadShortlist);
+  const [filterTab,   setFilterTab]   = useState<FilterTab>('all');
+  const [sortBy,      setSortBy]      = useState<SortOption>('default');
+  const [sortOpen,    setSortOpen]    = useState(false);
+  const [search,      setSearch]      = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+
+  const preferredCity = getPrefs().preferredCity;
+
+  /* ── Load all public projects on mount ── */
+  useEffect(() => {
+    const city = preferredCity || '';
+    builderApi.getPublicProjects(city || undefined)
+      .then(data => setProjects((data as ProjectSummary[]) || []))
+      .catch(() => setError('Could not load projects. Please try again.'))
+      .finally(() => setLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleShortlist = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShortlist(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      saveShortlist(next);
+      return next;
+    });
   };
 
-  useEffect(() => {
-    const fallback = ['Hyderabad', 'Bengaluru', 'Mumbai', 'Pune', 'Delhi NCR', 'Chennai'];
-    customerApi.getCities()
-      .then(data => setCities((data as string[])?.length ? data as string[] : fallback))
-      .catch(() => setCities(fallback))
-      .finally(() => setLoadingCities(false));
+  /* ── Tab counts ── */
+  const tabCounts = useMemo(() => ({
+    all:      projects.length,
+    saved:    shortlist.size,
+    ready2027: projects.filter(p => {
+      if (!p.possessionDate) return false;
+      const yr = new Date(p.possessionDate).getFullYear();
+      return yr <= 2027;
+    }).length,
+    under1cr: projects.filter(p => (p.priceMin ?? 0) < 10_000_000).length,
+    nearme:   projects.filter(p => p.locality).length,
+  }), [projects, shortlist]);
 
-    customerApi.getNotifications()
-      .then(data => {
-        (data as { title: string; message: string; type: string }[] || [])
-          .forEach(n => addNotification({ type: n.type as 'info' | 'success' | 'error', title: n.title, message: n.message, role: 'customer' }));
-      })
-      .catch(() => {});
+  /* ── Filtered + sorted list ── */
+  const displayed = useMemo(() => {
+    let list = [...projects];
 
-  }, []);
+    if (filterTab === 'saved')     list = list.filter(p => shortlist.has(p.id));
+    if (filterTab === 'ready2027') list = list.filter(p => p.possessionDate && new Date(p.possessionDate).getFullYear() <= 2027);
+    if (filterTab === 'under1cr')  list = list.filter(p => (p.priceMin ?? 0) < 10_000_000);
+    if (filterTab === 'nearme')    list = list.filter(p => !!p.locality);
 
-  useEffect(() => {
-    if (!loadingCities && preferredCity) {
-      setInputValue(preferredCity);
-      handleSearch(preferredCity, true);
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(p =>
+        p.name?.toLowerCase().includes(q) ||
+        p.builderName?.toLowerCase().includes(q) ||
+        p.locality?.toLowerCase().includes(q) ||
+        p.city?.toLowerCase().includes(q),
+      );
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingCities]);
 
-  const handleSearch = async (city?: string, silent = false) => {
-    const q = city || inputValue.trim();
-    if (!q) { setError('Please enter a city name'); inputRef.current?.focus(); return; }
-    setError(''); setShowSuggestions(false); setLoadingProjects(true); setSearched(true); setSearchedCity(q);
-    setSortBy('default'); setFilterNew(false); setFilterBuilder('');
-    try {
-      const data = await builderApi.getPublicProjects(q);
-      setProjects((data as ProjectSummary[]) || []);
-      checkAnnouncements(q);
-    } catch {
-      if (!silent) { setProjects([]); setError('Could not load projects. Please try again.'); }
-    } finally { setLoadingProjects(false); }
-  };
+    if (sortBy === 'price-asc')  list.sort((a, b) => (a.priceMin ?? 0) - (b.priceMin ?? 0));
+    if (sortBy === 'price-desc') list.sort((a, b) => (b.priceMin ?? 0) - (a.priceMin ?? 0));
 
-  const handleClear = () => { setInputValue(''); setSearched(false); setProjects([]); setError(''); inputRef.current?.focus(); };
+    return list;
+  }, [projects, filterTab, shortlist, search, sortBy]);
 
-  const handleSavePreference = () => {
-    if (!searchedCity) return;
-    savePrefs({ preferredCity: searchedCity });
-    setPreferredCity(searchedCity);
-    customerApi.setPreferredCity(searchedCity)
-      .then(() => window.dispatchEvent(new CustomEvent('dealio:city-changed')))
-      .catch(() => {});
-  };
+  const TABS: { id: FilterTab; label: string }[] = [
+    { id: 'all',       label: 'All' },
+    { id: 'saved',     label: 'Saved' },
+    { id: 'ready2027', label: 'Ready by 2027' },
+    { id: 'under1cr',  label: 'Under ₹1 Cr' },
+    { id: 'nearme',    label: 'Near me' },
+  ];
 
-  const handleClearPreference = () => {
-    savePrefs({ preferredCity: undefined });
-    setPreferredCity(undefined);
-    customerApi.setPreferredCity(null)
-      .then(() => window.dispatchEvent(new CustomEvent('dealio:city-changed')))
-      .catch(() => {});
-  };
+  const SORT_OPTIONS: [SortOption, string][] = [
+    ['default',    'Default'],
+    ['price-asc',  'Price: Low → High'],
+    ['price-desc', 'Price: High → Low'],
+  ];
 
-  const isPreferred = preferredCity && preferredCity.toLowerCase() === searchedCity.toLowerCase();
+  const sortLabel = SORT_OPTIONS.find(([k]) => k === sortBy)?.[1] ?? 'Sort';
 
   return (
     <DashboardLayout>
-      <div className="space-y-7 pb-8">
+      <div className="space-y-0 pb-8">
 
-        {/* ── Greeting ─────────────────────────────────────────────────── */}
-        <div className="pt-1">
-          <p className="text-xs font-semibold uppercase tracking-widest text-secondary mb-1">
-            {timeGreeting()} ☀️
-          </p>
-          <h1 className="text-2xl font-bold text-foreground">
-            {firstName}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {preferredCity
-              ? `Showing verified projects in ${preferredCity}`
-              : 'Find your perfect home — search by city below.'}
-          </p>
-        </div>
-
-        {/* ── Quick-access cards ───────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {quickLinks.map(({ label, sub, path, icon: Icon, from, to }) => (
+        {/* ══ HEADER ══ */}
+        <div className="flex items-start justify-between gap-4 pt-1 pb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 leading-tight tracking-tight">
+              Find your{' '}
+              <em style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontStyle: 'italic', fontWeight: 400 }}>
+                home,
+              </em>
+              <br />
+              at your{' '}
+              <em style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontStyle: 'italic', fontWeight: 400 }}>
+                pace.
+              </em>
+            </h1>
+            <p className="text-sm text-slate-500 mt-2">
+              {preferredCity ? (
+                <>Curated for you in <strong className="text-slate-700">{preferredCity}</strong> · <strong className="text-slate-700">{shortlist.size} shortlisted</strong> · Compare configs, EMI and possession side by side.</>
+              ) : (
+                <>Hi <strong className="text-slate-700">{firstName}</strong>! Discover verified projects — shortlist and compare your favourites.</>
+              )}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 mt-1">
             <button
-              key={path}
-              onClick={() => navigate(path)}
-              className="group relative flex flex-col gap-3 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 text-left overflow-hidden"
-            >
-              <div
-                className="absolute -right-4 -top-4 w-16 h-16 rounded-full opacity-10 group-hover:opacity-20 transition-opacity"
-                style={{ background: `radial-gradient(circle, ${to}, ${from})` }}
-              />
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
-              >
-                <Icon size={18} className="text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground leading-none mb-0.5">{label}</p>
-                <p className="text-[11px] text-muted-foreground">{sub}</p>
-              </div>
-              <ChevronRight size={13} className="absolute bottom-3.5 right-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+              onClick={() => setShowFilters(v => !v)}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-sm font-medium transition-colors ${showFilters ? 'bg-teal-50 border-teal-200 text-teal-700' : 'border-gray-200 text-slate-600 hover:bg-gray-50'}`}>
+              <SlidersHorizontal size={13} /> Filters
             </button>
-          ))}
-        </div>
-
-        {/* ── Search ──────────────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <p className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Search size={15} className="text-secondary" /> Explore Projects by City
-          </p>
-
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <MapPin size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary pointer-events-none z-10" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputValue}
-                onChange={e => { setInputValue(e.target.value); setShowSuggestions(true); setError(''); }}
-                onKeyDown={e => { if (e.key === 'Enter') handleSearch(); if (e.key === 'Escape') setShowSuggestions(false); }}
-                onFocus={() => setShowSuggestions(inputValue.length > 0 || cities.length > 0)}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                placeholder={loadingCities ? 'Loading cities…' : 'Hyderabad, Bengaluru, Mumbai…'}
-                disabled={loadingCities}
-                className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary focus:bg-white transition-all disabled:opacity-60"
-              />
-              {inputValue && (
-                <button onClick={handleClear} tabIndex={-1}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
-                  <X size={13} />
-                </button>
-              )}
-
-              {showSuggestions && (suggestions.length > 0 || (inputValue.length === 0 && cities.length > 0)) && (
-                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden">
-                  {inputValue.length === 0 && (
-                    <p className="px-4 py-2 text-[11px] text-gray-400 font-semibold uppercase tracking-wide border-b border-gray-50">
-                      Available cities
-                    </p>
-                  )}
-                  {(inputValue.length > 0 ? suggestions : cities).map(c => (
-                    <button key={c} onMouseDown={() => { setInputValue(c); setShowSuggestions(false); handleSearch(c); }}
-                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors">
-                      <MapPin size={12} className="text-secondary shrink-0" /> {c}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             <button
-              onClick={() => handleSearch()}
-              disabled={!inputValue.trim() || loadingProjects || loadingCities}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-50 transition-all hover:opacity-90 active:scale-95 shrink-0"
-              style={{ background: 'linear-gradient(135deg, #0A7E8C, #086E7A)' }}
-            >
-              {loadingProjects ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-              Search
+              onClick={() => setFilterTab('saved')}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold text-white transition-colors hover:opacity-90"
+              style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
+              <Bookmark size={13} /> Shortlist a project
             </button>
           </div>
+        </div>
 
-          {error && <p className="text-xs text-destructive flex items-center gap-1"><X size={11} /> {error}</p>}
+        {/* ══ TABS + SEARCH ══ */}
+        <div className="flex items-center gap-0 border-b border-gray-200 overflow-x-auto scrollbar-none">
+          <div className="flex items-center shrink-0">
+            {TABS.map(tab => (
+              <button key={tab.id} onClick={() => setFilterTab(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                  filterTab === tab.id
+                    ? 'border-teal-600 text-teal-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                }`}>
+                {tab.label}
+                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
+                  filterTab === tab.id ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-slate-500'
+                }`}>
+                  {tabCounts[tab.id]}
+                </span>
+              </button>
+            ))}
+          </div>
 
-          {!loadingCities && cities.length > 0 && (
-            <div className="flex flex-wrap gap-2 pt-0.5">
-              {cities.map(c => (
-                <button key={c} onClick={() => { setInputValue(c); handleSearch(c); }}
-                  className={`text-xs px-3.5 py-1.5 rounded-full border font-medium transition-all ${
-                    searchedCity === c
-                      ? 'bg-secondary text-white border-secondary shadow-sm'
-                      : 'border-gray-200 text-gray-500 hover:border-secondary hover:text-secondary bg-white'
-                  }`}>
-                  {c}
+          <div className="ml-auto flex items-center gap-2 pb-1 pl-4 shrink-0">
+            <div className="relative">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search projects, locality…"
+                className="pl-7 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-gray-50 w-48 focus:outline-none focus:ring-1 focus:ring-teal-300 focus:border-teal-300 transition-all"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X size={10} />
                 </button>
+              )}
+            </div>
+            <div className="relative">
+              <button onClick={() => setSortOpen(o => !o)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-slate-600 hover:bg-gray-50 transition-colors whitespace-nowrap">
+                <ArrowUpDown size={11} /> {sortLabel}
+                <ChevronDown size={10} className={`transition-transform ${sortOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {sortOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setSortOpen(false)} />
+                  <div className="absolute z-40 right-0 mt-1.5 min-w-[180px] bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
+                    {SORT_OPTIONS.map(([k, label]) => (
+                      <button key={k} onClick={() => { setSortBy(k); setSortOpen(false); }}
+                        className={`w-full text-left px-3.5 py-2 text-xs font-medium flex items-center justify-between transition-colors ${sortBy === k ? 'bg-teal-50 text-teal-700' : 'text-slate-600 hover:bg-gray-50'}`}>
+                        {label} {sortBy === k && <Check size={11} strokeWidth={3} />}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ══ GRID ══ */}
+        <div className="pt-5">
+          {error ? (
+            <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
+              <Building2 size={32} className="mx-auto mb-3 text-gray-300" />
+              <p className="text-sm text-red-500">{error}</p>
+            </div>
+          ) : loading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
+            </div>
+          ) : displayed.length === 0 ? (
+            <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
+              <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                {filterTab === 'saved'
+                  ? <Bookmark size={26} className="text-gray-400" />
+                  : <Building2 size={26} className="text-gray-400" />}
+              </div>
+              <h3 className="font-bold text-slate-700 mb-1">
+                {filterTab === 'saved' ? 'No shortlisted projects yet' : 'No projects found'}
+              </h3>
+              <p className="text-sm text-slate-400">
+                {filterTab === 'saved'
+                  ? 'Tap the bookmark icon on any project to shortlist it.'
+                  : search
+                    ? 'Try a different search term.'
+                    : 'Try a different filter.'}
+              </p>
+              {(filterTab !== 'all' || search) && (
+                <button onClick={() => { setFilterTab('all'); setSearch(''); }}
+                  className="mt-3 px-4 py-1.5 rounded-lg bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors">
+                  View all
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+              {displayed.map(p => (
+                <ProjectCard
+                  key={p.id}
+                  project={p}
+                  shortlist={shortlist}
+                  onToggleShortlist={toggleShortlist}
+                  onClick={() => navigate(`/customer/projects/${p.id}`, { state: { project: p } })}
+                />
               ))}
             </div>
           )}
-
-          {preferredCity && (
-            <div className="flex items-center justify-between bg-secondary/5 border border-secondary/15 rounded-xl px-4 py-2.5">
-              <div className="flex items-center gap-2 text-xs text-secondary font-medium">
-                <BookmarkCheck size={13} />
-                Preferred city: <strong>{preferredCity}</strong>
-              </div>
-              <button onClick={handleClearPreference}
-                className="text-[11px] text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors">
-                <X size={11} /> Remove
-              </button>
-            </div>
-          )}
         </div>
-
-        {/* ── Results ──────────────────────────────────────────────────── */}
-        {searched && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <h2 className="text-base font-bold text-foreground">
-                {loadingProjects ? 'Searching…' : `${displayedProjects.length}${displayedProjects.length !== projects.length ? ` of ${projects.length}` : ''} project${projects.length !== 1 ? 's' : ''} in ${searchedCity}`}
-              </h2>
-              {!loadingProjects && searchedCity && (
-                <button
-                  onClick={isPreferred ? handleClearPreference : handleSavePreference}
-                  className={`flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full border font-medium transition-all ${
-                    isPreferred
-                      ? 'bg-secondary/10 text-secondary border-secondary/30'
-                      : 'border-gray-200 text-gray-500 hover:border-secondary hover:text-secondary'
-                  }`}>
-                  {isPreferred ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
-                  {isPreferred ? 'Saved as preferred' : 'Save as preferred city'}
-                </button>
-              )}
-            </div>
-
-            {/* ── Filter / Sort bar ── */}
-            {!loadingProjects && projects.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-sm">
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 shrink-0">
-                  <SlidersHorizontal size={12} /> Filters
-                </span>
-                <div className="w-px h-4 bg-gray-200 shrink-0" />
-
-                {/* Price sort */}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setSortBy(s => s === 'price-asc' ? 'default' : 'price-asc')}
-                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
-                      sortBy === 'price-asc'
-                        ? 'bg-secondary text-white border-secondary shadow-sm'
-                        : 'border-gray-200 text-gray-500 hover:border-secondary hover:text-secondary bg-white'
-                    }`}>
-                    <ArrowUpDown size={10} /> Price: Low → High
-                  </button>
-                  <button
-                    onClick={() => setSortBy(s => s === 'price-desc' ? 'default' : 'price-desc')}
-                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
-                      sortBy === 'price-desc'
-                        ? 'bg-secondary text-white border-secondary shadow-sm'
-                        : 'border-gray-200 text-gray-500 hover:border-secondary hover:text-secondary bg-white'
-                    }`}>
-                    <ArrowUpDown size={10} /> Price: High → Low
-                  </button>
-                </div>
-
-                {/* New projects */}
-                <button
-                  onClick={() => setFilterNew(v => !v)}
-                  className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
-                    filterNew
-                      ? 'bg-violet-500 text-white border-violet-500 shadow-sm'
-                      : 'border-gray-200 text-gray-500 hover:border-violet-400 hover:text-violet-500 bg-white'
-                  }`}>
-                  <Sparkles size={10} /> New Launch
-                </button>
-
-                {/* Builder filter — only shown when API returns builderName */}
-                {builderOptions.length > 0 && (
-                  <div className="relative">
-                    <select
-                      value={filterBuilder}
-                      onChange={e => setFilterBuilder(e.target.value)}
-                      className={`appearance-none text-xs pl-3 pr-7 py-1.5 rounded-full border font-medium transition-all cursor-pointer focus:outline-none ${
-                        filterBuilder
-                          ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                          : 'border-gray-200 text-gray-500 hover:border-amber-400 hover:text-amber-600 bg-white'
-                      }`}>
-                      <option value="">All Builders</option>
-                      {builderOptions.map(b => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                    <ChevronDown size={10} className={`absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${filterBuilder ? 'text-white' : 'text-gray-400'}`} />
-                  </div>
-                )}
-
-                {/* Clear all */}
-                {(sortBy !== 'default' || filterNew || filterBuilder) && (
-                  <button
-                    onClick={() => { setSortBy('default'); setFilterNew(false); setFilterBuilder(''); }}
-                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 transition-colors ml-auto">
-                    <X size={10} /> Clear
-                  </button>
-                )}
-              </div>
-            )}
-
-            {loadingProjects ? (
-              <div className="flex justify-center py-20">
-                <Loader2 className="animate-spin text-secondary" size={32} />
-              </div>
-            ) : projects.length === 0 ? (
-              <div className="bg-gradient-to-br from-teal-50/60 to-white border-2 border-dashed border-teal-100 rounded-3xl p-14 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-teal-100 flex items-center justify-center mx-auto mb-4">
-                  <Building2 size={30} className="text-teal-500" />
-                </div>
-                <h3 className="font-bold text-slate-700 mb-1">No projects found in {searchedCity}</h3>
-                <p className="text-sm text-slate-400">Try a different city from the quick picks above.</p>
-              </div>
-            ) : displayedProjects.length === 0 ? (
-              <div className="bg-gradient-to-br from-violet-50/60 to-white border-2 border-dashed border-violet-100 rounded-3xl p-14 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-violet-100 flex items-center justify-center mx-auto mb-4">
-                  <SlidersHorizontal size={28} className="text-violet-500" />
-                </div>
-                <h3 className="font-bold text-slate-700 mb-1">No projects match your filters</h3>
-                <p className="text-sm text-slate-400 mb-3">Try adjusting or clearing the active filters.</p>
-                <button
-                  onClick={() => { setSortBy('default'); setFilterNew(false); setFilterBuilder(''); }}
-                  className="text-xs px-4 py-2 rounded-full bg-violet-100 text-violet-600 font-semibold hover:bg-violet-200 transition-colors">
-                  Clear Filters
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                {displayedProjects.map((p) => (
-                  <div
-                    key={p.id}
-                    onClick={() => navigate(`/customer/projects/${p.id}`, { state: { project: p } })}
-                    className="group bg-white rounded-3xl overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1"
-                    style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.05)' }}
-                    onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.10), 0 20px 48px rgba(0,0,0,0.08)')}
-                    onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.05)')}
-                  >
-                    {/* ── Hero ── */}
-                    <div className="relative h-52 overflow-hidden">
-                      {p.imageUrl ? (
-                        <img
-                          src={p.imageUrl} alt={p.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center relative overflow-hidden"
-                          style={{ background: 'linear-gradient(135deg, #0b2545 0%, #1a4a7a 30%, #0A7E8C 65%, #0eb89a 100%)' }}>
-                          {/* Decorative circles */}
-                          <div className="absolute -top-10 -right-10 w-44 h-44 rounded-full opacity-15"
-                            style={{ background: 'radial-gradient(circle, #7dd3fc, transparent)' }} />
-                          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full opacity-10"
-                            style={{ background: 'radial-gradient(circle, #34d399, transparent)' }} />
-                          {/* Grid pattern */}
-                          <div className="absolute inset-0 opacity-[0.06]"
-                            style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
-                          {/* Skyline silhouette bars */}
-                          <div className="absolute bottom-0 left-0 right-0 flex items-end justify-center gap-1 px-4 opacity-20">
-                            {[18,28,22,38,26,44,30,24,36,20,32,16].map((h, i) => (
-                              <div key={i} className="bg-white rounded-t-sm flex-1" style={{ height: `${h}px` }} />
-                            ))}
-                          </div>
-                          {/* Icon card */}
-                          <div className="relative flex flex-col items-center gap-2.5">
-                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg"
-                              style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)' }}>
-                              <Building2 size={32} className="text-white" />
-                            </div>
-                            <span className="text-[10px] font-semibold text-white/60 tracking-widest uppercase">Property</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Gradient overlay */}
-                      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.10) 50%, transparent 100%)' }} />
-
-                      {/* Top badges */}
-                      <div className="absolute top-3 left-3 flex gap-1.5">
-                        {p.featured && (
-                          <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-400 text-amber-900 shadow-md">
-                            <Star size={9} fill="currentColor" /> Featured
-                          </span>
-                        )}
-                        {p.closingSoon && (
-                          <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-500 text-white shadow-md">
-                            <Clock size={9} /> Closing Soon
-                          </span>
-                        )}
-                      </div>
-                      <span className={`absolute top-3 right-3 text-[10px] font-semibold px-2.5 py-1 rounded-full shadow-sm ${STATUS_COLORS[p.status] || 'bg-white/25 text-white backdrop-blur-sm'}`}>
-                        {STATUS_LABELS[p.status] || p.status}
-                      </span>
-
-                      {/* Price overlay at bottom */}
-                      <div className="absolute bottom-0 left-0 right-0 px-4 py-3.5">
-                        <p className="text-white font-extrabold text-xl leading-none tracking-tight drop-shadow">
-                          {fmtPrice(p.priceMin, p.priceMax)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* ── Body ── */}
-                    <div className="p-4 pb-3 space-y-3">
-                      {/* Name + location */}
-                      <div>
-                        <h4 className="font-bold text-[15px] text-slate-800 leading-snug group-hover:text-teal-600 transition-colors line-clamp-1">
-                          {p.name}
-                        </h4>
-                        <div className="flex items-center gap-1 mt-1 text-xs text-slate-400">
-                          <MapPin size={11} className="text-teal-500/70 shrink-0" />
-                          <span className="truncate">{[p.locality, p.city].filter(Boolean).join(', ')}</span>
-                        </div>
-                      </div>
-
-                      {/* Configs + possession row */}
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        {p.configurations && p.configurations.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {p.configurations.slice(0, 3).map(c => (
-                              <span key={c} className="text-[10px] px-2.5 py-1 rounded-full bg-teal-50 text-teal-700 font-semibold border border-teal-100">
-                                {c}
-                              </span>
-                            ))}
-                            {p.configurations.length > 3 && (
-                              <span className="text-[10px] px-2.5 py-1 rounded-full bg-slate-100 text-slate-400">
-                                +{p.configurations.length - 3}
-                              </span>
-                            )}
-                          </div>
-                        ) : <div />}
-
-                        {p.possessionDate && (
-                          <span className="flex items-center gap-1 text-[10px] text-slate-400 font-medium whitespace-nowrap">
-                            <Calendar size={9} /> {p.possessionDate.slice(0, 7)}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* RERA */}
-                      {p.reraNumber && (
-                        <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-semibold">
-                          <CheckCircle2 size={11} className="shrink-0" /> RERA Registered
-                        </div>
-                      )}
-                    </div>
-
-                    {/* ── Footer CTA ── */}
-                    <div className="px-4 pb-4">
-                      <div className="flex items-center justify-between w-full px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-50 text-slate-500 group-hover:bg-teal-600 group-hover:text-white transition-all duration-200">
-                        <span>View Details</span>
-                        <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </DashboardLayout>
   );
