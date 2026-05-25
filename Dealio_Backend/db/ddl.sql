@@ -141,3 +141,89 @@ CREATE TABLE IF NOT EXISTS "CPContact" (
 ALTER TABLE "CPContact" ADD CONSTRAINT "CPContact_cpId_fkey"
     FOREIGN KEY ("cpId") REFERENCES "ChannelPartner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+--db migrations
+--project
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "locality"       TEXT;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "pincode"        TEXT;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "landmark"       TEXT;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "googleMapsLink" TEXT;
+
+
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "towers"         INTEGER;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "floorsPerTower" INTEGER;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "projectType"    TEXT;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "configurations" TEXT[] DEFAULT '{}';
+
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "pricePerSqftMin"     DOUBLE PRECISION;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "pricePerSqftMax"     DOUBLE PRECISION;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "maintenanceCharges"  DOUBLE PRECISION;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "floorRiseCharges"    DOUBLE PRECISION;
+
+
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "commissionStructure" TEXT;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "flatCommissionPct"   DOUBLE PRECISION;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "commissionSlabs"     JSONB;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "cpIncentive"         TEXT;
+
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "amenities"       TEXT[] DEFAULT '{}';
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "nearbyHighlights" TEXT[] DEFAULT '{}';
+
+
+--Unit config
+CREATE TABLE IF NOT EXISTS "UnitConfig" (
+                                            "id"          SERIAL NOT NULL,
+                                            "projectId"   INTEGER NOT NULL,
+                                            "bhkType"     TEXT NOT NULL,
+                                            "carpetArea"  DOUBLE PRECISION,
+                                            "superBuiltUp" DOUBLE PRECISION,
+                                            "floors"      TEXT,
+                                            "count"       INTEGER,
+                                            "basePrice"   DOUBLE PRECISION,
+                                            "status"      TEXT NOT NULL DEFAULT 'Available',
+                                            "createdAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+                                            CONSTRAINT "UnitConfig_pkey" PRIMARY KEY ("id")
+);
+
+ALTER TABLE "UnitConfig" ADD CONSTRAINT "UnitConfig_projectId_fkey"
+    FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+
+--cpbookmark
+
+CREATE TABLE IF NOT EXISTS "CPBookmark" (
+                                            "id"        SERIAL NOT NULL,
+                                            "cpId"      INTEGER NOT NULL,
+                                            "projectId" INTEGER NOT NULL,
+                                            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+                                            CONSTRAINT "CPBookmark_pkey" PRIMARY KEY ("id"),
+                                            CONSTRAINT "CPBookmark_unique" UNIQUE ("cpId", "projectId")
+);
+
+ALTER TABLE "CPBookmark" ADD CONSTRAINT "CPBookmark_cpId_fkey"
+    FOREIGN KEY ("cpId") REFERENCES "ChannelPartner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "CPBookmark" ADD CONSTRAINT "CPBookmark_projectId_fkey"
+    FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- DealMessage
+CREATE TABLE IF NOT EXISTS "DealMessage" (
+    "id"         SERIAL NOT NULL,
+    "dealId"     INTEGER NOT NULL,
+    "senderId"   INTEGER NOT NULL,
+    "senderName" TEXT NOT NULL,
+    "senderRole" TEXT NOT NULL,
+    "message"    TEXT NOT NULL,
+    "createdAt"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "DealMessage_pkey" PRIMARY KEY ("id")
+);
+
+ALTER TABLE "DealMessage" ADD CONSTRAINT "DealMessage_dealId_fkey"
+    FOREIGN KEY ("dealId") REFERENCES "Deal"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Notification link for in-app navigation
+ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "link" TEXT;
+
+--

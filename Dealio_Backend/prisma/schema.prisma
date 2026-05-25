@@ -31,6 +31,7 @@ model Notification {
   message   String
   type      String   @default("info")
   read      Boolean  @default(false)
+  link      String?
   createdAt DateTime @default(now())
 }
 
@@ -113,6 +114,18 @@ model Deal {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
   loanCase             LoanCase?
+  messages             DealMessage[]
+}
+
+model DealMessage {
+  id         Int      @id @default(autoincrement())
+  dealId     Int
+  deal       Deal     @relation(fields: [dealId], references: [id])
+  senderId   Int
+  senderName String
+  senderRole String
+  message    String
+  createdAt  DateTime @default(now())
 }
 
 model LoanCase {

@@ -1,11 +1,25 @@
 import { Response } from 'express';
 
 export interface ChannelEvent {
-  type: 'new_project' | 'connected' | 'city_changed';
+  type:
+    | 'connected'
+    | 'new_project'
+    | 'project_update'
+    | 'city_changed'
+    | 'new_lead'
+    | 'meeting_request'
+    | 'meeting_confirmed'
+    | 'meeting_cancelled'
+    | 'meeting_completed'
+    | 'meeting_followup'
+    | 'notification';
   title: string;
   message: string;
   projectId?: number;
+  meetingId?: number;
+  dealId?: number;
   city: string;
+  link?: string;
   timestamp: string;
 }
 

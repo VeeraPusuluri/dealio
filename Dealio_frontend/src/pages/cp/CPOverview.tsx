@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import LeadScoreBadge from '@/components/shared/LeadScoreBadge';
 import { formatCurrency } from '@/lib/format';
 import { cpApi } from '@/lib/api';
+import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useLeadStore } from '@/stores/useLeadStore';
 import { useFollowUpStore } from '@/stores/useFollowUpStore';
 import { calculateLeadScore } from '@/lib/leadScoring';
@@ -29,9 +31,11 @@ function Section({ children, className = '' }: { children: React.ReactNode; clas
 }
 
 const CPOverview = () => {
+  const navigate = useNavigate();
   const user = useAuthStore(s => s.user);
   const { leads } = useLeadStore();
   const { followUps, callLogs } = useFollowUpStore();
+  const { addNotification } = useNotificationStore();
   const today = new Date().toISOString().split('T')[0];
 
   const [tier, setTier] = useState<string>('Silver');
@@ -41,7 +45,15 @@ const CPOverview = () => {
     cpApi.getProfile(user.id)
       .then((data: any) => { if (data?.cp?.tier) setTier(data.cp.tier); })
       .catch(() => {});
-  }, [user?.id]);
+
+    // Drain any unread DB notifications on mount (catch-up for offline periods)
+    cpApi.getNotifications()
+      .then((data: any) => {
+        (data as { title: string; message: string; type: string; link?: string }[] || [])
+          .forEach(n => addNotification({ type: n.type as 'info' | 'success' | 'error' | 'warning', title: n.title, message: n.message, link: n.link }));
+      })
+      .catch(() => {});
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Derived lead metrics
   const meetingStages = ['Meeting Requested', 'Meeting Confirmed', 'Meeting Done'];
@@ -114,22 +126,23 @@ const CPOverview = () => {
         {/* ── KPI strip ── */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Active Leads',  value: String(activeLeads),   sub: 'in pipeline',    icon: Users,     from: '#FFF7ED', to: '#FED7AA', accent: '#E87722' },
-            { label: 'Meetings',      value: String(meetingsCount),  sub: 'in progress',    icon: Calendar,  from: '#F5F3FF', to: '#DDD6FE', accent: '#7C3AED' },
-            { label: 'Deals Closed',  value: String(closedCount),    sub: 'total',          icon: Handshake, from: '#F0FDF4', to: '#BBF7D0', accent: '#16A34A' },
-            { label: 'Follow-ups Due',value: String(todayFollowUps.length + callsDueToday.length), sub: 'today', icon: DollarSign, from: '#F0FDFA', to: '#99F6E4', accent: '#0D9488' },
-          ].map(({ label, value, sub, icon: Icon, from, to, accent }) => (
-            <div key={label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2">
+            { label: 'Active Leads',  value: String(activeLeads),   sub: 'in pipeline',    icon: Users,     from: '#FFF7ED', gradTo: '#FED7AA', accent: '#E87722', path: '/cp/leads'      },
+            { label: 'Meetings',      value: String(meetingsCount),  sub: 'in progress',    icon: Calendar,  from: '#F5F3FF', gradTo: '#DDD6FE', accent: '#7C3AED', path: '/cp/leads'      },
+            { label: 'Deals Closed',  value: String(closedCount),    sub: 'total',          icon: Handshake, from: '#F0FDF4', gradTo: '#BBF7D0', accent: '#16A34A', path: '/cp/commissions'},
+            { label: 'Follow-ups Due',value: String(todayFollowUps.length + callsDueToday.length), sub: 'today', icon: DollarSign, from: '#F0FDFA', gradTo: '#99F6E4', accent: '#0D9488', path: '/cp/followups' },
+          ].map(({ label, value, sub, icon: Icon, from, gradTo, accent, path }) => (
+            <button key={label} onClick={() => navigate(path)}
+              className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2 text-left hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all duration-150 group">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: `linear-gradient(135deg, ${from} 0%, ${to} 100%)` }}>
+                style={{ background: `linear-gradient(135deg, ${from} 0%, ${gradTo} 100%)` }}>
                 <Icon size={16} style={{ color: accent }} />
               </div>
               <div>
                 <div className="text-xl font-black text-slate-800">{value}</div>
-                <div className="text-[11px] font-medium text-slate-500 leading-tight">{label}</div>
+                <div className="text-[11px] font-medium text-slate-500 leading-tight group-hover:text-slate-700 transition-colors">{label}</div>
                 <div className="text-[10px] text-slate-400 mt-0.5">{sub}</div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
 

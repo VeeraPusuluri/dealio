@@ -1,33 +1,11 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { builderApi } from '@/lib/api';
 import { toast } from 'sonner';
-import { ArrowLeft, Building2, Home, MapPin, Landmark, Trees, Upload, Loader2, ExternalLink } from 'lucide-react';
-
-function resolveMapEmbed(mapsLink: string, address: string, city: string): string | null {
-  const gmEmbed = (q: string) => `https://maps.google.com/maps?q=${encodeURIComponent(q)}&output=embed`;
-
-  if (mapsLink && !mapsLink.includes('maps.app.goo.gl')) {
-    const coord = mapsLink.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-    if (coord) return `https://maps.google.com/maps?q=${coord[1]},${coord[2]}&z=16&output=embed`;
-
-    const q = mapsLink.match(/[?&]q=([^&]+)/);
-    if (q) return `https://maps.google.com/maps?q=${q[1]}&output=embed`;
-
-    if (mapsLink.includes('google.com/maps') || mapsLink.includes('maps.google.com')) {
-      const placeMatch = mapsLink.match(/\/maps\/(?:place|search)\/([^/@?#]+)/);
-      if (placeMatch) return gmEmbed(decodeURIComponent(placeMatch[1].replace(/\+/g, ' ')));
-    }
-
-    if (!mapsLink.startsWith('http') && mapsLink.trim().length > 3) return gmEmbed(mapsLink.trim());
-  }
-
-  const query = [address, city].filter(Boolean).join(', ');
-  if (query.length > 3) return gmEmbed(query);
-  return null;
-}
+import { ArrowLeft, Building2, Home, MapPin, Landmark, Trees, Upload, Loader2 } from 'lucide-react';
+import GoogleMapsLocationField from '@/components/shared/GoogleMapsLocationField';
 
 const projectTypes = [
   { value: 'Apartment',  icon: Building2, label: 'Apartment' },
@@ -38,7 +16,7 @@ const projectTypes = [
 ];
 
 const bhkOptions     = ['Studio', '1BHK', '2BHK', '3BHK', '4BHK', '5BHK', 'Penthouse'];
-const statusOptions  = ['Pre-Launch', 'Launched', 'Under Construction', 'Ready to Move'];
+const statusOptions  = ['Pre-Launch', 'New Launch', 'Launched', 'Active', 'Under Construction', 'Ready to Move', 'Closing Soon'];
 const cityOptions    = ['Hyderabad', 'Bengaluru', 'Mumbai', 'Pune', 'Delhi NCR', 'Chennai'];
 const nearbyOptions  = ['Metro Station', 'Airport', 'IT Park', 'Hospital', 'School', 'Mall', 'Highway'];
 const amenityOptions = [
@@ -101,16 +79,20 @@ const card = 'bg-white rounded-2xl border border-gray-200 shadow-[0_1px_4px_rgba
 
 const fromBackendStatus = (s: string): string => {
   const map: Record<string, string> = {
-    PRE_LAUNCH: 'Pre-Launch', LAUNCHED: 'Launched',
+    PRE_LAUNCH: 'Pre-Launch', NEW_LAUNCH: 'New Launch',
+    LAUNCHED: 'Launched', ACTIVE: 'Active',
     UNDER_CONSTRUCTION: 'Under Construction', READY_TO_MOVE: 'Ready to Move',
+    CLOSING_SOON: 'Closing Soon',
   };
   return map[s] ?? 'Under Construction';
 };
 
 const toBackendStatus = (s: string): string => {
   const map: Record<string, string> = {
-    'Pre-Launch': 'PRE_LAUNCH', 'Launched': 'LAUNCHED',
+    'Pre-Launch': 'PRE_LAUNCH', 'New Launch': 'NEW_LAUNCH',
+    'Launched': 'LAUNCHED', 'Active': 'ACTIVE',
     'Under Construction': 'UNDER_CONSTRUCTION', 'Ready to Move': 'READY_TO_MOVE',
+    'Closing Soon': 'CLOSING_SOON',
   };
   return map[s] ?? 'PRE_LAUNCH';
 };
@@ -191,11 +173,6 @@ const EditProjectWizard = () => {
 
   const [errors,     setErrors]     = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
-
-  const mapEmbedSrc = useMemo(
-    () => resolveMapEmbed(mapsLink, address, city),
-    [mapsLink, address, city],
-  );
 
   // ── Fetch project and pre-populate ──────────────────────────────────────
   useEffect(() => {
@@ -529,64 +506,12 @@ const EditProjectWizard = () => {
               <label className={lbl}>Landmark</label>
               <input value={landmark} onChange={e => setLandmark(e.target.value)} className={ic()} />
             </div>
-            <div className="col-span-2">
-              <label className={lbl}>Google Maps Link</label>
-              <input type="url" value={mapsLink} onChange={e => setMapsLink(e.target.value)}
-                className={ic()} placeholder="https://maps.google.com/… or maps.app.goo.gl/…" />
-              <p className="text-[11px] text-gray-400 mt-1">
-                Paste a Google Maps share link or short link — the map preview below updates automatically.
-              </p>
-            </div>
-
-            {/* ── Map preview ─────────────────────────────────────────────────── */}
-            {(mapEmbedSrc || (mapsLink && mapsLink.includes('maps.app.goo.gl'))) && (
-              <div className="col-span-2">
-                <label className={lbl}>Map Preview</label>
-                <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-                  {!mapEmbedSrc && mapsLink.includes('maps.app.goo.gl') && (
-                    <div className="h-52 bg-gradient-to-br from-slate-50 to-teal-50/40 flex flex-col items-center justify-center gap-2.5 relative">
-                      <div className="absolute inset-0 opacity-[0.04]"
-                        style={{ backgroundImage: 'linear-gradient(#0A7E8C 1px,transparent 1px),linear-gradient(90deg,#0A7E8C 1px,transparent 1px)', backgroundSize: '40px 40px' }} />
-                      <div className="w-12 h-12 rounded-full bg-teal-100 border border-teal-200 flex items-center justify-center shadow-sm relative z-10">
-                        <MapPin size={20} className="text-teal-600" />
-                      </div>
-                      <p className="text-sm font-medium text-gray-700 relative z-10">Location link detected</p>
-                      <p className="text-[11px] text-gray-400 relative z-10">Add an address above to see the approximate area</p>
-                    </div>
-                  )}
-                  {mapEmbedSrc && (
-                    <iframe
-                      key={mapEmbedSrc}
-                      src={mapEmbedSrc}
-                      width="100%"
-                      height="260"
-                      loading="lazy"
-                      className="border-0 block"
-                      title="Location Map Preview"
-                      referrerPolicy="no-referrer-when-downgrade"
-                    />
-                  )}
-                  <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                    <span className="text-[11px] text-gray-400 flex items-center gap-1">
-                      <MapPin size={11} />
-                      {mapsLink.includes('maps.app.goo.gl')
-                        ? mapEmbedSrc
-                          ? 'Approximate area — open Maps for the exact pin'
-                          : 'Short link saved — open Maps to verify the exact location'
-                        : mapsLink
-                          ? 'Showing location from your Google Maps link'
-                          : 'Showing estimated location from address (paste a Maps link for exact pin)'}
-                    </span>
-                    {mapsLink && (
-                      <a href={mapsLink} target="_blank" rel="noreferrer"
-                        className="text-[11px] text-blue-600 hover:underline flex items-center gap-1 font-medium">
-                        Open in Google Maps <ExternalLink size={10} />
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
+            <GoogleMapsLocationField
+              value={mapsLink}
+              onChange={setMapsLink}
+              address={address}
+              city={city}
+            />
 
             <div className="col-span-2">
               <label className={lbl}>Nearby Highlights</label>

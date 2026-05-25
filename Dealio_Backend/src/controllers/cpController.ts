@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
+import { channelManager } from '../services/channelManager';
 
 // In-memory OTP store for phone verification (dev-only)
 const phoneOtpStore: Record<string, { otp: string; expiresAt: number }> = {};
@@ -149,6 +150,53 @@ export const cpController = {
     else cp = await prisma.channelPartner.update({ where: { userId: cpUserId }, data: { phoneVerified: true } });
 
     res.json({ ok: true, data: { phoneVerified: true } });
+  },
+
+  // ── SSE notification stream ───────────────────────────────────────────
+
+  streamNotifications: async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    const channelKey = `user:${userId}`;
+    channelManager.subscribe(channelKey, userId, res);
+
+    res.write(`data: ${JSON.stringify({
+      type: 'connected', title: '', message: 'Notification stream connected',
+      city: '', timestamp: new Date().toISOString(),
+    })}\n\n`);
+
+    const heartbeat = setInterval(() => {
+      try { res.write(': ping\n\n'); } catch { clearInterval(heartbeat); }
+    }, 25_000);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      channelManager.unsubscribe(channelKey, userId);
+    });
+  },
+
+  // ── Fetch and drain unread notifications from DB ──────────────────────
+
+  getNotifications: async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    const notifications = await prisma.notification.findMany({
+      where: { userId, read: false },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+    if (notifications.length > 0) {
+      await prisma.notification.updateMany({
+        where: { id: { in: notifications.map(n => n.id) } },
+        data: { read: true },
+      });
+    }
+    res.json({ ok: true, data: notifications });
   },
 
   // ── Document upload ────────────────────────────────────────────────────

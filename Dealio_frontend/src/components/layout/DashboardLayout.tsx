@@ -9,11 +9,11 @@ import {
   Building2, Users, User, Landmark, Shield,
   LayoutDashboard, FolderOpen, Megaphone, BarChart3, FileText,
   HandCoins, Share2, Palette, Home as HomeIcon, CreditCard,
-  Calendar, Globe, ShoppingBag, Inbox, PieChart, ListChecks,
+  Calendar, Globe, Inbox, PieChart, ListChecks,
   Calculator, MessageSquare, AlertTriangle, ChevronLeft, ChevronRight,
   LogOut, Bell, Search, ChevronDown, Grid3X3, Briefcase, UserPlus,
   Trophy, ClipboardList, Radio, UserCircle, TrendingUp, Wallet, Video, Scale,
-  Paintbrush, Brain, Share, BarChart, Columns, Settings,
+  Paintbrush, Brain, Share, BarChart, Columns, Settings, UserIcon,
 } from 'lucide-react';
 interface NavItem { label: string; path: string; icon: React.ElementType; badge?: number; }
 
@@ -61,7 +61,6 @@ const getRoleNavItems = (role: UserRole, _badges: Record<string, number>): NavIt
       { label: 'Referral Tree', path: '/cp/referral', icon: Share2 },
       { label: 'Brochure', path: '/cp/brochure', icon: Palette },
       { label: 'Community', path: '/cp/community', icon: Globe },
-      { label: 'Services', path: '/cp/services', icon: ShoppingBag },
       { label: 'Settings', path: '/cp/settings', icon: Settings },
     ],
     customer: [
@@ -134,9 +133,18 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const { unreadCount } = useNotificationStore();
   const navigate = useNavigate();
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('dealio_sidebar_collapsed') === 'true'; }
+    catch { return false; }
+  });
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    try { localStorage.setItem('dealio_sidebar_collapsed', String(next)); } catch { /* ignore */ }
+  };
   const [sseKey, setSseKey] = useState(0);
 
   const role = user?.role;
@@ -155,6 +163,8 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   useNotificationStream(`${CUSTOMER_BASE}/customer/subscribe`, role === 'customer', sseKey);
   // Builder → personal user channel stream
   useNotificationStream(`${BUILDER_BASE}/builder/notifications/stream`, role === 'builder', 0);
+  // CP → personal user channel stream
+  useNotificationStream(`${BUILDER_BASE}/cp/notifications/stream`, role === 'cp', 0);
 
   // Drain cross-role notifications (localStorage bridge) on mount and on custom events
   const drainedRef = useRef(false);
@@ -246,7 +256,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
               </div>
             </div>
           )}
-          <button onClick={() => setCollapsed(!collapsed)} className={`w-full flex items-center py-1.5 text-white/50 hover:text-white/90 transition-colors ${collapsed ? 'justify-center' : 'justify-end px-4'}`}>
+          <button onClick={toggleCollapsed} className={`w-full flex items-center py-1.5 text-white/50 hover:text-white/90 transition-colors ${collapsed ? 'justify-center' : 'justify-end px-4'}`}>
             {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
         </div>

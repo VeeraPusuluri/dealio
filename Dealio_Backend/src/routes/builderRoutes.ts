@@ -40,6 +40,7 @@ const router = Router();
 router.post('/ensure', builderController.ensureBuilder);
 router.get('/projects', builderController.getPublicProjects);
 router.get('/builders', builderController.getPublicBuilders);
+router.get('/resolve-maps-link', builderController.resolveMapsLink);
 
 // Builder notifications
 router.get('/notifications/stream', requireAuth, builderController.streamNotifications);  // SSE

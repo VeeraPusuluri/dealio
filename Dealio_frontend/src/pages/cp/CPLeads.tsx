@@ -3,7 +3,8 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useLeadStore } from '@/stores/useLeadStore';
 import { LeadStage, leadStageColors } from '@/data/leads';
 import { formatCurrency } from '@/lib/format';
-import { Plus, Phone, MessageSquare, Search, Download, Calendar, CalendarCheck, Loader2, X } from 'lucide-react';
+import { Plus, Phone, MessageSquare, Search, Download, Calendar, CalendarCheck, Loader2, X, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import MilestoneChip from '@/components/shared/MilestoneChip';
 import LeadScoreBadge from '@/components/shared/LeadScoreBadge';
 import { calculateLeadScore } from '@/lib/leadScoring';
@@ -25,6 +26,7 @@ const stageToMilestone: Record<string, string> = {
 };
 
 const CPLeads = () => {
+  const navigate = useNavigate();
   const { leads } = useLeadStore();
   const { callLogs } = useFollowUpStore();
   const user = useAuthStore(s => s.user);
@@ -115,7 +117,12 @@ const CPLeads = () => {
     <DashboardLayout>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground">Lead Pipeline</h2>
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+              <ArrowLeft size={18} />
+            </button>
+            <h2 className="text-lg font-bold text-foreground">Lead Pipeline</h2>
+          </div>
           <button className="px-4 py-2 rounded-lg text-sm font-semibold bg-accent text-accent-foreground flex items-center gap-1.5"><Plus size={16} /> Add Lead</button>
         </div>
 
