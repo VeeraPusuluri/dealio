@@ -10,6 +10,7 @@ interface Props {
   onChange: (v: string) => void;
   address: string;
   city: string;
+  readOnly?: boolean;
 }
 
 interface Coords { lat: number; lng: number; }
@@ -115,11 +116,15 @@ function extractCoords(url: string): Coords | null {
 }
 
 // ── URL → embed src (used only when coords are unavailable) ──────────────────
-function resolveMapEmbed(mapsLink: string, address: string, city: string): string | null {
-  if (!mapsLink) return null; // no link → no preview
-
+function resolveMapEmbed(mapsLink: string, address: string, city: string, forceAddressFallback = false): string | null {
   const gmEmbed    = (q: string) => `https://maps.google.com/maps?q=${encodeURIComponent(q)}&output=embed`;
   const coordEmbed = (lat: string, lng: string) => `https://maps.google.com/maps?q=${lat},${lng}&z=17&output=embed`;
+
+  if (!mapsLink) {
+    if (!forceAddressFallback) return null; // no link → no preview in edit mode
+    const q = [address, city].filter(Boolean).join(', ');
+    return q.length > 3 ? gmEmbed(q) : null;
+  }
 
   if (!mapsLink.includes('maps.app.goo.gl')) {
     const pin = mapsLink.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
@@ -316,7 +321,7 @@ async function fetchLocalNews(locality: string, signal: AbortSignal): Promise<Ne
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-const GoogleMapsLocationField = ({ value, onChange, address, city }: Props) => {
+const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = false }: Props) => {
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const [resolving, setResolving]     = useState(false);
   const [resolveError, setResolveError] = useState(false);
@@ -355,7 +360,7 @@ const GoogleMapsLocationField = ({ value, onChange, address, city }: Props) => {
 
   const isShortLink   = !!value && (value.includes('maps.app.goo.gl') || value.startsWith('https://goo.gl/maps/'));
   const effectiveUrl  = (isShortLink && resolvedUrl) ? resolvedUrl : value;
-  const mapEmbedSrc   = useMemo(() => resolveMapEmbed(effectiveUrl, address, city), [effectiveUrl, address, city]);
+  const mapEmbedSrc   = useMemo(() => resolveMapEmbed(effectiveUrl, address, city, readOnly), [effectiveUrl, address, city, readOnly]);
   const urlCoords     = useMemo(() => extractCoords(effectiveUrl), [effectiveUrl]);
   const coords        = urlCoords ?? geocodedCoords;
 
@@ -383,8 +388,7 @@ const GoogleMapsLocationField = ({ value, onChange, address, city }: Props) => {
   // ── Forward geocode when URL has no extractable coords ───────────────────────
   useEffect(() => {
     setGeocodedCoords(null);
-    // Require a meaningful address (not just city) to prevent showing a random city pin
-    if (urlCoords || address.trim().length < 8 || !city.trim()) return;
+    if (urlCoords || (!address.trim() && !city.trim())) return;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
@@ -558,20 +562,24 @@ const GoogleMapsLocationField = ({ value, onChange, address, city }: Props) => {
     return categorized[activeCategory];
   }, [categorized, activeCategory]);
 
-  // Show when a link is entered, or when geocoding produced coords from the filled address
-  const showPreview = !!coords || !!mapEmbedSrc || (!!value && (isShortLink || resolving));
+  // Show when a link is entered, when geocoding produced coords, or always in readOnly mode
+  const showPreview = readOnly
+    ? (!!coords || !!mapEmbedSrc || !!value || !!(address || city))
+    : (!!coords || !!mapEmbedSrc || (!!value && (isShortLink || resolving)));
 
   return (
     <>
-      {/* ── Input ─────────────────────────────────────────────────────────── */}
-      <div className="col-span-2">
-        <label className={lbl}>Google Maps Link</label>
-        <input type="url" value={value} onChange={e => onChange(e.target.value)}
-          className={ic} placeholder="https://maps.google.com/… or maps.app.goo.gl/…" />
-        <p className="text-[11px] text-gray-400 mt-1">
-          Paste a Google Maps share link — the interactive map preview updates automatically.
-        </p>
-      </div>
+      {/* ── Input (hidden in readOnly / view mode) ────────────────────────── */}
+      {!readOnly && (
+        <div className="col-span-2">
+          <label className={lbl}>Google Maps Link</label>
+          <input type="url" value={value} onChange={e => onChange(e.target.value)}
+            className={ic} placeholder="https://maps.google.com/… or maps.app.goo.gl/…" />
+          <p className="text-[11px] text-gray-400 mt-1">
+            Paste a Google Maps share link — the interactive map preview updates automatically.
+          </p>
+        </div>
+      )}
 
       {/* ── Map preview ───────────────────────────────────────────────────── */}
       {showPreview && (

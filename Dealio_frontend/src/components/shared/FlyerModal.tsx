@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { X, Download, Share2, Copy, Building2, MapPin, Calendar, CheckCircle2, Home, Users, Sparkles } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Download, Share2, Copy, Building2, MapPin, Calendar, CheckCircle2, Home, Users, Sparkles, Link2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { cpApi } from '@/lib/api';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 interface ProjectSummary {
   id: number;
@@ -25,6 +28,7 @@ interface ProjectSummary {
 interface FlyerModalProps {
   project: ProjectSummary;
   onClose: () => void;
+  cpId?: string | number | null;
 }
 
 const fmt = (n: number) => {
@@ -47,12 +51,13 @@ const THEMES: { id: Theme; label: string; preview: string }[] = [
 ];
 
 function FlyerPreview({
-  project, theme, cpName, cpPhone,
+  project, theme, cpName, cpPhone, shareLink,
 }: {
   project: ProjectSummary;
   theme: Theme;
   cpName: string;
   cpPhone: string;
+  shareLink?: string;
 }) {
   const location = [project.locality, project.city].filter(Boolean).join(', ');
   const configs  = project.configurations?.join('  /  ') || '';
@@ -210,8 +215,16 @@ function FlyerPreview({
 
         <div className="flex-1" />
 
+        {/* Share link */}
+        {shareLink && (
+          <div className={`-mx-4 mt-2 px-4 py-2 flex items-center gap-2 border-t ${t.divider}`} style={{ opacity: 0.85 }}>
+            <Link2 size={9} className={t.footerSub} />
+            <span className={`text-[9px] font-mono truncate ${t.footerSub}`}>{shareLink}</span>
+          </div>
+        )}
+
         {/* CP footer */}
-        <div className={`-mx-4 mt-3 px-4 py-3 flex items-center justify-between ${t.footerBg}`}>
+        <div className={`-mx-4 mt-1 px-4 py-3 flex items-center justify-between ${t.footerBg}`}>
           <div>
             <p className={`text-[11px] font-bold ${t.footerTxt}`}>{cpName}</p>
             <p className={`text-[9px] ${t.footerSub}`}>{cpPhone} · Dealio Certified CP</p>
@@ -227,9 +240,79 @@ function FlyerPreview({
 }
 
 /* ─── Main modal ─────────────────────────────────────────────────── */
-const FlyerModal = ({ project, onClose }: FlyerModalProps) => {
+const FlyerModal = ({ project, onClose, cpId }: FlyerModalProps) => {
   const { user } = useAuthStore();
   const [theme, setTheme] = useState<Theme>('dark');
+  const [shareLink, setShareLink] = useState('');
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  const flyerRef = useRef<HTMLDivElement>(null);
+
+  const captureAsPdf = async (): Promise<{ blob: Blob; dataUrl: string } | null> => {
+    if (!flyerRef.current) return null;
+    setCapturing(true);
+    try {
+      const canvas = await html2canvas(flyerRef.current, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: null,
+        logging: false,
+      });
+      const imgData  = canvas.toDataURL('image/png', 1.0);
+      const pxW      = canvas.width;
+      const pxH      = canvas.height;
+      // A4 portrait in mm; fit the flyer proportionally
+      const pdfW     = 210;
+      const pdfH     = Math.round((pxH / pxW) * pdfW);
+      const pdf      = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pdfW, pdfH] });
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH, undefined, 'FAST');
+      const blob = pdf.output('blob');
+      const dataUrl = URL.createObjectURL(blob);
+      return { blob, dataUrl };
+    } catch {
+      return null;
+    } finally {
+      setCapturing(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    const result = await captureAsPdf();
+    if (!result) { toast.error('Could not generate PDF flyer'); return; }
+    const a = document.createElement('a');
+    a.href = result.dataUrl;
+    a.download = `${project.name.replace(/\s+/g, '_')}_Flyer.pdf`;
+    a.click();
+    toast.success('Flyer PDF downloaded!');
+  };
+
+  const handleShareImage = async () => {
+    const result = await captureAsPdf();
+    if (!result) { toast.error('Could not generate PDF flyer'); return; }
+    const file = new File([result.blob], `${project.name}_Flyer.pdf`, { type: 'application/pdf' });
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: project.name, text: shareLink ? `View project: ${shareLink}` : project.name });
+        return;
+      } catch { /* user cancelled or not supported */ }
+    }
+    // Fallback: WhatsApp text share when native share unavailable
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
+  };
+
+  const resolvedCpId = cpId ?? user?.id;
+
+  useEffect(() => {
+    if (!resolvedCpId) return;
+    setLinkLoading(true);
+    cpApi.getOrCreateShareLink(resolvedCpId, project.id)
+      .then((r: unknown) => {
+        const { token } = r as { token: string };
+        setShareLink(`${window.location.origin}/p/${token}`);
+      })
+      .catch(() => {})
+      .finally(() => setLinkLoading(false));
+  }, [resolvedCpId, project.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cpName  = user?.name  || 'Your Name';
   const cpPhone = user?.phone ? `+91 ${user.phone}` : '+91 98765 43210';
@@ -248,6 +331,7 @@ const FlyerModal = ({ project, onClose }: FlyerModalProps) => {
     (project.availableUnits != null ? `🏗️ ${project.availableUnits} units still available!\n` : '') +
     (project.reraNumber ? `✅ RERA: ${project.reraNumber}\n` : '') +
     (project.description ? `\n📋 ${project.description.slice(0, 120)}…\n` : '') +
+    (shareLink ? `\n🔗 View project: ${shareLink}\n` : '') +
     `\n📞 Contact me for a free site visit:\n${cpName} — ${cpPhone}`;
 
   return (
@@ -285,7 +369,9 @@ const FlyerModal = ({ project, onClose }: FlyerModalProps) => {
           </div>
 
           {/* Flyer preview */}
-          <FlyerPreview project={project} theme={theme} cpName={cpName} cpPhone={cpPhone} />
+          <div ref={flyerRef}>
+            <FlyerPreview project={project} theme={theme} cpName={cpName} cpPhone={cpPhone} shareLink={shareLink} />
+          </div>
 
           {/* What's included note */}
           <div className="bg-slate-50 rounded-xl p-3.5">
@@ -310,18 +396,42 @@ const FlyerModal = ({ project, onClose }: FlyerModalProps) => {
             </div>
           </div>
 
+          {/* Share link strip */}
+          {(shareLink || linkLoading) && (
+            <div className="flex items-center gap-2 bg-[#EEF3EF] rounded-xl px-3 py-2.5 border border-[#D8E5DA]">
+              <Link2 size={13} className="text-[#3C5A45] shrink-0" />
+              <span className="flex-1 text-[11px] font-mono text-[#3C5A45] truncate">
+                {linkLoading ? 'Generating unique link…' : shareLink}
+              </span>
+              {linkLoading
+                ? <Loader2 size={13} className="animate-spin text-[#3C5A45] shrink-0" />
+                : (
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(shareLink); toast.success('Link copied!'); }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-[#D8E5DA] text-xs font-bold text-[#3C5A45] hover:bg-[#D8E5DA] transition-colors shrink-0">
+                    <Copy size={10} /> Copy
+                  </button>
+                )
+              }
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex gap-2.5">
             <button
-              onClick={() => toast.success('Flyer downloading…')}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white hover:opacity-90 transition-opacity"
+              onClick={handleDownload}
+              disabled={capturing}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-60"
               style={{ background: 'linear-gradient(135deg,#E87722,#D4691C)' }}>
-              <Download size={14} /> Download
+              {capturing ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              {capturing ? 'Capturing…' : 'Download'}
             </button>
             <button
-              onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank')}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white hover:opacity-90 transition-opacity bg-[#25D366]">
-              <Share2 size={14} /> WhatsApp
+              onClick={handleShareImage}
+              disabled={capturing}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-60 bg-[#25D366]">
+              {capturing ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+              Share
             </button>
             <button
               onClick={() => { navigator.clipboard.writeText(shareText); toast.success('Copied to clipboard'); }}
@@ -329,6 +439,9 @@ const FlyerModal = ({ project, onClose }: FlyerModalProps) => {
               <Copy size={16} />
             </button>
           </div>
+          <p className="text-center text-[11px] text-slate-400">
+            Download saves a PDF · Share opens native share sheet on mobile
+          </p>
         </div>
       </div>
     </div>
