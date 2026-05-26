@@ -25,6 +25,9 @@ const uploadDoc = multer({
 
 const router = Router();
 
+// Share links
+router.post('/:cpUserId/projects/:projectId/share-link', requireAuth, cpController.getOrCreateShareLink);
+
 // Contacts
 router.get('/:cpUserId/contacts', requireAuth, cpController.getContacts);
 router.post('/:cpUserId/contacts', requireAuth, cpController.addContact);
@@ -42,6 +45,13 @@ router.get('/notifications',        requireAuth, cpController.getNotifications);
 // Phone verification
 router.post('/verify-phone/send-otp', requireAuth, cpController.sendPhoneOtp);
 router.post('/:cpUserId/verify-phone', requireAuth, cpController.verifyPhone);
+
+// Leads (deals referred by this CP)
+router.get('/:cpUserId/leads', requireAuth, cpController.getCPLeads);
+
+// Meetings
+router.get('/:cpUserId/meetings', requireAuth, cpController.getCPMeetings);
+router.patch('/:cpUserId/meetings/:meetingId/notes', requireAuth, cpController.addMeetingNote);
 
 // Document upload
 router.post('/:cpUserId/documents', requireAuth, uploadDoc.single('file'), cpController.uploadDocument);

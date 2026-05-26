@@ -12,7 +12,8 @@ import {
   Image as ImageIcon, Video, Bookmark,
   Map, Newspaper, LayoutGrid, Link2, ExternalLink,
   Users, Search, Check, Sparkles, Filter, ArrowUpDown,
-  ChevronDown, Briefcase, Flame, Percent, ArrowUp,
+  ChevronDown, Briefcase, Flame, Percent, ArrowUp, Phone,
+  ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -62,6 +63,21 @@ interface Contact {
   bhkPreference?: string | null;
   tags?: string | null;
   notes?: string | null;
+}
+
+interface CPLead {
+  id: number;
+  projectId: number;
+  projectName: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string | null;
+  dealValue?: number | null;
+  status: string;
+  commissionStatus: string;
+  commissionPercent?: number | null;
+  estimatedCommission?: number | null;
+  createdAt: string;
 }
 
 /* ─── Bookmark helpers ───────────────────────────────────────────── */
@@ -128,6 +144,23 @@ const STATUS_COLOR: Record<string, string> = {
   UNDER_CONSTRUCTION: 'bg-amber-100 text-amber-700', READY_TO_MOVE: 'bg-green-100 text-green-700',
   NEW_LAUNCH: 'bg-purple-100 text-purple-700', ACTIVE: 'bg-emerald-100 text-emerald-700',
   CLOSING_SOON: 'bg-red-100 text-red-700',
+};
+
+const DEAL_STAGE_COLOR: Record<string, { bg: string; text: string }> = {
+  'New Lead':    { bg: 'bg-slate-100',   text: 'text-slate-600' },
+  'Enquiry':     { bg: 'bg-blue-50',     text: 'text-blue-700'  },
+  'Site Visit':  { bg: 'bg-amber-50',    text: 'text-amber-700' },
+  'Negotiation': { bg: 'bg-orange-50',   text: 'text-orange-700'},
+  'Booked':      { bg: 'bg-teal-50',     text: 'text-teal-700'  },
+  'Agreement':   { bg: 'bg-emerald-50',  text: 'text-emerald-700'},
+  'Registered':  { bg: 'bg-green-50',    text: 'text-green-700' },
+  'Lost':        { bg: 'bg-red-50',      text: 'text-red-600'   },
+};
+
+const COMM_STATUS_COLOR: Record<string, string> = {
+  'Pending':    'bg-amber-50 text-amber-700',
+  'Processing': 'bg-blue-50 text-blue-700',
+  'Released':   'bg-green-50 text-green-700',
 };
 
 const NUM_WORDS = ['Zero','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve'];
@@ -233,10 +266,22 @@ function ShareToContactsModal({
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [sending, setSending]         = useState(false);
 
-  const shareLink = `${window.location.origin}/p/${btoa(`${project.id}:${cpId ?? 'guest'}`)}`;
+  const [shareLink, setShareLink] = useState('');
+  const [linkLoading, setLinkLoading] = useState(false);
 
   useEffect(() => {
     if (!cpId) { setLoading(false); return; }
+    setLinkLoading(true);
+    cpApi.getOrCreateShareLink(cpId, project.id)
+      .then((r: unknown) => {
+        const { token } = r as { token: string };
+        setShareLink(`${window.location.origin}/p/${token}`);
+      })
+      .catch(() => {
+        setShareLink(`${window.location.origin}/p/${btoa(`${project.id}:${cpId}`)}`);
+      })
+      .finally(() => setLinkLoading(false));
+
     cpApi.getContacts(cpId)
       .then(d => {
         const list = (d as Contact[]) ?? [];
@@ -404,7 +449,19 @@ function ShareToContactsModal({
           </div>
 
           <div className="p-5 border-t border-slate-100 space-y-2.5 shrink-0">
-            <button onClick={handleSend} disabled={selectedIds.size === 0 || sending}
+            <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
+              <Link2 size={13} className="text-slate-400 shrink-0" />
+              <span className="flex-1 text-[11px] text-slate-500 truncate font-mono">
+                {linkLoading ? 'Generating link…' : shareLink || 'Loading…'}
+              </span>
+              <button
+                onClick={() => { if (shareLink) { navigator.clipboard.writeText(shareLink); toast.success('Link copied!'); } }}
+                disabled={!shareLink || linkLoading}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition-colors shrink-0">
+                <Copy size={11} /> Copy
+              </button>
+            </div>
+            <button onClick={handleSend} disabled={selectedIds.size === 0 || sending || !shareLink}
               className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-90"
               style={{ backgroundColor: '#25D366' }}>
               {sending
@@ -420,18 +477,125 @@ function ShareToContactsModal({
 }
 
 /* ─── Drawer Tabs ────────────────────────────────────────────────── */
-type DrawerTab = 'overview' | 'floorplans' | 'location' | 'news';
+type DrawerTab = 'overview' | 'pipeline' | 'floorplans' | 'location' | 'news';
 
 const DRAWER_TABS: { id: DrawerTab; label: string; icon: React.ElementType }[] = [
-  { id: 'overview',   label: 'Overview',    icon: LayoutGrid },
-  { id: 'floorplans', label: 'Floor Plans', icon: Layers },
-  { id: 'location',   label: 'Location',    icon: Map },
-  { id: 'news',       label: 'Updates',     icon: Newspaper },
+  { id: 'overview',   label: 'Overview',    icon: LayoutGrid  },
+  { id: 'pipeline',   label: 'Pipeline',    icon: TrendingUp  },
+  { id: 'floorplans', label: 'Floor Plans', icon: Layers      },
+  { id: 'location',   label: 'Location',    icon: Map         },
+  { id: 'news',       label: 'Updates',     icon: Newspaper   },
 ];
+
+/* ─── Pipeline Tab ───────────────────────────────────────────────── */
+function PipelineTab({ leads, project }: { leads: CPLead[]; project: ProjectSummary }) {
+  if (leads.length === 0) {
+    return (
+      <div className="px-6 py-16 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+          <TrendingUp size={28} className="text-teal-300" />
+        </div>
+        <p className="font-bold text-slate-600 mb-1">No leads yet</p>
+        <p className="text-sm text-slate-400 max-w-xs mx-auto">
+          Share this project's unique link with your contacts to start building your pipeline here.
+        </p>
+      </div>
+    );
+  }
+
+  const totalComm = leads.reduce((s, l) => s + (l.estimatedCommission ?? 0), 0);
+  const releasedComm = leads.filter(l => l.commissionStatus === 'Released').reduce((s, l) => s + (l.estimatedCommission ?? 0), 0);
+
+  return (
+    <div className="px-6 py-5">
+      {/* Stats strip */}
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        {[
+          { label: 'My Leads', value: String(leads.length), color: '#0D9488', bg: '#F0FDFA' },
+          { label: 'Est. Commission', value: totalComm > 0 ? fmt(totalComm) : '—', color: '#7C3AED', bg: '#F5F3FF' },
+          { label: 'Released', value: releasedComm > 0 ? fmt(releasedComm) : '—', color: '#16A34A', bg: '#F0FDF4' },
+        ].map(s => (
+          <div key={s.label} className="rounded-xl p-3 text-center" style={{ backgroundColor: s.bg }}>
+            <p className="text-base font-black leading-none" style={{ color: s.color }}>{s.value}</p>
+            <p className="text-[10px] font-medium mt-1" style={{ color: s.color + 'CC' }}>{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+        {leads.length} lead{leads.length !== 1 ? 's' : ''} · {project.name}
+      </p>
+
+      <div className="space-y-3">
+        {leads.map(lead => {
+          const stageStyle = DEAL_STAGE_COLOR[lead.status] ?? { bg: 'bg-slate-100', text: 'text-slate-600' };
+          const commStyle  = COMM_STATUS_COLOR[lead.commissionStatus] ?? 'bg-slate-100 text-slate-600';
+          return (
+            <div key={lead.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                  style={{ background: 'linear-gradient(135deg,#0D9488,#0f766e)' }}>
+                  {lead.customerName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-bold text-slate-800 text-sm truncate">{lead.customerName}</p>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${stageStyle.bg} ${stageStyle.text}`}>
+                      {lead.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <a href={`tel:${lead.customerPhone}`}
+                      className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-teal-700 transition-colors"
+                      onClick={e => e.stopPropagation()}>
+                      <Phone size={9} /> {lead.customerPhone}
+                    </a>
+                    <span className="text-slate-200">|</span>
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${commStyle}`}>
+                      {lead.commissionStatus}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {(lead.dealValue || lead.estimatedCommission) && (
+                <div className="mt-3 pt-3 border-t border-slate-50 flex items-center gap-4">
+                  {lead.dealValue && (
+                    <div>
+                      <p className="text-[9px] text-slate-400 uppercase tracking-wide">Deal value</p>
+                      <p className="text-sm font-black text-slate-700">{fmt(lead.dealValue)}</p>
+                    </div>
+                  )}
+                  {lead.estimatedCommission && (
+                    <div>
+                      <p className="text-[9px] text-slate-400 uppercase tracking-wide">Your commission</p>
+                      <p className="text-sm font-black text-teal-700">{fmt(lead.estimatedCommission)}</p>
+                    </div>
+                  )}
+                  <div className="ml-auto">
+                    <a href={`https://wa.me/91${lead.customerPhone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${lead.customerName.split(' ')[0]}! Following up on ${project.name}. 😊`)}`}
+                      target="_blank" rel="noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition-opacity hover:opacity-90"
+                      style={{ backgroundColor: '#25D366' }}>
+                      <MessageSquare size={11} /> WA
+                    </a>
+                  </div>
+                </div>
+              )}
+              <p className="text-[10px] text-slate-400 mt-2">
+                Added {new Date(lead.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /* ─── Detail Drawer ──────────────────────────────────────────────── */
 function ProjectDetailDrawer({
-  project, onClose, onFlyer, onShare, bookmarks, onToggleBookmark, cpId,
+  project, onClose, onFlyer, onShare, bookmarks, onToggleBookmark, cpId, projectLeads,
 }: {
   project: ProjectSummary;
   onClose: () => void;
@@ -440,13 +604,28 @@ function ProjectDetailDrawer({
   bookmarks: Set<number>;
   onToggleBookmark: (id: number, e: React.MouseEvent) => void;
   cpId?: string | number | null;
+  projectLeads: CPLead[];
 }) {
   const [docs, setDocs]               = useState<ProjectDoc[]>([]);
   const [docsLoading, setDocsLoading] = useState(true);
   const [activeTab, setActiveTab]     = useState<DrawerTab>('overview');
   const [dealValue, setDealValue]     = useState('');
-  const [copied, setCopied]           = useState(false);
-  const [linkCopied, setLinkCopied]   = useState(false);
+  const [copyingLink, setCopyingLink] = useState(false);
+
+  const handleCopyLink = async () => {
+    if (!cpId) { toast.error('Login required to generate a share link'); return; }
+    setCopyingLink(true);
+    try {
+      const res = await cpApi.getOrCreateShareLink(cpId, project.id) as { token: string };
+      const url = `${window.location.origin}/p/${res.token}`;
+      await navigator.clipboard.writeText(url);
+      toast.success('Share link copied! 🔗 Send it to your customer');
+    } catch {
+      toast.error('Could not generate link');
+    } finally {
+      setCopyingLink(false);
+    }
+  };
 
   const total    = project.totalUnits    ?? 0;
   const avail    = project.availableUnits ?? 0;
@@ -459,25 +638,9 @@ function ProjectDetailDrawer({
   const midPrice    = project.priceMin && project.priceMax ? (project.priceMin + project.priceMax) / 2 : project.priceMin || project.priceMax || 0;
   const exampleComm = midPrice && commRate ? (midPrice * commRate) / 100 : 0;
 
-  const shareMsg =
-    `🏗️ *${project.name}*\n` +
-    (project.builderName ? `🏢 ${project.builderName}\n` : '') +
-    `📍 ${[project.address, project.city].filter(Boolean).join(', ')}\n` +
-    `💰 ${fmtPrice(project.priceMin, project.priceMax)}\n` +
-    (project.configurations?.length ? `🏠 ${project.configurations.join(' / ')}\n` : '') +
-    (project.possessionDate ? `📅 Possession: ${project.possessionDate}\n` : '') +
-    (project.reraNumber ? `✅ RERA: ${project.reraNumber}\n` : '') +
-    `\nInterested? Let me arrange a site visit! 🙏`;
-
-  const shareLink = `${window.location.origin}/p/${btoa(`${project.id}:${cpId ?? 'guest'}`)}`;
-  const shareMsgWithLink = shareMsg + `\n\n🔗 View details: ${shareLink}`;
-
   const floorPlans = docs.filter(d => d.docType === 'FLOOR_PLAN');
   const otherDocs  = docs.filter(d => d.docType !== 'FLOOR_PLAN');
   const newsFeed   = deriveNewsFeed(project);
-
-  const copyShareMsg  = () => { navigator.clipboard.writeText(shareMsg).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); };
-  const copyShareLink = () => { navigator.clipboard.writeText(shareLink).then(() => { setLinkCopied(true); toast.success('Share link copied!'); setTimeout(() => setLinkCopied(false), 2500); }); };
 
   useEffect(() => {
     builderApi.getDocuments(project.builderId, project.id)
@@ -488,9 +651,17 @@ function ProjectDetailDrawer({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="fixed right-0 top-0 bottom-0 z-50 w-full sm:max-w-[540px] bg-white shadow-2xl flex flex-col">
+      <div
+        className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 sm:p-6"
+        onClick={onClose}
+      >
+      <div
+        className="w-full max-w-[720px] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+        style={{ maxHeight: '92vh' }}
+        onClick={e => e.stopPropagation()}
+      >
 
+        {/* ── Hero image ── */}
         <div className="relative h-48 shrink-0 overflow-hidden bg-gradient-to-br from-slate-100 to-teal-50/40">
           {project.imageUrl
             ? <img src={project.imageUrl} alt={project.name} className="w-full h-full object-cover" />
@@ -539,19 +710,32 @@ function ProjectDetailDrawer({
           </div>
         </div>
 
-        <div className="flex border-b border-slate-100 shrink-0 bg-white">
-          {DRAWER_TABS.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-1 py-3 text-[11px] font-semibold transition-colors border-b-2 ${activeTab === tab.id ? 'text-teal-600 border-teal-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>
-              <tab.icon size={11} /> {tab.label}
-            </button>
-          ))}
+        {/* ── Tabs ── */}
+        <div className="flex border-b border-slate-100 shrink-0 bg-white overflow-x-auto scrollbar-none">
+          {DRAWER_TABS.map(tab => {
+            const isPipeline = tab.id === 'pipeline';
+            const badgeCount = isPipeline ? projectLeads.length : 0;
+            return (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                className={`flex-none flex items-center justify-center gap-1 px-3 py-3 text-[11px] font-semibold transition-colors border-b-2 whitespace-nowrap ${activeTab === tab.id ? 'text-teal-600 border-teal-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>
+                <tab.icon size={11} /> {tab.label}
+                {isPipeline && (
+                  <span className={`ml-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${badgeCount > 0 ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-400'}`}>
+                    {badgeCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
+        {/* ── Tab content ── */}
         <div className="flex-1 overflow-y-auto">
+
+          {/* Overview */}
           {activeTab === 'overview' && (
             <div>
-              <div className="mx-5 mt-5 rounded-2xl p-4 flex items-center gap-4" style={{ background: 'linear-gradient(135deg,#f0fdfa,#ccfbf1)' }}>
+              <div className="mx-6 mt-6 rounded-2xl p-5 flex items-center gap-4" style={{ background: 'linear-gradient(135deg,#f0fdfa,#ccfbf1)' }}>
                 <div className="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
                   <Percent size={20} className="text-teal-600" />
                 </div>
@@ -568,17 +752,17 @@ function ProjectDetailDrawer({
                 )}
               </div>
 
-              <div className="p-5 space-y-0">
+              <div className="px-6 py-4 space-y-0">
                 <Divider />
                 <SectionHead icon={IndianRupee} label="Pricing" color="#0D9488" />
-                <div className="grid grid-cols-2 gap-3 mb-2">
-                  <div className="bg-slate-50 rounded-xl p-3.5">
-                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mb-1">Starting from</p>
-                    <p className="text-base font-black text-slate-800">{project.priceMin ? fmt(project.priceMin) : '—'}</p>
+                <div className="grid grid-cols-2 gap-4 mb-2">
+                  <div className="bg-slate-50 rounded-2xl p-4">
+                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mb-1.5">Starting from</p>
+                    <p className="text-lg font-black text-slate-800">{project.priceMin ? fmt(project.priceMin) : '—'}</p>
                   </div>
-                  <div className="bg-slate-50 rounded-xl p-3.5">
-                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mb-1">Up to</p>
-                    <p className="text-base font-black text-slate-800">{project.priceMax ? fmt(project.priceMax) : '—'}</p>
+                  <div className="bg-slate-50 rounded-2xl p-4">
+                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mb-1.5">Up to</p>
+                    <p className="text-lg font-black text-slate-800">{project.priceMax ? fmt(project.priceMax) : '—'}</p>
                   </div>
                 </div>
 
@@ -629,20 +813,20 @@ function ProjectDetailDrawer({
 
                 <Divider />
                 <SectionHead icon={FileText} label="Project Details" color="#64748b" />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                   {[
                     { label: 'Possession', value: project.possessionDate?.slice(0,7) ?? '—', icon: Calendar,    color: '#7C3AED', bg: '#F5F3FF' },
                     { label: 'Status',     value: STATUS_LABEL[project.status] ?? project.status, icon: TrendingUp, color: '#0D9488', bg: '#F0FDFA' },
                     { label: 'City',       value: project.city || '—',           icon: MapPin,      color: '#2563EB', bg: '#EFF6FF' },
                     { label: 'Listed',     value: project.createdAt ? new Date(project.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : '—', icon: Clock, color: '#64748b', bg: '#F8FAFC' },
                   ].map(({ label, value, icon: Icon, color, bg }) => (
-                    <div key={label} className="flex items-center gap-3 rounded-xl p-3" style={{ backgroundColor: bg }}>
-                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: color + '20' }}>
-                        <Icon size={13} style={{ color }} />
+                    <div key={label} className="flex items-center gap-3.5 rounded-2xl p-4" style={{ backgroundColor: bg }}>
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: color + '20' }}>
+                        <Icon size={14} style={{ color }} />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] text-slate-400 font-medium leading-none mb-0.5">{label}</p>
-                        <p className="text-xs font-bold text-slate-700 truncate">{value}</p>
+                        <p className="text-[10px] text-slate-400 font-medium leading-none mb-1">{label}</p>
+                        <p className="text-sm font-bold text-slate-700 truncate">{value}</p>
                       </div>
                     </div>
                   ))}
@@ -715,48 +899,19 @@ function ProjectDetailDrawer({
                   </div>
                 )}
 
-                <Divider />
-                <SectionHead icon={Link2} label="Your Unique Share Link" color="#2563EB" />
-                <div className="bg-blue-50 rounded-xl p-3.5 mb-3 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-blue-500 font-semibold mb-0.5">Trackable link for prospects</p>
-                    <p className="text-xs font-mono text-blue-700 truncate">{shareLink}</p>
-                  </div>
-                  <button onClick={copyShareLink}
-                    className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${linkCopied ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}>
-                    <Copy size={11} /> {linkCopied ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-
-                <Divider />
-                <SectionHead icon={Share2} label="Share with Prospects" color="#25D366" />
-                <button onClick={onShare}
-                  className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl text-white font-bold text-sm mb-3 hover:opacity-90 transition-opacity shadow-md"
-                  style={{ background: 'linear-gradient(135deg,#25D366,#1da851)' }}>
-                  <Users size={16} /> Share to My Contacts (with filters)
-                </button>
-                <div className="bg-slate-50 rounded-xl p-3.5 mb-3">
-                  <p className="text-[11px] font-semibold text-slate-500 mb-1.5">Or share manually</p>
-                  <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line font-mono line-clamp-4">{shareMsg}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareMsgWithLink)}`, '_blank')}
-                    className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white hover:opacity-90 transition-opacity"
-                    style={{ backgroundColor: '#25D366' }}>
-                    <MessageSquare size={15} /> WhatsApp
-                  </button>
-                  <button onClick={copyShareMsg}
-                    className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-colors border ${copied ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
-                    <Copy size={15} /> {copied ? 'Copied!' : 'Copy Text'}
-                  </button>
-                </div>
                 <div className="pb-6" />
               </div>
             </div>
           )}
 
+          {/* Pipeline */}
+          {activeTab === 'pipeline' && (
+            <PipelineTab leads={projectLeads} project={project} />
+          )}
+
+          {/* Floor Plans */}
           {activeTab === 'floorplans' && (
-            <div className="p-5">
+            <div className="px-6 py-5">
               {docsLoading ? (
                 <div className="flex justify-center py-16"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
               ) : floorPlans.length === 0 ? (
@@ -797,8 +952,9 @@ function ProjectDetailDrawer({
             </div>
           )}
 
+          {/* Location */}
           {activeTab === 'location' && (
-            <div className="p-5 space-y-4">
+            <div className="px-6 py-5 space-y-4">
               <div className="bg-blue-50 rounded-2xl p-4">
                 <p className="text-xs font-bold text-blue-500 uppercase tracking-wide mb-2 flex items-center gap-1.5"><MapPin size={11} /> Full Address</p>
                 <p className="text-sm font-semibold text-slate-800 leading-relaxed">
@@ -838,8 +994,9 @@ function ProjectDetailDrawer({
             </div>
           )}
 
+          {/* Updates */}
           {activeTab === 'news' && (
-            <div className="p-5">
+            <div className="px-6 py-5">
               {newsFeed.length === 0 ? (
                 <div className="text-center py-16">
                   <Newspaper size={40} className="mx-auto mb-3 text-slate-200" />
@@ -867,17 +1024,27 @@ function ProjectDetailDrawer({
           )}
         </div>
 
-        <div className="shrink-0 border-t border-slate-100 bg-white p-4 flex gap-2.5">
-          <button onClick={onShare}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-90"
-            style={{ backgroundColor: '#25D366' }}>
-            <Users size={15} /> Share to Contacts
+        {/* ── Footer actions ── */}
+        <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-4 space-y-2.5">
+          <button onClick={handleCopyLink} disabled={copyingLink}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white disabled:opacity-60 transition-opacity hover:opacity-90"
+            style={{ background: 'linear-gradient(135deg,#3C5A45,#2B4232)' }}>
+            {copyingLink ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />}
+            {copyingLink ? 'Generating…' : 'Copy Unique Link'}
           </button>
-          <button onClick={onFlyer}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors border border-teal-100">
-            <ImageIcon size={15} /> Generate Flyer
-          </button>
+          <div className="flex gap-2.5">
+            <button onClick={onShare}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-90"
+              style={{ backgroundColor: '#25D366' }}>
+              <Share2 size={14} /> Share via WA
+            </button>
+            <button onClick={onFlyer}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors border border-teal-100">
+              <ImageIcon size={14} /> Generate Flyer
+            </button>
+          </div>
         </div>
+      </div>
       </div>
     </>
   );
@@ -896,7 +1063,7 @@ const SORT_OPTIONS: [SortKey, string][] = [
 
 /* ─── Project Card ───────────────────────────────────────────────── */
 function ProjectCard({
-  project, bookmarks, onSelect, onShare, onFlyer, onToggleBookmark,
+  project, bookmarks, onSelect, onShare, onFlyer, onToggleBookmark, cpId, leadCount,
 }: {
   project: ProjectSummary;
   bookmarks: Set<number>;
@@ -904,7 +1071,10 @@ function ProjectCard({
   onShare: (p: ProjectSummary) => void;
   onFlyer: (p: ProjectSummary) => void;
   onToggleBookmark: (id: number, e: React.MouseEvent) => void;
+  cpId?: string | number | null;
+  leadCount: number;
 }) {
+  const [copyingLink, setCopyingLink] = useState(false);
   const commRate  = project.commissionValue ?? 0;
   const startPrice = project.priceMin ?? project.priceMax ?? 0;
   const hasPrice  = project.priceMin != null || project.priceMax != null;
@@ -918,10 +1088,12 @@ function ProjectCard({
     ? project.configurations.slice(0, 3).join('-') + ' BHK'
     : '';
 
+  const hasLeads = leadCount > 0;
+
   return (
     <div
       onClick={() => onSelect(project)}
-      className="group bg-white rounded-2xl overflow-hidden cursor-pointer flex flex-col border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all duration-200">
+      className={`group bg-white rounded-2xl overflow-hidden cursor-pointer flex flex-col border hover:shadow-md transition-all duration-200 ${hasLeads ? 'border-teal-200 hover:border-teal-300' : 'border-gray-100 hover:border-gray-200'}`}>
 
       {/* ── Image area ── */}
       <div className="relative overflow-hidden bg-gray-50" style={{ aspectRatio: '4/5' }}>
@@ -993,20 +1165,36 @@ function ProjectCard({
         </div>
         <div className="flex-1 px-2.5 py-2 border-r border-gray-100">
           <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">My Pipeline</p>
-          <p className="text-[13px] font-black text-slate-800 leading-none">
-            0 <span className="text-[9px] font-medium text-slate-400">leads</span>
+          <p className={`text-[13px] font-black leading-none ${hasLeads ? 'text-teal-700' : 'text-slate-400'}`}>
+            {leadCount} <span className="text-[9px] font-medium">lead{leadCount !== 1 ? 's' : ''}</span>
           </p>
         </div>
         <button
-          onClick={() => onShare(project)}
-          className="px-3 flex items-center justify-center gap-1 text-[11px] font-bold text-teal-700 hover:bg-teal-50 transition-colors">
-          <Share2 size={12} /> Share
+          disabled={copyingLink}
+          onClick={async e => {
+            e.stopPropagation();
+            if (!cpId) { onShare(project); return; }
+            setCopyingLink(true);
+            try {
+              const res = await cpApi.getOrCreateShareLink(cpId, project.id) as { token: string };
+              const url = `${window.location.origin}/p/${res.token}`;
+              await navigator.clipboard.writeText(url);
+              toast.success('Link copied! 🔗');
+            } catch { onShare(project); }
+            finally { setCopyingLink(false); }
+          }}
+          className="px-3 flex items-center justify-center gap-1 text-[11px] font-bold text-teal-700 hover:bg-teal-50 transition-colors disabled:opacity-60">
+          {copyingLink ? <Loader2 size={11} className="animate-spin" /> : <Link2 size={11} />}
+          {copyingLink ? '…' : 'Link'}
         </button>
       </div>
 
       {/* ── Meta row ── */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50 border-t border-gray-100 text-[9px] text-slate-400">
-        <span>0 units booked by you</span>
+        <button onClick={e => { e.stopPropagation(); onShare(project); }}
+          className="flex items-center gap-0.5 text-green-600 font-semibold hover:text-green-700 transition-colors">
+          <Share2 size={9} /> Share via WA
+        </button>
         <button onClick={e => { e.stopPropagation(); onFlyer(project); }}
           className="flex items-center gap-0.5 text-orange-500 font-semibold hover:text-orange-600 transition-colors">
           <ImageIcon size={9} /> Flyer
@@ -1040,17 +1228,18 @@ function CardSkeleton() {
 /* ─── Main CPProjects component ──────────────────────────────────── */
 const CPProjects = () => {
   const { user }    = useAuthStore();
-  const [projects, setProjects]       = useState<ProjectSummary[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState('');
+  const [projects, setProjects]         = useState<ProjectSummary[]>([]);
+  const [cpLeads, setCpLeads]           = useState<CPLead[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState('');
   const [flyerProject, setFlyerProject] = useState<ProjectSummary | null>(null);
-  const [selected, setSelected]       = useState<ProjectSummary | null>(null);
-  const [bookmarks, setBookmarks]     = useState<Set<number>>(loadBookmarks);
-  const [filterTab, setFilterTab]     = useState<FilterTab>('all');
+  const [selected, setSelected]         = useState<ProjectSummary | null>(null);
+  const [bookmarks, setBookmarks]       = useState<Set<number>>(loadBookmarks);
+  const [filterTab, setFilterTab]       = useState<FilterTab>('all');
   const [shareModalProject, setShareModalProject] = useState<ProjectSummary | null>(null);
-  const [search, setSearch]           = useState('');
-  const [sortKey, setSortKey]         = useState<SortKey>('recent');
-  const [sortOpen, setSortOpen]       = useState(false);
+  const [search, setSearch]             = useState('');
+  const [sortKey, setSortKey]           = useState<SortKey>('recent');
+  const [sortOpen, setSortOpen]         = useState(false);
 
   useEffect(() => {
     builderApi.getPublicProjects()
@@ -1058,6 +1247,13 @@ const CPProjects = () => {
       .catch(() => setError('Could not load projects. Make sure the backend is running.'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    cpApi.getLeads(user.id)
+      .then(data => setCpLeads((data as CPLead[]) || []))
+      .catch(() => setCpLeads([]));
+  }, [user?.id]);
 
   const toggleBookmark = useCallback((id: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1070,20 +1266,44 @@ const CPProjects = () => {
     });
   }, []);
 
+  /* ── Lead data per project ── */
+  const leadsByProject = useMemo(() => {
+    const map = new Map<number, CPLead[]>();
+    cpLeads.forEach(l => {
+      const arr = map.get(l.projectId) ?? [];
+      arr.push(l);
+      map.set(l.projectId, arr);
+    });
+    return map;
+  }, [cpLeads]);
+
+  /* ── Header stats ── */
+  const { monthlyLeadCount, pendingCommission } = useMemo(() => {
+    const now = new Date();
+    const monthly = cpLeads.filter(l => {
+      const d = new Date(l.createdAt);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const pending = cpLeads
+      .filter(l => l.commissionStatus !== 'Released')
+      .reduce((s, l) => s + (l.estimatedCommission ?? 0), 0);
+    return { monthlyLeadCount: monthly.length, pendingCommission: pending };
+  }, [cpLeads]);
+
   /* ── Tab counts ── */
   const tabCounts = useMemo(() => ({
     all:      projects.length,
-    myLeads:  bookmarks.size,
+    myLeads:  projects.filter(p => (leadsByProject.get(p.id)?.length ?? 0) > 0).length,
     hotComm:  projects.filter(p => (p.commissionValue ?? 0) >= 3).length,
     backed:   bookmarks.size,
     newDeals: projects.filter(p => ['NEW_LAUNCH', 'PRE_LAUNCH'].includes(p.status)).length,
-  }), [projects, bookmarks]);
+  }), [projects, bookmarks, leadsByProject]);
 
   /* ── Filter + sort pipeline ── */
   const displayed = useMemo(() => {
     let list = [...projects];
 
-    if (filterTab === 'myLeads') list = list.filter(p => bookmarks.has(p.id));
+    if (filterTab === 'myLeads') list = list.filter(p => (leadsByProject.get(p.id)?.length ?? 0) > 0);
     if (filterTab === 'hotComm') list = list.filter(p => (p.commissionValue ?? 0) >= 3);
     if (filterTab === 'backed')  list = list.filter(p => bookmarks.has(p.id));
     if (filterTab === 'newDeals') list = list.filter(p => ['NEW_LAUNCH', 'PRE_LAUNCH'].includes(p.status));
@@ -1108,7 +1328,7 @@ const CPProjects = () => {
     });
 
     return list;
-  }, [projects, filterTab, bookmarks, search, sortKey]);
+  }, [projects, filterTab, bookmarks, search, sortKey, leadsByProject]);
 
   if (error) return (
     <DashboardLayout>
@@ -1121,10 +1341,10 @@ const CPProjects = () => {
 
   const TABS: { id: FilterTab; label: string }[] = [
     { id: 'all',      label: 'All' },
-    { id: 'myLeads',  label: 'With my leads' },
-    { id: 'hotComm',  label: 'Hot commission' },
-    { id: 'backed',   label: "I've backed here" },
-    { id: 'newDeals', label: 'New on deals' },
+    { id: 'myLeads',  label: 'My Pipeline' },
+    { id: 'hotComm',  label: 'Hot Commission' },
+    { id: 'backed',   label: 'Bookmarked' },
+    { id: 'newDeals', label: 'New Launch' },
   ];
 
   const sortLabel = SORT_OPTIONS.find(([k]) => k === sortKey)?.[1] ?? 'Sort';
@@ -1134,17 +1354,14 @@ const CPProjects = () => {
       <div className="space-y-0">
 
         {/* ══ HEADER ══ */}
-        <div className="flex items-start justify-between gap-4 pt-1 pb-4">
-          <div>
+        <div className="flex items-start justify-between gap-4 pt-1 pb-3">
+          <div className="flex-1">
             <h1 className="text-3xl font-bold text-slate-900 leading-tight tracking-tight">
               {toWord(projects.length)} projects,{' '}
               <em style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontStyle: 'italic', fontWeight: 400 }}>
                 endless leads.
               </em>
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              You've added <strong className="text-slate-700">0 leads</strong> across these projects this month, with ₹— in payouts pending.
-            </p>
           </div>
           <div className="flex items-center gap-2 shrink-0 mt-1">
             <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 text-sm font-medium text-slate-600 hover:bg-gray-50 transition-colors">
@@ -1155,6 +1372,52 @@ const CPProjects = () => {
               + Add a lead
             </button>
           </div>
+        </div>
+
+        {/* ── Stats row ── */}
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {[
+            {
+              label:   'Leads this month',
+              value:   String(monthlyLeadCount || cpLeads.length),
+              sub:     monthlyLeadCount > 0 ? `${monthlyLeadCount} added in ${new Date().toLocaleString('en-IN', { month: 'long' })}` : `${cpLeads.length} total across all projects`,
+              icon:    TrendingUp,
+              color:   '#0D9488',
+              bg:      'from-teal-50 to-emerald-50',
+              border:  'border-teal-100',
+            },
+            {
+              label:   'Pending commission',
+              value:   pendingCommission > 0 ? fmt(pendingCommission) : '₹—',
+              sub:     pendingCommission > 0 ? 'Not yet released by builder' : 'No pending commissions',
+              icon:    IndianRupee,
+              color:   '#7C3AED',
+              bg:      'from-violet-50 to-purple-50',
+              border:  'border-violet-100',
+            },
+            {
+              label:   'Bookmarked',
+              value:   String(bookmarks.size),
+              sub:     bookmarks.size > 0 ? 'Projects you\'re tracking' : 'Bookmark projects to track them',
+              icon:    Bookmark,
+              color:   '#D97706',
+              bg:      'from-amber-50 to-orange-50',
+              border:  'border-amber-100',
+            },
+          ].map(stat => (
+            <div key={stat.label} className={`rounded-2xl border bg-gradient-to-br p-4 ${stat.bg} ${stat.border}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: stat.color + 'CC' }}>{stat.label}</p>
+                  <p className="text-xl font-black leading-none" style={{ color: stat.color }}>{stat.value}</p>
+                  <p className="text-[10px] mt-1 truncate" style={{ color: stat.color + '99' }}>{stat.sub}</p>
+                </div>
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: stat.color + '18' }}>
+                  <stat.icon size={15} style={{ color: stat.color }} />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* ══ TABS + SEARCH ══ */}
@@ -1248,6 +1511,8 @@ const CPProjects = () => {
                   onShare={setShareModalProject}
                   onFlyer={setFlyerProject}
                   onToggleBookmark={toggleBookmark}
+                  cpId={user?.id}
+                  leadCount={leadsByProject.get(project.id)?.length ?? 0}
                 />
               ))}
             </div>
@@ -1264,6 +1529,7 @@ const CPProjects = () => {
           bookmarks={bookmarks}
           onToggleBookmark={toggleBookmark}
           cpId={user?.id}
+          projectLeads={leadsByProject.get(selected.id) ?? []}
         />
       )}
 
@@ -1275,7 +1541,7 @@ const CPProjects = () => {
         />
       )}
 
-      {flyerProject && <FlyerModal project={flyerProject} onClose={() => setFlyerProject(null)} />}
+      {flyerProject && <FlyerModal project={flyerProject} cpId={user?.id} onClose={() => setFlyerProject(null)} />}
     </DashboardLayout>
   );
 };

@@ -167,6 +167,15 @@ export const builderApi = {
   getBuilderNotifications: () =>
     builderReq('/builder/notifications'),
 
+  createLeadFromShare: (projectId: number | string, data: { cpUserId?: string | number | null; customerName: string; customerPhone: string }) =>
+    builderReq(`/builder/projects/${projectId}/leads/from-share`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  resolveShareToken: (token: string) =>
+    builderReq(`/builder/share/${token}`),
+
   updateProject: (builderId: number | string, projectId: number | string, data: Record<string, unknown>) =>
     builderReq(`/builder/${builderId}/projects/${projectId}`, {
       method: 'PATCH',
@@ -276,6 +285,9 @@ export interface CPContactPayload {
 const cpReq = (path: string, options?: RequestInit) => request(BUILDER_BASE, path, options);
 
 export const cpApi = {
+  getOrCreateShareLink: (cpUserId: string | number, projectId: string | number) =>
+    cpReq(`/cp/${cpUserId}/projects/${projectId}/share-link`, { method: 'POST' }),
+
   getContacts: (cpUserId: string | number) =>
     cpReq(`/cp/${cpUserId}/contacts`),
 
@@ -296,6 +308,18 @@ export const cpApi = {
 
   getNotifications: () =>
     cpReq('/cp/notifications'),
+
+  getLeads: (cpUserId: string | number) =>
+    cpReq(`/cp/${cpUserId}/leads`),
+
+  getMeetings: (cpUserId: string | number) =>
+    cpReq(`/cp/${cpUserId}/meetings`),
+
+  addMeetingNote: (cpUserId: string | number, meetingId: number | string, notes: string) =>
+    cpReq(`/cp/${cpUserId}/meetings/${meetingId}/notes`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notes }),
+    }),
 
   sendPhoneOtp: (phone: string) =>
     cpReq('/cp/verify-phone/send-otp', { method: 'POST', body: JSON.stringify({ phone }) }),
