@@ -35,6 +35,7 @@ CREATE TABLE "Project" (
     "priceFrom" DOUBLE PRECISION,
     "priceTo" DOUBLE PRECISION,
     "possessionDate" TEXT,
+    "googleMapsLink" TEXT,
     "published" BOOLEAN NOT NULL DEFAULT true,
     "status" TEXT NOT NULL DEFAULT 'ACTIVE',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -227,3 +228,6 @@ ALTER TABLE "DealMessage" ADD CONSTRAINT "DealMessage_dealId_fkey"
 ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "link" TEXT;
 
 --
+-- Meeting: CP tracking and CP notes
+ALTER TABLE "Meeting" ADD COLUMN IF NOT EXISTS "cpId"    INTEGER;
+ALTER TABLE "Meeting" ADD COLUMN IF NOT EXISTS "cpNotes" TEXT;

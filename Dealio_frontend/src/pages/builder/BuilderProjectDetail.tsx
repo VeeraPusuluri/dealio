@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -12,6 +12,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import ProjectPlaceholder from '@/components/shared/ProjectPlaceholder';
+import GoogleMapsLocationField from '@/components/shared/GoogleMapsLocationField';
 
 interface ProjectDetail {
   id: number;
@@ -122,6 +123,10 @@ const BuilderProjectDetail = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
+  const [mapsLink, setMapsLink] = useState('');
+  const [mapsSaving, setMapsSaving] = useState(false);
+  const mapsLinkDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!user?.id || !id) return;
     (async () => {
@@ -139,6 +144,7 @@ const BuilderProjectDetail = () => {
         if (effectiveBid !== bid) builderApi.setCachedBuilderId(effectiveBid);
         setBuilderId(effectiveBid);
         setProject(data);
+        setMapsLink(data.googleMapsLink ?? '');
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Failed to load project');
       } finally {
@@ -146,6 +152,20 @@ const BuilderProjectDetail = () => {
       }
     })();
   }, [user?.id, id]);
+
+  const handleMapsLinkChange = useCallback((newLink: string) => {
+    setMapsLink(newLink);
+    if (mapsLinkDebounceRef.current) clearTimeout(mapsLinkDebounceRef.current);
+    if (!builderId || !id) return;
+    mapsLinkDebounceRef.current = setTimeout(async () => {
+      setMapsSaving(true);
+      try {
+        await builderApi.updateProject(builderId, id, { googleMapsLink: newLink });
+        setProject(prev => prev ? { ...prev, googleMapsLink: newLink } : prev);
+      } catch { /* silent — link still usable without saving */ }
+      finally { setMapsSaving(false); }
+    }, 1200);
+  }, [builderId, id]);
 
   useEffect(() => {
     if (activeTab !== 'Documents' || !builderId || !id) return;
@@ -232,391 +252,510 @@ const BuilderProjectDetail = () => {
   const booked = project.bookedUnits ?? 0;
   const available = project.availableUnits ?? Math.max(0, total - sold - booked);
   const hold = Math.max(0, total - sold - booked - available);
+  const availPct = total > 0 ? Math.round((available / total) * 100) : 0;
   const priceMin = project.priceMin ?? 0;
   const priceMax = project.priceMax ?? priceMin;
   const avgPrice = (priceMin + priceMax) / 2;
-  const revenue = sold * avgPrice;
+  const revenue = (sold + booked) * avgPrice;
   const targetRevenue = total * avgPrice;
+
+  // ── Design tokens (matches CustomerProjectDetail sage palette) ──────────────
+  const T = {
+    ink:     '#0E1411',
+    ink2:    '#1F2925',
+    muted:   '#8E948F',
+    line:    '#ECECE7',
+    bg:      '#FFFFFF',
+    bg2:     '#FAFAF8',
+    bg3:     '#F4F4EF',
+    bgCream: '#F6F2EA',
+    accent:  '#D8E5DA',
+    aInk:    '#3C5A45',
+    aDeep:   '#2B4232',
+    aTint:   '#EEF3EF',
+    sand:    '#F1E9DA',
+    sandInk: '#7A5E2F',
+    serif:   '"Fraunces", "Georgia", "Times New Roman", serif',
+    mono:    '"Geist Mono", ui-monospace, monospace',
+  };
+
+  const sk = {
+    fontFamily: T.mono, fontSize: '10.5px', letterSpacing: '0.16em',
+    color: T.muted, textTransform: 'uppercase' as const, fontWeight: 500,
+  };
+  const secH2 = {
+    margin: '8px 0 0', fontFamily: T.serif, fontSize: 'clamp(28px, 3.5vw, 42px)',
+    fontWeight: 300, lineHeight: 1.05, letterSpacing: '-0.025em',
+  };
+
+  const fmtP = (n?: number | null) => {
+    if (!n) return '—';
+    if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(2)} Cr`;
+    if (n >= 100_000)    return `₹${(n / 100_000).toFixed(0)} L`;
+    return `₹${n.toLocaleString('en-IN')}`;
+  };
 
   return (
     <DashboardLayout>
-      <div className="px-8 py-10 max-w-7xl mx-auto space-y-7">
+      <div style={{ background: T.bg, minHeight: '100vh' }}>
 
-        {/* ── Nav bar ── */}
-        <div className="flex items-center justify-between">
-          <button onClick={() => navigate('/builder/projects')}
-            className="flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-gray-700 transition-colors">
-            <ArrowLeft size={13} /> All projects
-          </button>
-          <button onClick={() => navigate(`/builder/projects/${id}/edit`)}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
-            <Pencil size={11} /> Edit project
-          </button>
-        </div>
+        {/* ── HERO ──────────────────────────────────────────────────────────── */}
+        <section style={{ maxWidth: 1280, margin: '0 auto', padding: '36px 28px 0' }}>
 
-        {/* ── Editorial header ── */}
-        <div>
-          <h1 className="text-[36px] font-bold text-gray-900 leading-[1.05] mb-3">
-            <em style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontStyle: 'italic', color: '#0d9488', fontWeight: 400 }}>
-              {project.name}
-            </em>
-          </h1>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1"
-              style={{ backgroundColor: sm.bg, color: sm.text }}>
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: sm.dot }} />
+          {/* Nav row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+            <button onClick={() => navigate('/builder/projects')}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: T.muted, fontSize: 13, padding: 0 }}>
+              <ArrowLeft size={14} /> All projects
+            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => navigate(`/builder/projects/${id}/edit`)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, border: `1px solid ${T.line}`, background: T.bg, color: T.ink2, cursor: 'pointer' }}>
+                <Pencil size={11} /> Edit project
+              </button>
+            </div>
+          </div>
+
+          {/* Tag row */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22, alignItems: 'center' }}>
+            {project.reraNumber && (
+              <span style={{ background: T.aTint, color: T.aInk, border: `1px solid ${T.accent}`, fontSize: 11.5, padding: '5px 12px', borderRadius: 999, fontWeight: 500, fontFamily: T.mono, letterSpacing: '0.04em' }}>
+                RERA · {project.reraNumber.slice(0, 18)}{project.reraNumber.length > 18 ? '…' : ''}
+              </span>
+            )}
+            <span style={{ fontSize: 11.5, padding: '5px 12px', borderRadius: 999, fontWeight: 500, background: sm.bg, color: sm.text, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: sm.dot, display: 'inline-block' }} />
               {sm.label}
             </span>
-            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 ${project.published ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+            <span style={{ fontSize: 11.5, padding: '5px 12px', borderRadius: 999, fontWeight: 500, background: project.published ? '#dcfce7' : '#fef3c7', color: project.published ? '#16a34a' : '#d97706', display: 'flex', alignItems: 'center', gap: 4 }}>
               {project.published ? <Eye size={10} /> : <EyeOff size={10} />}
               {project.published ? 'Live' : 'Draft'}
             </span>
-            {project.reraNumber && (
-              <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
-                <CheckCircle2 size={11} /> RERA {project.reraNumber}
-              </span>
-            )}
             {project.featured && (
-              <span className="text-[11px] bg-blue-100 text-blue-700 font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
+              <span style={{ fontSize: 11.5, padding: '5px 12px', borderRadius: 999, fontWeight: 500, background: '#FFFBEB', color: '#92400E', border: '1px solid #FDE68A', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Star size={10} fill="currentColor" /> Featured
               </span>
             )}
             {project.closingSoon && (
-              <span className="text-[11px] bg-red-100 text-red-700 font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
+              <span style={{ fontSize: 11.5, padding: '5px 12px', borderRadius: 999, fontWeight: 500, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Clock size={10} /> Closing Soon
               </span>
             )}
           </div>
-        </div>
 
-        {/* ── Hero image ── */}
-        <div className="relative h-72 rounded-3xl overflow-hidden bg-gray-100">
-          {project.imageUrl ? (
-            <img src={project.imageUrl} alt={project.name} className="w-full h-full object-cover" />
-          ) : (
-            <ProjectPlaceholder seed={project.id} name={project.name} />
+          {/* Project title */}
+          <h1 style={{ fontFamily: T.serif, fontSize: 'clamp(42px, 6vw, 84px)', fontWeight: 300, lineHeight: 0.96, letterSpacing: '-0.03em', color: T.ink, margin: '0 0 18px' }}>
+            <em style={{ fontStyle: 'italic', color: T.aInk }}>{project.name}</em>
+          </h1>
+
+          {/* Description subtitle */}
+          {project.description && (
+            <p style={{ marginTop: 0, fontFamily: T.serif, fontSize: 'clamp(16px, 1.6vw, 20px)', fontWeight: 300, fontStyle: 'italic', color: T.ink2, lineHeight: 1.45, maxWidth: 680, marginBottom: 22 }}>
+              {project.description.length > 200 ? project.description.slice(0, 200).replace(/\s\S+$/, '') + '…' : project.description}
+            </p>
           )}
-          <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-          <button onClick={() => imageInputRef.current?.click()} disabled={uploadingImage}
-            className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-black/60 text-white hover:bg-black/75 transition-colors disabled:opacity-50">
-            {uploadingImage ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-            {project.imageUrl ? 'Change image' : 'Add image'}
-          </button>
-        </div>
 
-        {/* ── Stats row ── */}
-        <div className="grid grid-cols-4 gap-4">
-          {[
-            { label: 'TOTAL UNITS', value: total,     dot: '#0d9488' },
-            { label: 'AVAILABLE',   value: available,  dot: '#16a34a' },
-            { label: 'BOOKED',      value: booked,     dot: '#f59e0b' },
-            { label: 'SOLD',        value: sold,       dot: '#dc2626' },
-          ].map(s => (
-            <div key={s.label} className="bg-white rounded-3xl border border-gray-100/80 p-5"
-              style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-              <div className="flex items-center gap-1.5 mb-2">
-                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: s.dot }} />
-                <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">{s.label}</p>
-              </div>
-              <p className="text-3xl font-bold text-gray-900">{s.value}</p>
-            </div>
-          ))}
-        </div>
+          {/* Meta row */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0, fontSize: 13.5, color: T.ink2, marginBottom: 28, alignItems: 'center' }}>
+            {project.configurations && project.configurations.length > 0 && (
+              <span><b>{project.configurations.join(', ')}</b></span>
+            )}
+            {project.locality && (
+              <><span style={{ margin: '0 12px', color: T.line }}>|</span><span><b>{project.locality}</b>{project.city ? `, ${project.city}` : ''}</span></>
+            )}
+            {project.possessionDate && (
+              <><span style={{ margin: '0 12px', color: T.line }}>|</span><span>Possession <b>{project.possessionDate.slice(0, 7)}</b></span></>
+            )}
+            {project.totalUnits != null && (
+              <><span style={{ margin: '0 12px', color: T.line }}>|</span><span><b>{project.totalUnits}</b> total homes</span></>
+            )}
+          </div>
 
-        {/* ── Tab bar ── */}
-        <div className="flex items-center gap-0.5">
-          {tabs.map(t => (
-            <button key={t} onClick={() => setActiveTab(t)}
-              className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all ${
-                activeTab === t ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-              }`}>
-              {t}
+          {/* Hero image */}
+          <div style={{ position: 'relative', height: 360, borderRadius: 24, overflow: 'hidden', background: `linear-gradient(160deg, ${T.aInk} 0%, #0f766e 40%, #134e4a 100%)` }}>
+            {project.imageUrl ? (
+              <img src={project.imageUrl} alt={project.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            ) : (
+              <ProjectPlaceholder seed={project.id} name={project.name} />
+            )}
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(14,20,17,0.5) 0%, transparent 55%)' }} />
+            <input ref={imageInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+            <button onClick={() => imageInputRef.current?.click()} disabled={uploadingImage}
+              style={{ position: 'absolute', bottom: 14, right: 14, display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)', color: '#fff', border: 'none', cursor: 'pointer', opacity: uploadingImage ? 0.6 : 1 }}>
+              {uploadingImage ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Upload size={12} />}
+              {project.imageUrl ? 'Change image' : 'Add image'}
             </button>
-          ))}
+            {project.city && (
+              <div style={{ position: 'absolute', bottom: 14, left: 14, background: 'rgba(14,20,17,0.6)', backdropFilter: 'blur(8px)', color: '#fff', padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 500 }}>
+                {project.locality ?? project.city}{project.floorsPerTower ? ` · ${project.floorsPerTower} floors` : ''}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ── STICKY INFO BAR ───────────────────────────────────────────────── */}
+        <div style={{ position: 'sticky', top: 0, zIndex: 30, maxWidth: 1280, margin: '18px auto 0', padding: '0 28px' }}>
+          <div style={{ background: T.ink, color: '#fff', borderRadius: 16, padding: '14px 22px', display: 'grid', gridTemplateColumns: 'auto auto 1fr auto auto', gap: 20, alignItems: 'center', boxShadow: '0 8px 24px rgba(14,20,17,0.22)' }}>
+            <div style={{ lineHeight: 1.1 }}>
+              <div style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Min Price</div>
+              <div style={{ fontFamily: T.serif, fontSize: 24, fontWeight: 300, letterSpacing: '-0.01em', marginTop: 2 }}>
+                {fmtP(project.priceMin)}
+              </div>
+            </div>
+            <div style={{ borderLeft: '1px solid rgba(255,255,255,0.12)', paddingLeft: 20, lineHeight: 1.1 }}>
+              <div style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Total Units</div>
+              <div style={{ fontFamily: T.serif, fontSize: 24, fontWeight: 300, marginTop: 2 }}>{project.totalUnits ?? '—'}</div>
+            </div>
+            {project.reraNumber && (
+              <div style={{ borderLeft: '1px solid rgba(255,255,255,0.12)', paddingLeft: 20, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>
+                RERA <b style={{ color: '#fff', fontFamily: T.mono, fontSize: 11 }}>{project.reraNumber.slice(0, 20)}</b>
+              </div>
+            )}
+            <div style={{ justifySelf: 'end', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: project.published ? T.accent : '#f59e0b' }}>
+              {project.published ? <Eye size={12} /> : <EyeOff size={12} />}
+              {project.published ? 'Live' : 'Draft'}
+            </div>
+            <button onClick={() => navigate(`/builder/projects/${id}/edit`)}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, background: T.accent, color: T.aDeep, border: 'none', padding: '9px 16px', borderRadius: 10, cursor: 'pointer', fontSize: 12.5, fontWeight: 700 }}>
+              <Pencil size={11} /> Edit
+            </button>
+          </div>
         </div>
 
-        {/* ══ OVERVIEW TAB ══ */}
-        {activeTab === 'Overview' && (
-          <div className="grid grid-cols-3 gap-5">
-
-            {/* Project Identity */}
-            <div className="col-span-2 bg-white rounded-3xl border border-gray-100/80 p-7"
-              style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-              <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mb-5">Project Identity</p>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-                <InfoRow label="Project Type" value={project.projectType?.replace(/_/g, ' ')} />
-                <InfoRow label="Configurations" value={project.configurations?.join(', ')} />
-                <InfoRow label="Total Units" value={project.totalUnits} />
-                <InfoRow label="Towers" value={project.towers} />
-                <InfoRow label="Floors per Tower" value={project.floorsPerTower} />
-                <InfoRow label="RERA Number" value={project.reraNumber} />
-                <InfoRow label="RERA Expiry" value={project.reraExpiry} />
+        {/* ── HIGHLIGHTS STRIP ──────────────────────────────────────────────── */}
+        <section style={{ maxWidth: 1280, margin: '64px auto 0', padding: '0 28px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 22 }}>
+            {[
+              { lbl: 'Total Units',  val: String(total),     sub: `${booked + sold} claimed` },
+              { lbl: 'Available',    val: String(available),  sub: `${availPct}% remaining` },
+              { lbl: 'Revenue',      val: avgPrice > 0 && total > 0 ? fmtP(Math.round(revenue)) : '—', sub: targetRevenue > 0 ? `of ${fmtP(Math.round(targetRevenue))} target` : 'No price data' },
+              { lbl: 'Possession',   val: project.possessionDate ? project.possessionDate.slice(0, 7) : '—', sub: project.status?.replace(/_/g, ' ') ?? '' },
+            ].map(s => (
+              <div key={s.lbl} style={{ borderTop: `2px solid ${T.ink}`, paddingTop: 14 }}>
+                <div style={{ ...sk, marginBottom: 6 }}>{s.lbl}</div>
+                <div style={{ fontFamily: T.serif, fontSize: 38, fontWeight: 300, lineHeight: 1, letterSpacing: '-0.02em', color: T.ink }}>{s.val}</div>
+                <div style={{ fontSize: 12, color: T.muted, marginTop: 6, lineHeight: 1.4 }}>{s.sub}</div>
               </div>
-              {project.description && (
-                <div className="mt-6 pt-5 border-t border-gray-50">
-                  <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mb-2">Description</p>
-                  <p className="text-sm text-gray-500 leading-relaxed">{project.description}</p>
+            ))}
+          </div>
+        </section>
+
+        {/* ── TAB BAR ───────────────────────────────────────────────────────── */}
+        <div style={{ maxWidth: 1280, margin: '40px auto 0', padding: '0 28px' }}>
+          <div style={{ display: 'inline-flex', background: T.bg3, borderRadius: 999, padding: 4, gap: 2, border: `1px solid ${T.line}` }}>
+            {tabs.map(t => (
+              <button key={t} onClick={() => setActiveTab(t)}
+                style={{ padding: '9px 20px', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none', background: activeTab === t ? T.ink : 'transparent', color: activeTab === t ? '#fff' : T.muted, transition: 'all .14s ease' }}>
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ══ OVERVIEW TAB ══════════════════════════════════════════════════════ */}
+        {activeTab === 'Overview' && (
+          <div style={{ maxWidth: 1280, margin: '40px auto 0', padding: '0 28px 80px' }}>
+
+            {/* 4-col highlights */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+              {[
+                { lbl: 'BOOKED',    val: booked, bg: '#fef3c7', fg: '#d97706' },
+                { lbl: 'SOLD',      val: sold,   bg: '#fee2e2', fg: '#dc2626' },
+                { lbl: 'HOLD',      val: Math.max(0, total - sold - booked - available), bg: '#f3f4f6', fg: '#6b7280' },
+                { lbl: 'AVAILABLE', val: available, bg: T.aTint, fg: T.aInk },
+              ].map(s => (
+                <div key={s.lbl} style={{ padding: '20px 22px', borderRadius: 20, background: s.bg, border: `1px solid ${T.line}` }}>
+                  <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.14em', color: s.fg, textTransform: 'uppercase' as const, marginBottom: 8, fontWeight: 600 }}>{s.lbl}</div>
+                  <div style={{ fontFamily: T.serif, fontSize: 36, fontWeight: 300, lineHeight: 1, color: T.ink }}>{s.val}</div>
                 </div>
-              )}
+              ))}
             </div>
 
-            {/* Right column */}
-            <div className="space-y-4">
-              {/* Key dates & commission */}
-              <div className="bg-white rounded-3xl border border-gray-100/80 p-6"
-                style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-                <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mb-4">Key Info</p>
-                <div className="space-y-4">
-                  <InfoRow label="Possession Date" value={project.possessionDate} />
-                  {project.commissionValue != null && (
-                    <InfoRow label="Commission" value={`${project.commissionValue}%`} />
-                  )}
-                  {project.commissionStructure && (
-                    <InfoRow label="Commission Type" value={project.commissionStructure} />
-                  )}
-                  {project.videoUrl && (
-                    <div>
-                      <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mb-0.5">Video</p>
-                      <a href={project.videoUrl} target="_blank" rel="noreferrer"
-                        className="text-sm text-teal-600 font-semibold hover:underline flex items-center gap-1">
-                        <ExternalLink size={11} /> Watch video
-                      </a>
+            {/* Revenue progress */}
+            {avgPrice > 0 && total > 0 && (
+              <div style={{ background: T.bg2, borderRadius: 20, padding: '24px 28px', marginBottom: 32, border: `1px solid ${T.line}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+                  <div style={{ ...sk }}>Revenue Progress</div>
+                  <span style={{ fontFamily: T.mono, fontSize: 13, fontWeight: 600, color: T.ink }}>
+                    {fmtP(Math.round(revenue))} <span style={{ color: T.muted, fontWeight: 400 }}>of {fmtP(Math.round(targetRevenue))}</span>
+                  </span>
+                </div>
+                <div style={{ height: 8, background: T.line, borderRadius: 999, overflow: 'hidden' }}>
+                  <div style={{ width: `${targetRevenue > 0 ? Math.min(100, (revenue / targetRevenue) * 100) : 0}%`, height: '100%', background: T.aDeep, borderRadius: 999, transition: 'width .4s ease' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11.5, color: T.muted, fontFamily: T.mono }}>
+                  <span>0</span>
+                  <span>{Math.round(targetRevenue > 0 ? (revenue / targetRevenue) * 100 : 0)}% collected</span>
+                  <span>{fmtP(Math.round(targetRevenue))}</span>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 24 }}>
+
+              {/* Left: Identity + Description */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                <div style={{ background: T.bg, border: `1px solid ${T.line}`, borderRadius: 22, padding: '28px 30px' }}>
+                  <div style={{ ...sk, marginBottom: 20 }}>Project Identity</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 28px' }}>
+                    {[
+                      { l: 'Type',          v: project.projectType?.replace(/_/g, ' ') },
+                      { l: 'Configurations', v: project.configurations?.join(', ') },
+                      { l: 'Total Units',   v: project.totalUnits != null ? String(project.totalUnits) : null },
+                      { l: 'Towers',        v: project.towers != null ? String(project.towers) : null },
+                      { l: 'Floors/Tower',  v: project.floorsPerTower != null ? String(project.floorsPerTower) : null },
+                      { l: 'RERA Number',   v: project.reraNumber },
+                      { l: 'RERA Expiry',   v: project.reraExpiry },
+                      { l: 'Possession',    v: project.possessionDate },
+                    ].filter(r => r.v).map(r => (
+                      <div key={r.l}>
+                        <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: T.muted, marginBottom: 3, fontWeight: 600 }}>{r.l}</div>
+                        <div style={{ fontSize: 14, fontWeight: 500, color: T.ink, lineHeight: 1.3 }}>{r.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {project.description && (
+                    <div style={{ marginTop: 22, paddingTop: 20, borderTop: `1px solid ${T.line}` }}>
+                      <div style={{ ...sk, marginBottom: 8 }}>Description</div>
+                      <p style={{ fontSize: 13.5, color: T.ink2, lineHeight: 1.6, margin: 0 }}>{project.description}</p>
                     </div>
                   )}
                 </div>
-              </div>
 
-              {/* Flags */}
-              <div className="bg-white rounded-3xl border border-gray-100/80 p-6"
-                style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-                <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mb-3">Flags</p>
-                <div className="divide-y divide-gray-50">
-                  <FlagPill label="Published (Live)" active={project.published} activeColor="#16a34a" />
-                  <FlagPill label="Featured" active={project.featured} activeColor="#0d9488" />
-                  <FlagPill label="Closing Soon" active={project.closingSoon} activeColor="#d97706" />
-                </div>
-              </div>
-            </div>
-
-            {/* Pricing */}
-            <div className="col-span-3 bg-white rounded-3xl border border-gray-100/80 p-7"
-              style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-              <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mb-5">Pricing</p>
-              <div className="grid grid-cols-6 gap-6">
-                <InfoRow label="Min Price" value={project.priceMin ? formatCurrency(project.priceMin) : '—'} />
-                <InfoRow label="Max Price" value={project.priceMax ? formatCurrency(project.priceMax) : '—'} />
-                {project.pricePerSqftMin != null && (
-                  <InfoRow label="₹/sqft (min)" value={`₹${project.pricePerSqftMin.toLocaleString('en-IN')}`} />
-                )}
-                {project.pricePerSqftMax != null && (
-                  <InfoRow label="₹/sqft (max)" value={`₹${project.pricePerSqftMax.toLocaleString('en-IN')}`} />
-                )}
-                {project.maintenanceCharges != null && (
-                  <InfoRow label="Maintenance" value={`₹${project.maintenanceCharges}/sqft/mo`} />
-                )}
-                {project.floorRiseCharges != null && (
-                  <InfoRow label="Floor Rise" value={`₹${project.floorRiseCharges}/floor`} />
-                )}
-              </div>
-
-              {avgPrice > 0 && total > 0 && (
-                <div className="mt-6 pt-5 border-t border-gray-50">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">Revenue Progress</span>
-                    <span className="text-sm font-bold text-gray-700">
-                      {formatCurrency(revenue)} of {formatCurrency(targetRevenue)}
-                    </span>
+                {/* Pricing card */}
+                <div style={{ background: T.bg, border: `1px solid ${T.line}`, borderRadius: 22, padding: '28px 30px' }}>
+                  <div style={{ ...sk, marginBottom: 20 }}>Pricing</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px 20px' }}>
+                    {[
+                      { l: 'Min Price',   v: project.priceMin ? fmtP(project.priceMin) : null },
+                      { l: 'Max Price',   v: project.priceMax ? fmtP(project.priceMax) : null },
+                      { l: '₹/sqft Min', v: project.pricePerSqftMin != null ? `₹${project.pricePerSqftMin.toLocaleString('en-IN')}` : null },
+                      { l: '₹/sqft Max', v: project.pricePerSqftMax != null ? `₹${project.pricePerSqftMax.toLocaleString('en-IN')}` : null },
+                      { l: 'Maintenance', v: project.maintenanceCharges != null ? `₹${project.maintenanceCharges}/sqft/mo` : null },
+                      { l: 'Floor Rise',  v: project.floorRiseCharges != null ? `₹${project.floorRiseCharges}/floor` : null },
+                    ].filter(r => r.v).map(r => (
+                      <div key={r.l} style={{ padding: '14px 16px', background: T.bg2, borderRadius: 14, border: `1px solid ${T.line}` }}>
+                        <div style={{ fontFamily: T.mono, fontSize: 9.5, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: T.muted, marginBottom: 5, fontWeight: 600 }}>{r.l}</div>
+                        <div style={{ fontFamily: T.serif, fontSize: 20, fontWeight: 300, color: T.ink }}>{r.v}</div>
+                      </div>
+                    ))}
                   </div>
-                  <Progress value={targetRevenue > 0 ? (revenue / targetRevenue) * 100 : 0} className="h-2" />
-                </div>
-              )}
-            </div>
-
-            {/* Location */}
-              file:///Users/veerapusuluru/Downloads/Prestige%20Skyline%20·%20Gachibowli,%20Hyderabad.html            <div className="col-span-3 bg-white rounded-3xl border border-gray-100/80 overflow-hidden"
-              style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-              <div className="p-7 pb-5">
-                <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mb-5">Location</p>
-                <div className="grid grid-cols-4 gap-6">
-                  <InfoRow label="Address" value={project.address} />
-                  <InfoRow label="City" value={project.city} />
-                  <InfoRow label="Locality" value={project.locality} />
-                  <InfoRow label="Pincode" value={project.pincode} />
-                  {project.landmark && <InfoRow label="Landmark" value={`Near ${project.landmark}`} />}
-                </div>
-              </div>
-              {/* Map preview */}
-              {(project.googleMapsLink || (project.address && project.city)) && (() => {
-                const link = project.googleMapsLink ?? '';
-                const pin  = link.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
-                const at   = link.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-                const q    = [project.address, project.locality, project.city].filter(Boolean).join(', ');
-                const src  = pin
-                  ? `https://maps.google.com/maps?q=${pin[1]},${pin[2]}&z=17&output=embed`
-                  : at
-                    ? `https://maps.google.com/maps?q=${at[1]},${at[2]}&z=17&output=embed`
-                    : `https://maps.google.com/maps?q=${encodeURIComponent(q)}&output=embed`;
-                return (
-                  <>
-                    <iframe
-                      title="Project Location"
-                      width="100%"
-                      height="300"
-                      loading="lazy"
-                      src={src}
-                      className="border-0 block"
-                      referrerPolicy="no-referrer-when-downgrade"
-                    />
-                    <div className="px-7 py-3 flex items-center gap-3 bg-gray-50 border-t border-gray-100">
-                      <MapPin size={11} className="text-teal-500 shrink-0" />
-                      <span className="text-[11px] text-gray-500 flex-1 truncate">
-                        {[project.address, project.city].filter(Boolean).join(', ')}
-                      </span>
-                      {project.googleMapsLink && (
-                        <a href={project.googleMapsLink} target="_blank" rel="noreferrer"
-                          className="shrink-0 text-[11px] text-teal-600 font-semibold hover:underline flex items-center gap-1">
-                          <ExternalLink size={10} /> Open in Maps
+                  {project.commissionValue != null && (
+                    <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${T.line}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ ...sk, marginBottom: 3 }}>Commission</div>
+                        <div style={{ fontSize: 14, color: T.ink, fontWeight: 500 }}>{project.commissionValue}%{project.commissionStructure ? ` · ${project.commissionStructure}` : ''}</div>
+                      </div>
+                      {project.videoUrl && (
+                        <a href={project.videoUrl} target="_blank" rel="noreferrer"
+                          style={{ display: 'flex', alignItems: 'center', gap: 5, color: T.aInk, fontSize: 13, fontWeight: 600, textDecoration: 'none', padding: '7px 14px', borderRadius: 999, background: T.aTint, border: `1px solid ${T.accent}` }}>
+                          <ExternalLink size={11} /> Watch video
                         </a>
                       )}
                     </div>
-                  </>
-                );
-              })()}
-            </div>
-
-            {/* Amenities */}
-            {!!project.amenities?.length && (
-              <div className={`${project.nearbyHighlights?.length ? 'col-span-2' : 'col-span-3'} bg-white rounded-3xl border border-gray-100/80 p-7`}
-                style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-                <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mb-4">Amenities</p>
-                <div className="flex flex-wrap gap-2">
-                  {project.amenities.map(a => (
-                    <span key={a} className="text-xs px-3 py-1.5 rounded-full bg-gray-50 text-gray-600 border border-gray-100 font-medium">{a}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Nearby Highlights */}
-            {!!project.nearbyHighlights?.length && (
-              <div className="col-span-1 bg-white rounded-3xl border border-gray-100/80 p-7"
-                style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-                <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mb-4">Nearby</p>
-                <div className="flex flex-wrap gap-2">
-                  {project.nearbyHighlights.map(n => (
-                    <span key={n} className="text-xs px-3 py-1.5 rounded-full bg-teal-50 text-teal-700 border border-teal-100 font-medium flex items-center gap-1">
-                      <MapPin size={9} /> {n}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ══ UNITS TAB ══ */}
-        {activeTab === 'Units' && (
-          <div className="bg-white rounded-3xl border border-gray-100/80 p-7"
-            style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-            <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mb-5">Unit Inventory — {project.name}</p>
-            {total > 0 ? (
-              <>
-                <div className="grid grid-cols-5 md:grid-cols-10 gap-2 mb-5">
-                  {Array.from({ length: Math.min(total, 50) }, (_, i) => {
-                    const status = i < sold ? 'Sold' : i < sold + booked ? 'Booked' : 'Available';
-                    const colors: Record<string, string> = { Sold: '#dc2626', Booked: '#f59e0b', Available: '#16a34a' };
-                    return (
-                      <div key={i} className="aspect-square rounded-xl flex items-center justify-center text-[10px] text-white font-bold"
-                        style={{ backgroundColor: colors[status] }}>
-                        {i + 1}
-                      </div>
-                    );
-                  })}
-                </div>
-                {total > 50 && <p className="text-xs text-gray-400 mb-4">Showing first 50 of {total} units</p>}
-                <div className="flex gap-5">
-                  <span className="text-xs flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded" style={{ backgroundColor: '#16a34a' }} /> Available ({available})
-                  </span>
-                  <span className="text-xs flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded" style={{ backgroundColor: '#f59e0b' }} /> Booked ({booked})
-                  </span>
-                  <span className="text-xs flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded" style={{ backgroundColor: '#dc2626' }} /> Sold ({sold})
-                  </span>
-                  {hold > 0 && (
-                    <span className="text-xs flex items-center gap-1.5">
-                      <span className="w-3 h-3 rounded bg-gray-400" /> Hold ({hold})
-                    </span>
                   )}
                 </div>
-              </>
-            ) : (
-              <div className="text-center py-12">
-                <Building2 size={36} className="mx-auto mb-3 text-gray-200" />
-                <p className="text-sm text-gray-400">No unit data. Click "Edit project" to add unit counts.</p>
               </div>
-            )}
+
+              {/* Right: flags + publish status */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                {/* Status flags card */}
+                <div style={{ background: T.bg, border: `1px solid ${T.line}`, borderRadius: 22, padding: '28px 30px' }}>
+                  <div style={{ ...sk, marginBottom: 20 }}>Project Status</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {[
+                      { label: 'Published (Live)', active: project.published, icon: project.published ? <Eye size={14} /> : <EyeOff size={14} />, activeColor: '#16a34a' },
+                      { label: 'Featured',         active: project.featured,  icon: <Star size={14} fill={project.featured ? 'currentColor' : 'none'} />, activeColor: '#0d9488' },
+                      { label: 'Closing Soon',     active: project.closingSoon, icon: <Clock size={14} />, activeColor: '#d97706' },
+                    ].map(f => (
+                      <div key={f.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 14, background: f.active ? `${f.activeColor}12` : T.bg2, border: `1px solid ${f.active ? f.activeColor + '30' : T.line}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 500, color: f.active ? f.activeColor : T.muted }}>
+                          {f.icon} {f.label}
+                        </div>
+                        <span style={{ fontFamily: T.mono, fontSize: 10.5, fontWeight: 700, color: f.active ? f.activeColor : T.muted, letterSpacing: '0.08em' }}>
+                          {f.active ? 'YES' : 'NO'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Amenities */}
+                {!!project.amenities?.length && (
+                  <div style={{ background: T.ink, borderRadius: 22, padding: '28px 30px' }}>
+                    <div style={{ ...sk, color: 'rgba(255,255,255,0.5)', marginBottom: 16 }}>Amenities</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {project.amenities.map(a => (
+                        <span key={a} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.75)', border: '1px solid rgba(255,255,255,0.1)' }}>{a}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Nearby Highlights */}
+                {!!project.nearbyHighlights?.length && (
+                  <div style={{ background: T.bg, border: `1px solid ${T.line}`, borderRadius: 22, padding: '28px 30px' }}>
+                    <div style={{ ...sk, marginBottom: 16 }}>Nearby</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {project.nearbyHighlights.map(n => (
+                        <span key={n} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 999, background: T.aTint, color: T.aInk, border: `1px solid ${T.accent}`, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <MapPin size={9} /> {n}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Location */}
+            <div style={{ marginTop: 32, background: T.bg, border: `1px solid ${T.line}`, borderRadius: 22, overflow: 'hidden' }}>
+              <div style={{ padding: '28px 30px 20px' }}>
+                <div style={{ ...sk, marginBottom: 20 }}>Location</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px 20px', marginBottom: 8 }}>
+                  {[
+                    { l: 'Address',  v: project.address },
+                    { l: 'City',     v: project.city },
+                    { l: 'Locality', v: project.locality },
+                    { l: 'Pincode',  v: project.pincode },
+                    { l: 'Landmark', v: project.landmark ? `Near ${project.landmark}` : null },
+                  ].filter(r => r.v).map(r => (
+                    <div key={r.l}>
+                      <div style={{ fontFamily: T.mono, fontSize: 9.5, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: T.muted, marginBottom: 3, fontWeight: 600 }}>{r.l}</div>
+                      <div style={{ fontSize: 13.5, fontWeight: 500, color: T.ink }}>{r.v}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ padding: '0 30px 30px' }}>
+                {mapsSaving && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, fontSize: 11, color: T.muted }}>
+                    <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> Saving location link…
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-4">
+                  <GoogleMapsLocationField
+                    value={mapsLink}
+                    onChange={handleMapsLinkChange}
+                    address={project.address ?? ''}
+                    city={project.city ?? ''}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* ══ DOCUMENTS TAB ══ */}
+        {/* ══ UNITS TAB ═════════════════════════════════════════════════════════ */}
+        {activeTab === 'Units' && (
+          <div style={{ maxWidth: 1280, margin: '40px auto 0', padding: '0 28px 80px' }}>
+            <div style={{ background: T.bg, border: `1px solid ${T.line}`, borderRadius: 22, padding: '32px 36px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+                <div>
+                  <div style={{ ...sk, marginBottom: 8 }}>Unit Inventory</div>
+                  <h2 style={{ ...secH2, margin: 0 }}><em style={{ fontStyle: 'italic', color: T.aInk }}>{project.name}</em></h2>
+                </div>
+                <div style={{ display: 'flex', gap: 16 }}>
+                  {[
+                    { lbl: 'Available', val: available, color: '#16a34a', bg: '#dcfce7' },
+                    { lbl: 'Booked',    val: booked,    color: '#d97706', bg: '#fef3c7' },
+                    { lbl: 'Sold',      val: sold,      color: '#dc2626', bg: '#fee2e2' },
+                  ].map(s => (
+                    <div key={s.lbl} style={{ textAlign: 'center', padding: '10px 18px', borderRadius: 14, background: s.bg }}>
+                      <div style={{ fontFamily: T.serif, fontSize: 22, fontWeight: 300, color: T.ink }}>{s.val}</div>
+                      <div style={{ fontFamily: T.mono, fontSize: 9.5, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: s.color, fontWeight: 600, marginTop: 2 }}>{s.lbl}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {total > 0 ? (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 8, marginBottom: 24 }}>
+                    {Array.from({ length: Math.min(total, 60) }, (_, i) => {
+                      const status = i < sold ? 'sold' : i < sold + booked ? 'booked' : 'available';
+                      const colors: Record<string, string> = { sold: '#dc2626', booked: '#f59e0b', available: T.aInk };
+                      const bgs:    Record<string, string> = { sold: '#fee2e2', booked: '#fef3c7', available: T.aTint };
+                      return (
+                        <div key={i} style={{ aspectRatio: '1', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, fontFamily: T.mono, fontWeight: 600, background: bgs[status], color: colors[status], border: `1px solid ${colors[status]}30` }}>
+                          {i + 1}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {total > 60 && (
+                    <p style={{ fontSize: 12, color: T.muted, marginBottom: 16 }}>Showing first 60 of {total} units</p>
+                  )}
+                </>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                  <Building2 size={36} style={{ color: T.line, display: 'block', margin: '0 auto 12px' }} />
+                  <p style={{ fontSize: 13.5, color: T.muted }}>No unit data. Click "Edit project" to add unit counts.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ══ DOCUMENTS TAB ═════════════════════════════════════════════════════ */}
         {activeTab === 'Documents' && (
-          <div className="space-y-5">
-            <div className="bg-white rounded-3xl border border-gray-100/80 p-7"
-              style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-              <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mb-5">Upload Document</p>
-              <div className="flex gap-3 flex-wrap">
+          <div style={{ maxWidth: 1280, margin: '40px auto 0', padding: '0 28px 80px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+            {/* Upload card */}
+            <div style={{ background: T.bg, border: `1px solid ${T.line}`, borderRadius: 22, padding: '28px 30px' }}>
+              <div style={{ ...sk, marginBottom: 18 }}>Upload Document</div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const, alignItems: 'center' }}>
                 <select value={uploadDocType} onChange={e => setUploadDocType(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500/15 focus:border-teal-400">
+                  style={{ padding: '10px 14px', borderRadius: 12, border: `1px solid ${T.line}`, background: T.bg2, fontSize: 13, color: T.ink2, outline: 'none', cursor: 'pointer' }}>
                   {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
-                <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="hidden" onChange={handleFileChange} />
+                <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={handleFileChange} />
                 <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity hover:opacity-90"
-                  style={{ background: '#0d9488' }}>
-                  {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                  style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 20px', borderRadius: 12, fontSize: 13, fontWeight: 600, background: T.aInk, color: '#fff', border: 'none', cursor: 'pointer', opacity: uploading ? 0.6 : 1 }}>
+                  {uploading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Upload size={13} />}
                   {uploading ? 'Uploading…' : 'Choose & Upload'}
                 </button>
               </div>
-              <p className="text-[11px] text-gray-400 mt-2">Supported: PDF, DOC, JPG, PNG</p>
+              <p style={{ fontSize: 11.5, color: T.muted, marginTop: 10 }}>Supported: PDF, DOC, JPG, PNG</p>
             </div>
 
-            <div className="bg-white rounded-3xl border border-gray-100/80 p-7"
-              style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-              <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mb-5">Project Documents</p>
+            {/* Documents list */}
+            <div style={{ background: T.bg, border: `1px solid ${T.line}`, borderRadius: 22, padding: '28px 30px' }}>
+              <div style={{ ...sk, marginBottom: 20 }}>Project Documents</div>
               {docsLoading ? (
-                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-300" size={24} /></div>
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
+                  <Loader2 size={22} style={{ color: T.muted, animation: 'spin 1s linear infinite' }} />
+                </div>
               ) : documents.length === 0 ? (
-                <div className="text-center py-10">
-                  <FileText size={32} className="mx-auto mb-3 text-gray-200" />
-                  <p className="text-sm text-gray-400">No documents uploaded yet.</p>
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <FileText size={32} style={{ color: T.line, display: 'block', margin: '0 auto 12px' }} />
+                  <p style={{ fontSize: 13.5, color: T.muted }}>No documents uploaded yet.</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {documents.map(doc => (
-                    <div key={doc.id} className="flex items-center gap-4 py-3 px-4 bg-gray-50 rounded-2xl">
-                      <FileText size={16} className="text-gray-400 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-800 font-semibold truncate">{doc.fileName || doc.docType}</p>
-                        <p className="text-[11px] text-gray-400">
+                    <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 18px', background: T.bg2, borderRadius: 14, border: `1px solid ${T.line}` }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: T.aTint, color: T.aInk, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                        <FileText size={15} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: T.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{doc.fileName || doc.docType}</p>
+                        <p style={{ margin: '2px 0 0', fontSize: 11.5, color: T.muted }}>
                           {doc.docType} · {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString('en-IN') : ''}
                         </p>
                       </div>
-                      <div className="flex gap-2 flex-shrink-0">
-                        {doc.fileUrl && (
-                          <>
-                            <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer"
-                              className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-white transition-colors flex items-center gap-1">
-                              <ExternalLink size={11} /> View
-                            </a>
-                            <a href={doc.fileUrl} download
-                              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors flex items-center gap-1">
-                              <Download size={11} /> Download
-                            </a>
-                          </>
-                        )}
-                      </div>
+                      {doc.fileUrl && (
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                          <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer"
+                            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 10, fontSize: 12.5, fontWeight: 600, border: `1px solid ${T.line}`, color: T.ink2, textDecoration: 'none', background: T.bg }}>
+                            <ExternalLink size={11} /> View
+                          </a>
+                          <a href={doc.fileUrl} download
+                            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 10, fontSize: 12.5, fontWeight: 600, background: T.aTint, color: T.aInk, textDecoration: 'none', border: `1px solid ${T.accent}` }}>
+                            <Download size={11} /> Download
+                          </a>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -625,22 +764,22 @@ const BuilderProjectDetail = () => {
           </div>
         )}
 
-        {/* ══ BROCHURE TAB ══ */}
+        {/* ══ BROCHURE TAB ══════════════════════════════════════════════════════ */}
         {activeTab === 'Brochure' && (
-          <div className="space-y-5">
-            <div className="flex items-center justify-between">
+          <div style={{ maxWidth: 1280, margin: '40px auto 0', padding: '0 28px 80px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mb-1">Project Brochure PDF</p>
-                <p className="text-sm text-gray-500">Auto-generated from your project details</p>
+                <div style={{ ...sk, marginBottom: 6 }}>Project Brochure PDF</div>
+                <p style={{ fontSize: 13.5, color: T.muted, margin: 0 }}>Auto-generated from your project details</p>
               </div>
               {pdfUrl && (
-                <div className="flex gap-2">
+                <div style={{ display: 'flex', gap: 8 }}>
                   <a href={pdfUrl} download={`${project.name}_brochure.pdf`}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, border: `1px solid ${T.line}`, color: T.ink2, textDecoration: 'none', background: T.bg }}>
                     <Download size={13} /> Download
                   </a>
                   <button onClick={() => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); setPdfUrl(null); }}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-semibold border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, border: `1px solid ${T.line}`, color: T.muted, background: T.bg, cursor: 'pointer' }}>
                     Regenerate
                   </button>
                 </div>
@@ -648,27 +787,26 @@ const BuilderProjectDetail = () => {
             </div>
 
             {pdfLoading && (
-              <div className="flex flex-col items-center justify-center py-24 gap-3">
-                <Loader2 className="animate-spin text-teal-500" size={28} />
-                <p className="text-sm text-gray-400">Generating PDF brochure…</p>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', gap: 14 }}>
+                <Loader2 size={26} style={{ color: T.aInk, animation: 'spin 1s linear infinite' }} />
+                <p style={{ fontSize: 13.5, color: T.muted }}>Generating PDF brochure…</p>
               </div>
             )}
 
             {pdfError && (
-              <div className="text-center py-16 border border-dashed border-gray-200 rounded-3xl">
-                <FileText className="mx-auto mb-3 text-gray-300" size={36} />
-                <p className="text-sm text-red-400 mb-3">{pdfError}</p>
+              <div style={{ textAlign: 'center', padding: '60px 0', border: `1px dashed ${T.line}`, borderRadius: 22 }}>
+                <FileText size={34} style={{ color: T.line, display: 'block', margin: '0 auto 12px' }} />
+                <p style={{ fontSize: 13.5, color: '#dc2626', marginBottom: 16 }}>{pdfError}</p>
                 <button onClick={() => { setPdfError(null); setPdfUrl(null); }}
-                  className="px-5 py-2 rounded-full text-sm font-semibold text-white"
-                  style={{ background: '#0d9488' }}>
+                  style={{ padding: '10px 22px', borderRadius: 12, fontSize: 13, fontWeight: 600, background: T.aInk, color: '#fff', border: 'none', cursor: 'pointer' }}>
                   Try Again
                 </button>
               </div>
             )}
 
             {pdfUrl && !pdfLoading && (
-              <div className="rounded-3xl overflow-hidden border border-gray-100 shadow-sm" style={{ height: '75vh' }}>
-                <iframe src={pdfUrl} className="w-full h-full" title="Project Brochure" />
+              <div style={{ borderRadius: 22, overflow: 'hidden', border: `1px solid ${T.line}`, height: '75vh' }}>
+                <iframe src={pdfUrl} style={{ width: '100%', height: '100%', border: 0, display: 'block' }} title="Project Brochure" />
               </div>
             )}
           </div>

@@ -66,6 +66,7 @@ model Project {
   closingSoon     Boolean   @default(false)
   imageUrl        String?
   videoUrl        String?
+  googleMapsLink  String?
   possessionDate  String?
   published       Boolean   @default(true)
   status          String    @default("ACTIVE")
@@ -73,6 +74,18 @@ model Project {
   meetings        Meeting[]
   deals           Deal[]
   documents       Document[]
+  shareLinks      ProjectShareLink[]
+}
+
+model ProjectShareLink {
+  id         Int              @id @default(autoincrement())
+  token      String           @unique
+  projectId  Int
+  project    Project          @relation(fields: [projectId], references: [id])
+  cpId       Int?
+  cp         ChannelPartner?  @relation(fields: [cpId], references: [id])
+  clickCount Int              @default(0)
+  createdAt  DateTime         @default(now())
 }
 
 model Meeting {
@@ -83,6 +96,7 @@ model Meeting {
   customer        User      @relation(fields: [customerId], references: [id])
   builderId       Int
   builder         Builder   @relation("BuilderMeetings", fields: [builderId], references: [id])
+  cpId            Int?      // ChannelPartner.id who arranged this meeting
   customerPhone   String
   customerName    String
   preferredDate   String
@@ -90,9 +104,10 @@ model Meeting {
   meetingType     String?
   notes           String?
   builderNotes    String?
+  cpNotes         String?
   confirmedDate   String?
   confirmedTime   String?
-  status          String    @default("Pending") // Pending, Confirmed, Completed, Follow-up Required
+  status          String    @default("Pending") // Pending, Confirmed, Rescheduled, Completed, Follow-up Required, Cancelled
   createdAt       DateTime  @default(now())
 }
 
@@ -181,17 +196,19 @@ model ChannelPartner {
   referrals         ChannelPartner[] @relation("CPReferrals")
   deals             Deal[]
   contacts          CPContact[]
+  shareLinks        ProjectShareLink[]
   createdAt         DateTime         @default(now())
 }
 
 model CPContact {
-  id          Int            @id @default(autoincrement())
-  cpId        Int
-  cp          ChannelPartner @relation(fields: [cpId], references: [id])
-  name        String
-  phone       String
-  email       String?
-  notes       String?
-  tags        String?        // comma-separated: "hot-lead,family,colleague"
-  createdAt   DateTime       @default(now())
+  id              Int            @id @default(autoincrement())
+  cpId            Int
+  cp              ChannelPartner @relation(fields: [cpId], references: [id])
+  name            String
+  phone           String
+  email           String?
+  notes           String?
+  tags            String?        // comma-separated: "Hot Lead,Family,Colleague"
+  bhkPreference   String?        // e.g. "2 BHK", "3 BHK", "Villa"
+  createdAt       DateTime       @default(now())
 }
