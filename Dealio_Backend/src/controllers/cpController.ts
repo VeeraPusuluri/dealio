@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { randomBytes } from 'crypto';
 import prisma from '../utils/prisma';
 import { channelManager } from '../services/channelManager';
 
@@ -22,7 +23,7 @@ export const cpController = {
 
   addContact: async (req: Request, res: Response) => {
     const cpUserId = Number(req.params.cpUserId);
-    const { name, phone, email, notes, tags } = req.body;
+    const { name, phone, email, notes, tags, bhkPreference } = req.body;
 
     if (!name?.trim() || !phone?.trim()) {
       return res.status(400).json({ ok: false, message: 'Name and phone are required' });
@@ -34,14 +35,22 @@ export const cpController = {
     }
 
     const contact = await prisma.cPContact.create({
-      data: { cpId: cp.id, name: name.trim(), phone: phone.trim(), email: email?.trim() || null, notes: notes?.trim() || null, tags: tags?.trim() || null },
+      data: {
+        cpId: cp.id,
+        name: name.trim(),
+        phone: phone.trim(),
+        email: email?.trim() || null,
+        notes: notes?.trim() || null,
+        tags: tags?.trim() || null,
+        bhkPreference: bhkPreference?.trim() || null,
+      },
     });
     res.json({ ok: true, data: contact });
   },
 
   updateContact: async (req: Request, res: Response) => {
     const contactId = Number(req.params.contactId);
-    const { name, phone, email, notes, tags } = req.body;
+    const { name, phone, email, notes, tags, bhkPreference } = req.body;
 
     const contact = await prisma.cPContact.update({
       where: { id: contactId },
@@ -51,6 +60,7 @@ export const cpController = {
         ...(email !== undefined && { email: email?.trim() || null }),
         ...(notes !== undefined && { notes: notes?.trim() || null }),
         ...(tags !== undefined && { tags: tags?.trim() || null }),
+        ...(bhkPreference !== undefined && { bhkPreference: bhkPreference?.trim() || null }),
       },
     });
     res.json({ ok: true, data: contact });
@@ -199,6 +209,44 @@ export const cpController = {
     res.json({ ok: true, data: notifications });
   },
 
+  // ── Meetings ──────────────────────────────────────────────────────────
+
+  getCPMeetings: async (req: Request, res: Response) => {
+    const cpUserId = Number(req.params.cpUserId);
+    const cp = await prisma.channelPartner.findUnique({ where: { userId: cpUserId } });
+    if (!cp) return res.json({ ok: true, data: [] });
+
+    const meetings = await prisma.meeting.findMany({
+      where: { cpId: cp.id },
+      include: { project: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      ok: true,
+      data: meetings.map(m => ({ ...m, projectName: m.project?.name ?? 'Unknown Project', project: undefined })),
+    });
+  },
+
+  addMeetingNote: async (req: Request, res: Response) => {
+    const meetingId = Number(req.params.meetingId);
+    const { notes } = req.body;
+
+    try {
+      const meeting = await prisma.meeting.update({
+        where: { id: meetingId },
+        data: { cpNotes: notes ?? null },
+        include: { project: { select: { name: true } } },
+      });
+      res.json({
+        ok: true,
+        data: { ...meeting, projectName: meeting.project?.name ?? 'Unknown Project', project: undefined },
+      });
+    } catch {
+      res.status(404).json({ ok: false, message: 'Meeting not found' });
+    }
+  },
+
   // ── Document upload ────────────────────────────────────────────────────
 
   uploadDocument: async (req: Request, res: Response) => {
@@ -222,5 +270,79 @@ export const cpController = {
     else cp = await prisma.channelPartner.update({ where: { userId: cpUserId }, data: updateData });
 
     res.json({ ok: true, data: { url: fileUrl, docType, cp } });
+  },
+
+  // ── CP Leads (deals where this CP was the referrer) ───────────────────
+
+  getCPLeads: async (req: Request, res: Response) => {
+    const cpUserId = Number(req.params.cpUserId);
+    const cp = await prisma.channelPartner.findUnique({ where: { userId: cpUserId } });
+    if (!cp) return res.json({ ok: true, data: [] });
+
+    const deals = await prisma.deal.findMany({
+      where: { cpId: cp.id },
+      include: {
+        project:  { select: { name: true, commissionValue: true, builderId: true } },
+        customer: { select: { fullName: true, phone: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const leads = deals.map(d => ({
+      id:                  d.id,
+      projectId:           d.projectId,
+      projectName:         d.project?.name ?? 'Unknown',
+      builderId:           d.project?.builderId ?? null,
+      customerName:        d.customer?.fullName ?? 'Unknown',
+      customerPhone:       d.customer?.phone ?? '',
+      customerEmail:       d.customer?.email ?? null,
+      dealValue:           d.dealValue ?? null,
+      status:              d.status,
+      commissionStatus:    d.commissionStatus ?? 'Pending',
+      commissionPercent:   d.project?.commissionValue ?? null,
+      estimatedCommission:
+        d.dealValue != null && d.project?.commissionValue != null
+          ? (d.dealValue * d.project.commissionValue) / 100
+          : null,
+      createdAt:  d.createdAt.toISOString(),
+      updatedAt:  d.updatedAt.toISOString(),
+    }));
+
+    res.json({ ok: true, data: leads });
+  },
+
+  // ── Share links ────────────────────────────────────────────────────────
+
+  getOrCreateShareLink: async (req: Request, res: Response) => {
+    const cpUserId  = Number(req.params.cpUserId);
+    const projectId = Number(req.params.projectId);
+
+    let cp = await prisma.channelPartner.findUnique({ where: { userId: cpUserId } });
+    if (!cp) cp = await prisma.channelPartner.create({ data: { userId: cpUserId } });
+
+    // Find existing link for this CP + project
+    let link = await prisma.projectShareLink.findFirst({
+      where: { projectId, cpId: cp.id },
+    });
+
+    if (!link) {
+      link = await prisma.projectShareLink.create({
+        data: {
+          token:     randomBytes(12).toString('hex'), // 24-char hex, URL-safe
+          projectId,
+          cpId:      cp.id,
+        },
+      });
+    }
+
+    const origin = process.env.FRONTEND_URL ?? 'http://localhost:8083';
+    res.json({
+      ok: true,
+      data: {
+        token:      link.token,
+        url:        `${origin}/p/${link.token}`,
+        clickCount: link.clickCount,
+      },
+    });
   },
 };
