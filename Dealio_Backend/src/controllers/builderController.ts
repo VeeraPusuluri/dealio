@@ -89,6 +89,7 @@ export const builderController = {
         published: projectData.published ?? true,
         status: projectData.status || 'ACTIVE',
         videoUrl: projectData.videoUrl || null,
+        googleMapsLink: projectData.googleMapsLink || null,
       }
     });
 
@@ -230,6 +231,7 @@ export const builderController = {
     if (b.imageUrl       !== undefined) data.imageUrl        = b.imageUrl;
     if (b.coverUrl       !== undefined) data.imageUrl        = b.coverUrl;
     if (b.videoUrl       !== undefined) data.videoUrl        = b.videoUrl;
+    if (b.googleMapsLink !== undefined) data.googleMapsLink  = b.googleMapsLink || null;
 
     try {
       const updatedProject = await prisma.project.update({
@@ -249,6 +251,7 @@ export const builderController = {
       include: {
         customer: { select: { fullName: true, phone: true, email: true } },
         project:  { select: { name: true } },
+        cp:       { include: { user: { select: { fullName: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -260,12 +263,12 @@ export const builderController = {
       projectId:    String(d.projectId),
       projectName:  d.project?.name ?? '',
       unitType:     '',
-      cpId:         '',
-      cpName:       '',
+      cpId:         d.cpId ? String(d.cpId) : '',
+      cpName:       d.cp?.user?.fullName ?? '',
       budget:       d.dealValue ?? 0,
       stage:        d.status,
       notes:        '',
-      source:       '',
+      source:       d.cpId ? 'CP Share' : 'Direct',
       createdAt:    d.createdAt.toISOString().split('T')[0],
       daysInStage:  Math.floor((Date.now() - new Date(d.updatedAt).getTime()) / 86_400_000),
     }));
@@ -451,7 +454,120 @@ export const builderController = {
     });
   },
 
+  // ── Public: resolve a CP share token ─────────────────────────────────
+  resolveShareToken: async (req: Request, res: Response) => {
+    const token = String(req.params.token);
+
+    const link = await prisma.projectShareLink.findFirst({ where: { token } });
+
+    if (!link) {
+      res.status(404).json({ ok: false, message: 'Share link not found or expired' });
+      return;
+    }
+
+    // Fetch related data
+    const [project, cp] = await Promise.all([
+      prisma.project.findUnique({
+        where: { id: link.projectId },
+        include: { builder: { select: { companyName: true, user: { select: { fullName: true } } } } },
+      }),
+      link.cpId ? prisma.channelPartner.findUnique({ where: { id: link.cpId }, select: { userId: true } }) : null,
+    ]);
+
+    if (!project) {
+      res.status(404).json({ ok: false, message: 'Project not found' });
+      return;
+    }
+
+    // Increment click count (fire-and-forget)
+    prisma.projectShareLink.update({
+      where: { id: link.id },
+      data: { clickCount: { increment: 1 } },
+    }).catch(() => {});
+
+    const { priceFrom, priceTo, builder, ...rest } = project as any;
+    res.json({
+      ok: true,
+      data: {
+        projectId:  link.projectId,
+        cpUserId:   cp?.userId ?? null,
+        clickCount: link.clickCount + 1,
+        project: {
+          ...rest,
+          priceMin:    priceFrom ?? null,
+          priceMax:    priceTo   ?? null,
+          builderName: builder?.companyName || builder?.user?.fullName || null,
+        },
+      },
+    });
+  },
+
   // Portal (Meeting) interactions
+  createLeadFromShare: async (req: Request, res: Response) => {
+    const { projectId } = req.params;
+    const { cpUserId, customerName, customerPhone } = req.body;
+
+    if (!customerPhone) {
+      res.status(400).json({ ok: false, message: 'customerPhone is required' });
+      return;
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id: Number(projectId) },
+      include: { builder: { select: { id: true, userId: true } } },
+    });
+    if (!project) {
+      res.status(404).json({ ok: false, message: 'Project not found' });
+      return;
+    }
+
+    let customer = await prisma.user.findUnique({ where: { phone: customerPhone } });
+    if (!customer) {
+      customer = await prisma.user.create({
+        data: { phone: customerPhone, fullName: customerName ?? 'Customer', role: 'CUSTOMER' },
+      });
+    }
+
+    const cp = cpUserId
+      ? await prisma.channelPartner.findFirst({ where: { userId: Number(cpUserId) } })
+      : null;
+
+    const existingDeal = await prisma.deal.findFirst({
+      where: { projectId: project.id, customerId: customer.id, builderId: project.builderId },
+    });
+
+    let deal;
+    if (existingDeal) {
+      deal = await prisma.deal.update({
+        where: { id: existingDeal.id },
+        data: { status: 'Profile Created', ...(cp ? { cpId: cp.id } : {}) },
+      });
+    } else {
+      deal = await prisma.deal.create({
+        data: {
+          projectId:  project.id,
+          builderId:  project.builderId,
+          customerId: customer.id,
+          status:     'Profile Created',
+          ...(cp ? { cpId: cp.id } : {}),
+        },
+      });
+    }
+
+    if (project.builder?.userId) {
+      const title = 'New Lead via CP Share';
+      const message = `${customer.fullName ?? customerPhone} registered interest in "${project.name}" via a CP share link.`;
+      await prisma.notification.create({
+        data: { userId: project.builder.userId, title, message, type: 'info', link: '/builder/leads' },
+      });
+      channelManager.publish(`user:${project.builder.userId}`, {
+        type: 'new_lead', title, message, city: '', timestamp: new Date().toISOString(),
+      });
+    }
+
+    res.json({ ok: true, data: { dealId: deal.id, customerId: customer.id } });
+  },
+
   bookMeeting: async (req: Request, res: Response) => {
     const meetingData = req.body;
 
@@ -462,11 +578,22 @@ export const builderController = {
       });
     }
 
+    // Look up existing deal to find the CP who brought this customer
+    let cpId: number | null = null;
+    if (meetingData.projectId && customer.id) {
+      const deal = await prisma.deal.findFirst({
+        where: { projectId: Number(meetingData.projectId), customerId: customer.id, cpId: { not: null } },
+        select: { cpId: true },
+      });
+      cpId = deal?.cpId ?? null;
+    }
+
     const newMeeting = await prisma.meeting.create({
       data: {
         projectId: meetingData.projectId,
         customerId: customer.id,
         builderId: meetingData.builderId,
+        cpId,
         customerPhone: meetingData.customerPhone,
         customerName: meetingData.customerName,
         preferredDate: meetingData.preferredDate,
@@ -478,6 +605,9 @@ export const builderController = {
       include: { project: { select: { name: true } } }
     });
 
+    const projectName = newMeeting.project?.name ?? 'your project';
+    const ts = new Date().toISOString();
+
     // Notify the builder
     const builder = await prisma.builder.findUnique({
       where: { id: meetingData.builderId },
@@ -485,32 +615,40 @@ export const builderController = {
     });
 
     if (builder) {
-      const projectName = newMeeting.project?.name ?? 'your project';
-      const notifTitle = 'New Site Visit Request';
-      const notifMessage = `${meetingData.customerName} wants to visit "${projectName}" on ${meetingData.preferredDate} at ${meetingData.preferredTime}.`;
-
+      const notifTitle = 'New Meeting Request';
+      const notifMessage = `${meetingData.customerName} has requested a ${meetingData.meetingType ?? 'site visit'} for "${projectName}" on ${meetingData.preferredDate} at ${meetingData.preferredTime}.`;
       await prisma.notification.create({
         data: { userId: builder.userId, title: notifTitle, message: notifMessage, type: 'info', link: '/builder/meetings' }
       });
-
       channelManager.publish(`user:${builder.userId}`, {
-        type: 'new_project',   // reusing the event type; frontend reads title/message
-        title: notifTitle,
-        message: notifMessage,
-        city: '',
-        timestamp: new Date().toISOString()
+        type: 'meeting_request', title: notifTitle, message: notifMessage, city: '', timestamp: ts, link: '/builder/meetings',
       });
     }
 
-    res.json({ ok: true, data: { ...newMeeting, projectName: newMeeting.project?.name } });
+    // Notify the CP if one is linked
+    if (cpId) {
+      const cp = await prisma.channelPartner.findUnique({ where: { id: cpId }, select: { user: { select: { id: true } } } });
+      if (cp?.user?.id) {
+        const cpTitle = 'Meeting Request Submitted';
+        const cpMsg = `${meetingData.customerName} has requested a ${meetingData.meetingType ?? 'site visit'} for "${projectName}" on ${meetingData.preferredDate}.`;
+        await prisma.notification.create({
+          data: { userId: cp.user.id, title: cpTitle, message: cpMsg, type: 'info', link: '/cp/meetings' }
+        });
+        channelManager.publish(`user:${cp.user.id}`, {
+          type: 'meeting_request', title: cpTitle, message: cpMsg, city: '', timestamp: ts, link: '/cp/meetings',
+        });
+      }
+    }
+
+    res.json({ ok: true, data: { ...newMeeting, projectName } });
   },
 
-  // Accept or reject a meeting request; confirming creates a Deal (lead)
+  // Accept, reschedule, or reject a meeting request; confirming creates a Deal (lead)
   updateMeetingStatus: async (req: Request, res: Response) => {
     const { builderId, meetingId } = req.params;
     const { status, notes: builderNotes, confirmedDate, confirmedTime } = req.body;
 
-    const allowed = ['Confirmed', 'Cancelled', 'Completed', 'Follow-up Required'];
+    const allowed = ['Confirmed', 'Rescheduled', 'Cancelled', 'Completed', 'Follow-up Required'];
     if (!allowed.includes(status)) {
       res.status(400).json({ ok: false, message: `Invalid status. Allowed: ${allowed.join(', ')}` });
       return;
@@ -557,41 +695,62 @@ export const builderController = {
       }
     }
 
+    const projectName = meeting.project?.name ?? 'your project';
+    const dateStr     = meeting.confirmedDate ?? meeting.preferredDate;
+    const timeStr     = meeting.confirmedTime ?? meeting.preferredTime;
+    const ts          = new Date().toISOString();
+
     // Notify the customer about the meeting status change
     const notifMeta: Record<string, { title: string; type: string; evtType: string }> = {
-      Confirmed:            { title: 'Site Visit Confirmed',    type: 'success', evtType: 'meeting_confirmed' },
-      Cancelled:            { title: 'Site Visit Cancelled',    type: 'error',   evtType: 'meeting_cancelled' },
-      Completed:            { title: 'Site Visit Completed',    type: 'success', evtType: 'meeting_completed' },
-      'Follow-up Required': { title: 'Follow-up Requested',     type: 'info',    evtType: 'meeting_followup'  },
+      Confirmed:            { title: 'Meeting Confirmed',         type: 'success', evtType: 'meeting_confirmed'   },
+      Rescheduled:          { title: 'Meeting Rescheduled',       type: 'warning', evtType: 'meeting_rescheduled' },
+      Cancelled:            { title: 'Meeting Cancelled',         type: 'error',   evtType: 'meeting_cancelled'   },
+      Completed:            { title: 'Meeting Completed',         type: 'success', evtType: 'meeting_completed'   },
+      'Follow-up Required': { title: 'Follow-up Requested',       type: 'info',    evtType: 'meeting_followup'    },
     };
     const meta = notifMeta[status];
     if (meta) {
-      const projectName = meeting.project?.name ?? 'your project';
-      const dateStr     = meeting.confirmedDate ?? meeting.preferredDate;
       const msgByStatus: Record<string, string> = {
-        Confirmed: `Your visit to "${projectName}" is confirmed for ${dateStr}.`,
-        Cancelled: `Your visit to "${projectName}" has been cancelled.`,
-        Completed: `Your visit to "${projectName}" is marked as completed.`,
+        Confirmed:            `Your visit to "${projectName}" is confirmed for ${dateStr} at ${timeStr}.`,
+        Rescheduled:          `Your visit to "${projectName}" has been rescheduled to ${dateStr} at ${timeStr}.`,
+        Cancelled:            `Your visit to "${projectName}" has been cancelled.`,
+        Completed:            `Your visit to "${projectName}" is marked as completed.`,
         'Follow-up Required': `The builder has requested a follow-up for "${projectName}".`,
       };
-      const notifMessage = msgByStatus[status] ?? `Your meeting status is now: ${status}.`;
+      const customerMsg = msgByStatus[status] ?? `Your meeting status is now: ${status}.`;
 
       await prisma.notification.create({
-        data: { userId: meeting.customerId, title: meta.title, message: notifMessage, type: meta.type, link: '/customer/meeting' },
+        data: { userId: meeting.customerId, title: meta.title, message: customerMsg, type: meta.type, link: '/customer/meeting' },
       });
-
       channelManager.publish(`user:${meeting.customerId}`, {
-        type: meta.evtType as any,
-        title: meta.title,
-        message: notifMessage,
-        meetingId: meeting.id,
-        city: '',
-        link: '/customer/meeting',
-        timestamp: new Date().toISOString(),
+        type: meta.evtType as any, title: meta.title, message: customerMsg,
+        meetingId: meeting.id, city: '', link: '/customer/meeting', timestamp: ts,
       });
     }
 
-    res.json({ ok: true, data: { ...meeting, projectName: meeting.project?.name } });
+    // Notify the CP if one is linked
+    if (meeting.cpId) {
+      const cp = await prisma.channelPartner.findUnique({ where: { id: meeting.cpId }, select: { user: { select: { id: true } } } });
+      if (cp?.user?.id) {
+        const cpMsgByStatus: Record<string, string> = {
+          Confirmed:            `Builder confirmed the visit for ${meeting.customerName} at "${projectName}" on ${dateStr} at ${timeStr}.`,
+          Rescheduled:          `Builder rescheduled ${meeting.customerName}'s visit to "${projectName}" → ${dateStr} at ${timeStr}.`,
+          Cancelled:            `Builder cancelled ${meeting.customerName}'s visit to "${projectName}".`,
+          Completed:            `${meeting.customerName}'s visit to "${projectName}" is now marked as completed.`,
+          'Follow-up Required': `Builder requested a follow-up for ${meeting.customerName}'s visit to "${projectName}".`,
+        };
+        const cpMsg = cpMsgByStatus[status] ?? `Meeting status updated to ${status}.`;
+        await prisma.notification.create({
+          data: { userId: cp.user.id, title: meta?.title ?? 'Meeting Update', message: cpMsg, type: meta?.type ?? 'info', link: '/cp/meetings' },
+        });
+        channelManager.publish(`user:${cp.user.id}`, {
+          type: (meta?.evtType ?? 'notification') as any, title: meta?.title ?? 'Meeting Update',
+          message: cpMsg, city: '', timestamp: ts, link: '/cp/meetings',
+        });
+      }
+    }
+
+    res.json({ ok: true, data: { ...meeting, projectName } });
   },
 
   // All deals for a builder with customer + project info
@@ -625,13 +784,29 @@ export const builderController = {
     const { builderId } = req.params;
     const meetings = await prisma.meeting.findMany({
       where: { builderId: Number(builderId) },
-      include: { project: { select: { name: true } } },
+      include: {
+        project: { select: { name: true } },
+        // cpId resolves via ChannelPartner → User for the CP name
+      },
       orderBy: { createdAt: 'desc' }
     });
+
+    // Batch-load CP names for meetings that have a cpId
+    const cpIds = [...new Set(meetings.map(m => (m as any).cpId).filter(Boolean))];
+    const cpMap: Record<number, string> = {};
+    if (cpIds.length > 0) {
+      const cps = await prisma.channelPartner.findMany({
+        where: { id: { in: cpIds } },
+        select: { id: true, user: { select: { fullName: true } } },
+      });
+      cps.forEach(cp => { cpMap[cp.id] = cp.user?.fullName ?? 'CP'; });
+    }
+
     const mapped = meetings.map(m => ({
       ...m,
       projectName: m.project?.name ?? 'Unknown Project',
-      project: undefined
+      cpName: (m as any).cpId ? (cpMap[(m as any).cpId] ?? null) : null,
+      project: undefined,
     }));
     res.json({ ok: true, data: mapped });
   },
