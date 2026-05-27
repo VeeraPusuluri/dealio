@@ -32,12 +32,14 @@ interface Project {
 
 const TAG_OPTIONS = ['Hot Lead', 'Warm Lead', 'Family', 'Friend', 'Colleague', 'Client'];
 
-const inp = 'w-full mt-1 px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#E87722]/20 focus:border-[#E87722] focus:bg-white transition-all';
+const glassInp = 'w-full mt-1 px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500/50 focus:bg-white/8 transition-all';
 
 function ContactAvatar({ name }: { name: string }) {
   return (
-    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-      style={{ background: 'linear-gradient(135deg,#E87722,#D4691C)' }}>
+    <div
+      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ring-2 ring-orange-500/30"
+      style={{ background: 'linear-gradient(135deg, #F97316, #D97706)' }}
+    >
       {name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
     </div>
   );
@@ -45,15 +47,16 @@ function ContactAvatar({ name }: { name: string }) {
 
 function TagChip({ tag }: { tag: string }) {
   const colors: Record<string, string> = {
-    'Hot Lead': 'bg-red-100 text-red-700',
-    'Warm Lead': 'bg-orange-100 text-orange-700',
-    'Family': 'bg-purple-100 text-purple-700',
-    'Friend': 'bg-blue-100 text-blue-700',
-    'Colleague': 'bg-teal-100 text-teal-700',
-    'Client': 'bg-green-100 text-green-700',
+    'Hot Lead':  'bg-red-500/20 text-red-300 border border-red-500/20',
+    'Warm Lead': 'bg-orange-500/20 text-orange-300 border border-orange-500/20',
+    'Family':    'bg-violet-500/20 text-violet-300 border border-violet-500/20',
+    'Friend':    'bg-blue-500/20 text-blue-300 border border-blue-500/20',
+    'Colleague': 'bg-teal-500/20 text-teal-300 border border-teal-500/20',
+    'Client':    'bg-emerald-500/20 text-emerald-300 border border-emerald-500/20',
+    'Imported':  'bg-slate-500/20 text-slate-300 border border-slate-500/20',
   };
   return (
-    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${colors[tag] ?? 'bg-gray-100 text-gray-600'}`}>
+    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${colors[tag] ?? 'bg-white/10 text-slate-300 border border-white/10'}`}>
       {tag}
     </span>
   );
@@ -200,13 +203,13 @@ const CPContacts = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-5">
+      <div className="min-h-screen bg-gradient-to-br from-[#0A0F1A] to-[#111827] -m-4 sm:-m-6 p-4 sm:p-6 space-y-5">
 
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-xl font-bold text-foreground">My Contacts</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">People you know — share projects instantly via WhatsApp</p>
+            <h1 className="text-xl font-bold text-white tracking-tight">My Contacts</h1>
+            <p className="text-sm text-slate-400 mt-0.5">People you know — share projects instantly via WhatsApp</p>
           </div>
           <div className="flex items-center gap-2">
             {/* CSV upload */}
@@ -215,96 +218,118 @@ const CPContacts = () => {
               onClick={() => csvRef.current?.click()}
               disabled={csvUploading}
               title="Upload CSV (columns: name, phone, email, bhk_preference)"
-              className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold border border-border text-muted-foreground hover:bg-muted disabled:opacity-50">
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold border border-white/10 text-slate-300 hover:bg-white/10 bg-white/5 backdrop-blur-sm disabled:opacity-50 transition-all">
               <Upload size={14} /> {csvUploading ? 'Importing…' : 'Import CSV'}
             </button>
-            <button onClick={() => { resetForm(); setShowAdd(true); }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shadow-md"
-              style={{ background: 'linear-gradient(135deg,#E87722,#D4691C)' }}>
+            <button
+              onClick={() => { resetForm(); setShowAdd(true); }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-all hover:shadow-orange-500/30 hover:scale-[1.02]"
+              style={{ background: 'linear-gradient(135deg, #F97316, #EA580C)' }}>
               <Plus size={15} /> Add Contact
             </button>
           </div>
         </div>
+
         {/* CSV hint */}
-        <p className="text-xs text-muted-foreground -mt-2">
-          CSV format: <code className="bg-muted px-1 rounded text-[11px]">name, phone, email, bhk_preference</code> (headers required)
+        <p className="text-xs text-slate-500 -mt-2">
+          CSV format: <code className="bg-white/5 border border-white/10 px-1.5 py-0.5 rounded text-[11px] text-slate-400">name, phone, email, bhk_preference</code> (headers required)
         </p>
 
         {/* Stats bar */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Total Contacts', value: contacts.length, color: '#E87722' },
-            { label: 'Hot / Warm Leads', value: contacts.filter(c => c.tags?.includes('Lead')).length, color: '#DC2626' },
-            { label: 'Shared Projects', value: 0, color: '#16A34A' },
+            { label: 'Total Contacts', value: contacts.length, color: '#F97316', glow: 'rgba(249,115,22,0.15)', ring: 'from-orange-500/20 to-amber-600/5' },
+            { label: 'Hot / Warm Leads', value: contacts.filter(c => c.tags?.includes('Lead')).length, color: '#EF4444', glow: 'rgba(239,68,68,0.15)', ring: 'from-red-500/20 to-rose-600/5' },
+            { label: 'Shared Projects', value: 0, color: '#22C55E', glow: 'rgba(34,197,94,0.15)', ring: 'from-green-500/20 to-emerald-600/5' },
           ].map(s => (
-            <div key={s.label} className="bg-card rounded-xl border border-border p-4 text-center">
-              <div className="text-2xl font-black" style={{ color: s.color }}>{s.value}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{s.label}</div>
+            <div key={s.label} className="relative bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-4 text-center overflow-hidden">
+              {/* Glow orb */}
+              <div
+                className="absolute inset-0 rounded-2xl opacity-60"
+                style={{ background: `radial-gradient(ellipse at 50% 0%, ${s.glow} 0%, transparent 70%)` }}
+              />
+              <div className="relative z-10">
+                <div className="text-2xl font-black" style={{ color: s.color }}>{s.value}</div>
+                <div className="text-xs text-slate-400 mt-0.5">{s.label}</div>
+              </div>
             </div>
           ))}
         </div>
 
         {/* Search */}
         <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
             placeholder="Search by name or phone..."
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-input bg-card text-sm" />
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500/40 transition-all"
+          />
         </div>
 
         {/* Contact list */}
         {loading ? (
-          <div className="text-center py-12 text-muted-foreground text-sm">Loading contacts…</div>
+          <div className="text-center py-12 text-slate-500 text-sm">Loading contacts…</div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">
-            <Users size={40} className="mx-auto mb-3 opacity-30" />
-            <p className="font-medium">{search ? 'No contacts match your search' : 'No contacts yet'}</p>
-            <p className="text-xs mt-1">Add people you know and share project details with one tap</p>
+          <div className="text-center py-16 text-slate-500">
+            <Users size={40} className="mx-auto mb-3 opacity-20" />
+            <p className="font-medium text-slate-300">{search ? 'No contacts match your search' : 'No contacts yet'}</p>
+            <p className="text-xs mt-1 text-slate-500">Add people you know and share project details with one tap</p>
           </div>
         ) : (
           <div className="grid gap-3">
             {filtered.map(contact => (
-              <div key={contact.id} className="bg-card rounded-xl border border-border p-4 hover:border-[#E87722]/40 transition-colors">
+              <div
+                key={contact.id}
+                className="bg-white/[0.06] backdrop-blur-sm rounded-2xl border border-white/10 p-4 hover:border-orange-500/30 hover:bg-white/10 transition-all duration-200"
+              >
                 <div className="flex items-start gap-3">
                   <ContactAvatar name={contact.name} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-card-foreground">{contact.name}</span>
+                      <span className="font-semibold text-white">{contact.name}</span>
                       {contact.tags && contact.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => (
                         <TagChip key={tag} tag={tag} />
                       ))}
                     </div>
-                    <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground flex-wrap">
+                    <div className="flex items-center gap-4 mt-1 text-xs text-slate-400 flex-wrap">
                       <span className="flex items-center gap-1"><Phone size={11} /> {contact.phone}</span>
                       {contact.email && <span className="flex items-center gap-1"><Mail size={11} /> {contact.email}</span>}
                       {contact.bhkPreference && (
-                        <span className="flex items-center gap-1 text-blue-600 font-medium"><Home size={11} /> {contact.bhkPreference}</span>
+                        <span className="flex items-center gap-1 text-sky-400 font-medium"><Home size={11} /> {contact.bhkPreference}</span>
                       )}
                     </div>
                     {contact.notes && (
-                      <p className="text-xs text-muted-foreground mt-1 italic truncate">{contact.notes}</p>
+                      <p className="text-xs text-slate-500 mt-1 italic truncate">{contact.notes}</p>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={() => setShareContact(contact)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
-                      style={{ backgroundColor: '#25D366' }}>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button
+                      onClick={() => setShareContact(contact)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:scale-[1.03]"
+                      style={{ background: 'linear-gradient(135deg, #16A34A, #15803D)' }}>
                       <Share2 size={12} /> Share
                     </button>
-                    <a href={`tel:${contact.phone}`}
-                      className="p-1.5 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground">
+                    <a
+                      href={`tel:${contact.phone}`}
+                      className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white transition-all">
                       <Phone size={14} />
                     </a>
-                    <a href={`https://wa.me/91${contact.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer"
-                      className="p-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-green-700">
+                    <a
+                      href={`https://wa.me/91${contact.phone.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 transition-all">
                       <MessageSquare size={14} />
                     </a>
-                    <button onClick={() => openEdit(contact)}
-                      className="p-1.5 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground">
+                    <button
+                      onClick={() => openEdit(contact)}
+                      className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white transition-all">
                       <Edit2 size={14} />
                     </button>
-                    <button onClick={() => handleDelete(contact.id)}
-                      className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500">
+                    <button
+                      onClick={() => handleDelete(contact.id)}
+                      className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all">
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -318,40 +343,59 @@ const CPContacts = () => {
       {/* Add / Edit modal */}
       {showAdd && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => { setShowAdd(false); resetForm(); }} />
+          <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => { setShowAdd(false); resetForm(); }} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-              <div className="flex items-center justify-between p-5 border-b">
-                <h3 className="font-bold text-gray-900">{editingContact ? 'Edit Contact' : 'Add New Contact'}</h3>
-                <button onClick={() => { setShowAdd(false); resetForm(); }} className="p-1 hover:bg-gray-100 rounded-lg">
+            <div className="bg-[#111827]/95 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl shadow-black/50 w-full max-w-md">
+              <div className="flex items-center justify-between p-5 border-b border-white/10">
+                <h3 className="font-bold text-white">{editingContact ? 'Edit Contact' : 'Add New Contact'}</h3>
+                <button
+                  onClick={() => { setShowAdd(false); resetForm(); }}
+                  className="p-1.5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all">
                   <X size={18} />
                 </button>
               </div>
               <div className="p-5 space-y-4">
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Full Name *</label>
-                  <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    placeholder="e.g. Rahul Sharma" className={inp} />
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Full Name *</label>
+                  <input
+                    value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="e.g. Rahul Sharma"
+                    className={glassInp}
+                  />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Phone Number *</label>
-                  <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                    placeholder="e.g. 9876543210" type="tel" className={inp} />
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Phone Number *</label>
+                  <input
+                    value={form.phone}
+                    onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                    placeholder="e.g. 9876543210"
+                    type="tel"
+                    className={glassInp}
+                  />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Email (optional)</label>
-                  <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    placeholder="e.g. rahul@email.com" type="email" className={inp} />
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Email (optional)</label>
+                  <input
+                    value={form.email}
+                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="e.g. rahul@email.com"
+                    type="email"
+                    className={glassInp}
+                  />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">BHK Preference</label>
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">BHK Preference</label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {BHK_OPTIONS.map(opt => (
-                      <button key={opt} type="button" onClick={() => setForm(f => ({ ...f, bhkPreference: f.bhkPreference === opt ? '' : opt }))}
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, bhkPreference: f.bhkPreference === opt ? '' : opt }))}
                         className={`text-xs px-3 py-1 rounded-full border font-medium transition-all flex items-center gap-1 ${
                           form.bhkPreference === opt
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400'
+                            ? 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                            : 'bg-white/5 text-slate-400 border-white/10 hover:border-sky-500/30 hover:text-slate-300'
                         }`}>
                         <Home size={10} /> {opt}
                       </button>
@@ -359,14 +403,17 @@ const CPContacts = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tags</label>
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Tags</label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {TAG_OPTIONS.map(tag => (
-                      <button key={tag} type="button" onClick={() => toggleTag(tag)}
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleTag(tag)}
                         className={`text-xs px-3 py-1 rounded-full border font-medium transition-all ${
                           selectedTags.includes(tag)
-                            ? 'bg-[#E87722] text-white border-[#E87722]'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-[#E87722]'
+                            ? 'bg-orange-500/20 text-orange-300 border-orange-500/40'
+                            : 'bg-white/5 text-slate-400 border-white/10 hover:border-orange-500/30 hover:text-slate-300'
                         }`}>
                         {tag}
                       </button>
@@ -374,20 +421,27 @@ const CPContacts = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Notes (optional)</label>
-                  <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Notes (optional)</label>
+                  <textarea
+                    value={form.notes}
+                    onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                     placeholder="e.g. Looking for 3BHK in Gachibowli, budget ~₹80L"
-                    rows={2} className={inp + ' resize-none'} />
+                    rows={2}
+                    className={glassInp + ' resize-none'}
+                  />
                 </div>
               </div>
-              <div className="flex gap-3 p-5 border-t">
-                <button onClick={() => { setShowAdd(false); resetForm(); }}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50">
+              <div className="flex gap-3 p-5 border-t border-white/10">
+                <button
+                  onClick={() => { setShowAdd(false); resetForm(); }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-white/10 text-slate-300 hover:bg-white/10 bg-white/5 transition-all">
                   Cancel
                 </button>
-                <button onClick={handleSave} disabled={saving}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg,#E87722,#D4691C)' }}>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 shadow-lg shadow-orange-500/20 transition-all hover:shadow-orange-500/30"
+                  style={{ background: 'linear-gradient(135deg, #F97316, #EA580C)' }}>
                   {saving ? 'Saving…' : editingContact ? 'Update Contact' : 'Add Contact'}
                 </button>
               </div>
@@ -399,40 +453,44 @@ const CPContacts = () => {
       {/* Share project modal */}
       {shareContact && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setShareContact(null)} />
+          <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => setShareContact(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-              <div className="flex items-center justify-between p-5 border-b">
+            <div className="bg-[#111827]/95 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl shadow-black/50 w-full max-w-md">
+              <div className="flex items-center justify-between p-5 border-b border-white/10">
                 <div>
-                  <h3 className="font-bold text-gray-900">Share Project</h3>
-                  <p className="text-sm text-gray-500 mt-0.5">
-                    Sharing with <span className="font-semibold text-gray-800">{shareContact.name}</span>
+                  <h3 className="font-bold text-white">Share Project</h3>
+                  <p className="text-sm text-slate-400 mt-0.5">
+                    Sharing with <span className="font-semibold text-slate-200">{shareContact.name}</span>
                   </p>
                 </div>
-                <button onClick={() => setShareContact(null)} className="p-1 hover:bg-gray-100 rounded-lg">
+                <button
+                  onClick={() => setShareContact(null)}
+                  className="p-1.5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all">
                   <X size={18} />
                 </button>
               </div>
               <div className="p-5">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Pick a project to share</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Pick a project to share</p>
                 {projects.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">No projects available</p>
+                  <p className="text-sm text-slate-500 text-center py-6">No projects available</p>
                 ) : (
-                  <div className="space-y-2 max-h-72 overflow-y-auto">
+                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10">
                     {projects.map(p => (
-                      <button key={p.id} onClick={() => shareViaWhatsApp(shareContact, p)}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-[#25D366] hover:bg-green-50 transition-all text-left group">
-                        <div className="w-9 h-9 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
-                          <Building2 size={16} className="text-teal-600" />
+                      <button
+                        key={p.id}
+                        onClick={() => shareViaWhatsApp(shareContact, p)}
+                        className="w-full flex items-center gap-3 p-3 rounded-xl border border-white/10 hover:border-emerald-500/30 hover:bg-emerald-500/5 bg-white/[0.03] transition-all text-left group">
+                        <div className="w-9 h-9 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center flex-shrink-0">
+                          <Building2 size={16} className="text-teal-400" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm text-gray-900 truncate">{p.name}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="font-semibold text-sm text-white truncate">{p.name}</p>
+                          <p className="text-xs text-slate-500">
                             {p.city || 'Location TBD'}
                             {p.priceFrom ? ` · ₹${(p.priceFrom / 100000).toFixed(0)}L+` : ''}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1 text-xs font-semibold text-[#25D366] opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 text-xs font-semibold text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity">
                           <MessageSquare size={12} /> WhatsApp
                         </div>
                       </button>
