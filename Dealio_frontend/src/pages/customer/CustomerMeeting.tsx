@@ -9,7 +9,7 @@ import { useDealStore } from '@/stores/useDealStore';
 import { customerApi, portalApi, builderApi } from '@/lib/api';
 import { pushNotifTo } from '@/lib/crossNotify';
 import { projects as mockProjects } from '@/data/projects';
-import { Calendar, MapPin, Clock, Star, Building2, FileText, Users, Loader2, RefreshCw, X, ChevronRight, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { Calendar, MapPin, Clock, Star, Building2, FileText, Users, Loader2, RefreshCw, X, ChevronRight, MessageSquare, CheckCircle2, Sparkles, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ApiMeeting {
@@ -18,10 +18,10 @@ interface ApiMeeting {
   status: string; notes?: string; builderNotes?: string;
 }
 interface ProjectSummary { id: number; name: string; city: string; }
-type MeetingType = 'Site Visit' | 'Builder Meeting' | 'Document Review';
+type MeetingType = 'Site Visit' | 'Builder Meeting' | 'Document Review' | 'Interior Consult';
 
 const TYPE_ICONS: Record<MeetingType, React.ElementType> = {
-  'Site Visit': Building2, 'Builder Meeting': Users, 'Document Review': FileText,
+  'Site Visit': Building2, 'Builder Meeting': Users, 'Document Review': FileText, 'Interior Consult': Sparkles,
 };
 const STATUS_LABEL: Record<string, string> = {
   Pending: 'Pending Confirmation', Confirmed: 'Confirmed', Completed: 'Completed', Cancelled: 'Cancelled',
@@ -33,7 +33,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 const TIME_SLOTS = ['10:00 AM', '11:00 AM', '12:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'];
 
-const inp = 'w-full mt-1.5 px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary focus:bg-white transition-all';
+const inp = 'w-full mt-1.5 px-3 py-2.5 rounded-xl border border-border bg-muted/40 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all placeholder:text-muted-foreground';
 
 interface CPProfile { id: number; fullName: string; phone?: string; email?: string; preferredCity?: string; }
 
@@ -132,38 +132,38 @@ const CustomerMeeting = () => {
     <DashboardLayout>
       <div className="space-y-5 pb-8">
 
-        <div className="pt-1 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Meetings</h1>
-            <p className="text-sm text-gray-500">Schedule and manage your property visits</p>
+            <h1 className="text-[17px] font-bold text-foreground">Meetings</h1>
+            <p className="text-[12px] text-muted-foreground mt-0.5">Schedule and manage your property visits</p>
           </div>
-          <button onClick={() => setShowForm(v => !v)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all" style={{ background: 'linear-gradient(135deg, #0A7E8C, #086E7A)' }}>
+          <button onClick={() => setShowForm(v => !v)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-all" style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}>
             <Calendar size={14} /> {showForm ? 'Cancel' : 'Schedule Meeting'}
           </button>
         </div>
 
         {/* ── Channel Partners ── */}
         {cps.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
             <div>
-              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <Users size={16} className="text-orange-500" /> Channel Partners
+              <h2 className="text-[14px] font-bold text-foreground flex items-center gap-2">
+                <Users size={15} className="text-orange-500" /> Channel Partners
               </h2>
-              <p className="text-sm text-gray-500 mt-0.5">Our trusted partners can guide you through your property journey.</p>
+              <p className="text-[12px] text-muted-foreground mt-0.5">Our trusted partners can guide you through your property journey.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {cps.map(cp => (
                 <div key={cp.id} className="flex items-center gap-3 p-3.5 bg-orange-50/60 rounded-xl border border-orange-100">
                   <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-[13px] font-bold shrink-0"
                     style={{ background: 'linear-gradient(135deg, #E87722, #F97316)' }}
                   >
                     {cp.fullName?.[0]?.toUpperCase() ?? 'C'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{cp.fullName}</p>
+                    <p className="text-[13px] font-semibold text-foreground truncate">{cp.fullName}</p>
                     {cp.preferredCity && (
-                      <p className="text-xs text-gray-400 truncate flex items-center gap-1 mt-0.5">
+                      <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1 mt-0.5">
                         <MapPin size={9} /> {cp.preferredCity}
                       </p>
                     )}
@@ -185,7 +185,7 @@ const CustomerMeeting = () => {
                         setNotes(`I'd like to meet with CP: ${cp.fullName}`);
                         setTimeout(() => document.querySelector('select')?.scrollIntoView({ behavior: 'smooth' }), 100);
                       }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white hover:opacity-90 transition-all"
+                      className="px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white hover:opacity-90 transition-all"
                       style={{ background: 'linear-gradient(135deg, #E87722, #F97316)' }}
                     >
                       Arrange Meeting
@@ -198,8 +198,8 @@ const CustomerMeeting = () => {
         )}
 
         {showForm && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
-            <h2 className="text-base font-bold text-gray-900">New Meeting Request</h2>
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
+            <h2 className="text-[14px] font-bold text-foreground">New Meeting Request</h2>
 
             <div>
               <label className="text-sm font-semibold text-gray-700 block mb-1.5">Step 1: Filter by City</label>
@@ -225,14 +225,17 @@ const CustomerMeeting = () => {
 
             {selectedProject && (
               <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1.5">Step 3: Meeting Type</label>
+                <label className="text-[12px] font-semibold text-foreground block mb-1.5">Step 3: Meeting Type</label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {(['Site Visit', 'Builder Meeting', 'Document Review'] as MeetingType[]).map(type => {
+                  {(['Site Visit', 'Builder Meeting', 'Document Review', 'Interior Consult'] as MeetingType[]).map(type => {
                     const Icon = TYPE_ICONS[type];
+                    const active = meetingType === type;
                     return (
-                      <button key={type} onClick={() => setMeetingType(type)} className={`p-4 rounded-xl border text-center transition-all ${meetingType === type ? 'border-secondary bg-secondary/8 shadow-sm' : 'border-gray-200 hover:bg-gray-50'}`}>
-                        <Icon size={20} className={`mx-auto mb-2 ${meetingType === type ? 'text-secondary' : 'text-gray-400'}`} />
-                        <p className="text-xs font-medium text-gray-700">{type}</p>
+                      <button key={type} onClick={() => setMeetingType(type)}
+                        className={`p-4 rounded-xl border text-center transition-all ${active ? 'border-transparent text-white' : 'border-border bg-card hover:bg-muted/40'}`}
+                        style={active ? { background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' } : undefined}>
+                        <Icon size={20} className={`mx-auto mb-2 ${active ? 'text-white' : 'text-muted-foreground'}`} />
+                        <p className={`text-[11px] font-medium ${active ? 'text-white' : 'text-foreground'}`}>{type}</p>
                       </button>
                     );
                   })}
@@ -242,17 +245,19 @@ const CustomerMeeting = () => {
 
             {selectedProject && (
               <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1.5">Step 4: Preferred Date</label>
+                <label className="text-[12px] font-semibold text-foreground block mb-1.5">Step 4: Preferred Date</label>
                 <input type="date" value={selectedDate} min={today} onChange={e => { setSelectedDate(e.target.value); setSelectedTime(''); }} className={inp} />
               </div>
             )}
 
             {selectedDate && (
               <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1.5">Step 5: Preferred Time</label>
+                <label className="text-[12px] font-semibold text-foreground block mb-1.5">Step 5: Preferred Time</label>
                 <div className="flex flex-wrap gap-2">
                   {TIME_SLOTS.map(slot => (
-                    <button key={slot} onClick={() => setSelectedTime(slot)} className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${selectedTime === slot ? 'bg-secondary text-white border-secondary' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-secondary/8 hover:border-secondary/30'}`}>{slot}</button>
+                    <button key={slot} onClick={() => setSelectedTime(slot)}
+                      className={`px-4 py-2 rounded-xl text-[12px] font-medium border transition-all ${selectedTime === slot ? 'text-white border-transparent' : 'bg-card border-border text-foreground hover:bg-muted/40'}`}
+                      style={selectedTime === slot ? { background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' } : undefined}>{slot}</button>
                   ))}
                 </div>
               </div>
@@ -260,36 +265,38 @@ const CustomerMeeting = () => {
 
             {selectedTime && (
               <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1.5">Notes (optional)</label>
+                <label className="text-[12px] font-semibold text-foreground block mb-1.5">Notes (optional)</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)} className={`${inp} resize-none min-h-[60px]`} placeholder="Any special requests…" />
               </div>
             )}
 
             <div className="flex gap-3 pt-1">
-              <button onClick={handleBookMeeting} disabled={!selectedProject || !selectedDate || !selectedTime || submitting} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-50 hover:opacity-90" style={{ background: 'linear-gradient(135deg, #0A7E8C, #086E7A)' }}>
+              <button onClick={handleBookMeeting} disabled={!selectedProject || !selectedDate || !selectedTime || submitting}
+                className="px-6 py-2.5 rounded-xl text-[13px] font-semibold text-white flex items-center gap-2 disabled:opacity-50 hover:opacity-90"
+                style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}>
                 {submitting ? <><Loader2 size={14} className="animate-spin" /> Submitting…</> : 'Send Request'}
               </button>
-              <button onClick={() => setShowForm(false)} className="px-4 py-2.5 rounded-xl text-sm border border-gray-200 text-gray-500 hover:bg-gray-50">Cancel</button>
+              <button onClick={() => setShowForm(false)} className="px-4 py-2.5 rounded-xl text-[13px] border border-border text-muted-foreground hover:bg-muted transition-colors">Cancel</button>
             </div>
           </div>
         )}
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="rounded-2xl border border-border bg-card p-6">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-bold text-gray-900">My Meetings</h2>
-            <button onClick={fetchMeetings} disabled={loadingMeetings} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors">
+            <h2 className="text-[14px] font-bold text-foreground">My Meetings</h2>
+            <button onClick={fetchMeetings} disabled={loadingMeetings} className="text-[12px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
               <RefreshCw size={12} className={loadingMeetings ? 'animate-spin' : ''} /> Refresh
             </button>
           </div>
 
           {loadingMeetings ? (
-            <div className="flex justify-center py-12"><Loader2 size={28} className="animate-spin text-secondary" /></div>
+            <div className="flex justify-center py-12"><Loader2 size={28} className="animate-spin text-muted-foreground" /></div>
           ) : meetings.length === 0 ? (
             <div className="text-center py-12">
-              <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <Calendar size={22} className="text-gray-300" />
+              <div className="w-12 h-12 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <Calendar size={22} className="text-muted-foreground" />
               </div>
-              <p className="text-sm text-gray-500">No meetings yet. Schedule your first visit above.</p>
+              <p className="text-[13px] text-muted-foreground">No meetings yet. Schedule your first visit above.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -297,24 +304,24 @@ const CustomerMeeting = () => {
                 <button
                   key={m.id}
                   onClick={() => setSelectedMeeting(m)}
-                  className="w-full text-left bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-100 hover:border-secondary/20 p-4 flex flex-wrap items-center gap-4 justify-between transition-all group"
+                  className="w-full text-left bg-muted/30 hover:bg-muted/50 rounded-xl border border-border hover:border-ring/40 p-4 flex flex-wrap items-center gap-4 justify-between transition-all group"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0">
-                      <Building2 size={18} className="text-gray-400 group-hover:text-secondary transition-colors" />
+                    <div className="w-11 h-11 rounded-xl bg-card border border-border flex items-center justify-center shrink-0" style={{ color: '#0A7E8C' }}>
+                      <Building2 size={18} />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">{m.projectName || 'Project Visit'}</p>
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mt-1">
+                      <p className="text-[13px] font-semibold text-foreground">{m.projectName || 'Project Visit'}</p>
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground mt-1">
                         <span className="flex items-center gap-1"><Calendar size={11} />{formatDate(m.confirmedDate || m.preferredDate)}</span>
                         <span className="flex items-center gap-1"><Clock size={11} />{m.confirmedTime || m.preferredTime}</span>
                       </div>
-                      {m.builderNotes && <p className="text-xs text-secondary mt-1 font-medium">{m.builderNotes}</p>}
+                      {m.builderNotes && <p className="text-[11px] mt-1 font-medium" style={{ color: '#0A7E8C' }}>{m.builderNotes}</p>}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <StatusBadge status={STATUS_LABEL[m.status] || m.status} color={STATUS_COLOR[m.status]} />
-                    <ChevronRight size={16} className="text-gray-300 group-hover:text-secondary transition-colors" />
+                    <ChevronRight size={16} className="text-muted-foreground group-hover:text-foreground transition-colors" />
                   </div>
                 </button>
               ))}
@@ -327,59 +334,59 @@ const CustomerMeeting = () => {
       {selectedMeeting && (
         <>
           <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" onClick={() => setSelectedMeeting(null)} />
-          <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col overflow-hidden">
+          <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-card shadow-2xl border-l border-border flex flex-col overflow-hidden">
 
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-teal-50/60 to-white flex-shrink-0">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0" style={{ background: 'linear-gradient(135deg, #0A7E8C0d 0%, transparent 100%)' }}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
-                  <Building2 size={18} className="text-teal-600" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: '#0A7E8C15', color: '#0A7E8C' }}>
+                  <Building2 size={18} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900">{selectedMeeting.projectName || 'Project Visit'}</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">Meeting #{selectedMeeting.id}</p>
+                  <h3 className="font-bold text-foreground">{selectedMeeting.projectName || 'Project Visit'}</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Meeting #{selectedMeeting.id}</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedMeeting(null)} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+              <button onClick={() => setSelectedMeeting(null)} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                 <X size={16} />
               </button>
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-gray-50/40">
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-muted/20">
 
               {/* Status */}
-              <div className="bg-white rounded-xl p-4 shadow-sm">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Status</p>
+              <div className="bg-card rounded-xl border border-border p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2">Status</p>
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: STATUS_COLOR[selectedMeeting.status] || '#94a3b8' }} />
-                  <span className="text-sm font-semibold text-gray-800">{STATUS_LABEL[selectedMeeting.status] || selectedMeeting.status}</span>
+                  <span className="text-[13px] font-semibold text-foreground">{STATUS_LABEL[selectedMeeting.status] || selectedMeeting.status}</span>
                 </div>
               </div>
 
               {/* Schedule */}
-              <div className="bg-white rounded-xl p-4 shadow-sm space-y-3">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Schedule</p>
+              <div className="bg-card rounded-xl border border-border p-4 space-y-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Schedule</p>
                 <div className="flex items-center gap-2.5">
-                  <Calendar size={14} className="text-teal-500 shrink-0" />
+                  <Calendar size={14} className="shrink-0" style={{ color: '#0A7E8C' }} />
                   <div>
-                    <p className="text-[10px] text-gray-400">Preferred Date</p>
-                    <p className="text-sm font-medium text-gray-800">{formatDate(selectedMeeting.preferredDate)}</p>
+                    <p className="text-[10px] text-muted-foreground">Preferred Date</p>
+                    <p className="text-[13px] font-medium text-foreground">{formatDate(selectedMeeting.preferredDate)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <Clock size={14} className="text-teal-500 shrink-0" />
+                  <Clock size={14} className="shrink-0" style={{ color: '#0A7E8C' }} />
                   <div>
-                    <p className="text-[10px] text-gray-400">Preferred Time</p>
-                    <p className="text-sm font-medium text-gray-800">{selectedMeeting.preferredTime}</p>
+                    <p className="text-[10px] text-muted-foreground">Preferred Time</p>
+                    <p className="text-[13px] font-medium text-foreground">{selectedMeeting.preferredTime}</p>
                   </div>
                 </div>
                 {selectedMeeting.confirmedDate && (
                   <div className="flex items-center gap-2.5">
                     <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
                     <div>
-                      <p className="text-[10px] text-gray-400">Confirmed Date & Time</p>
-                      <p className="text-sm font-semibold text-emerald-700">
+                      <p className="text-[10px] text-muted-foreground">Confirmed Date & Time</p>
+                      <p className="text-[13px] font-semibold text-emerald-600">
                         {formatDate(selectedMeeting.confirmedDate)}{selectedMeeting.confirmedTime ? ` at ${selectedMeeting.confirmedTime}` : ''}
                       </p>
                     </div>
@@ -389,33 +396,55 @@ const CustomerMeeting = () => {
 
               {/* Notes */}
               {selectedMeeting.notes && (
-                <div className="bg-white rounded-xl p-4 shadow-sm">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Your Notes</p>
+                <div className="bg-card rounded-xl border border-border p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2">Your Notes</p>
                   <div className="flex items-start gap-2.5">
-                    <MessageSquare size={14} className="text-gray-400 shrink-0 mt-0.5" />
-                    <p className="text-sm text-gray-700 leading-relaxed">{selectedMeeting.notes}</p>
+                    <MessageSquare size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+                    <p className="text-[13px] text-foreground leading-relaxed">{selectedMeeting.notes}</p>
                   </div>
                 </div>
               )}
 
               {/* Builder notes */}
               {selectedMeeting.builderNotes && (
-                <div className="bg-teal-50 rounded-xl p-4 border border-teal-100">
-                  <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wider mb-2">Message from Builder</p>
+                <div className="rounded-xl p-4 border" style={{ backgroundColor: '#0A7E8C08', borderColor: '#0A7E8C25' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] mb-2" style={{ color: '#0A7E8C' }}>Message from Builder</p>
                   <div className="flex items-start gap-2.5">
-                    <MessageSquare size={14} className="text-teal-500 shrink-0 mt-0.5" />
-                    <p className="text-sm text-teal-800 leading-relaxed">{selectedMeeting.builderNotes}</p>
+                    <MessageSquare size={14} className="shrink-0 mt-0.5" style={{ color: '#0A7E8C' }} />
+                    <p className="text-[13px] leading-relaxed text-foreground">{selectedMeeting.builderNotes}</p>
                   </div>
+                </div>
+              )}
+
+              {/* Map / directions for confirmed meetings */}
+              {(selectedMeeting.status === 'CONFIRMED' || selectedMeeting.status === 'Confirmed') && (
+                <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700 mb-3">Location & Directions</p>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedMeeting.projectName)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50/60 transition-all group"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                      <Navigation size={15} className="text-emerald-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-emerald-800 group-hover:text-emerald-600 transition-colors">Get Directions</p>
+                      <p className="text-[11px] text-emerald-500 truncate mt-0.5">{selectedMeeting.projectName}</p>
+                    </div>
+                    <MapPin size={14} className="text-emerald-400 shrink-0" />
+                  </a>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="border-t border-gray-100 px-5 py-4 bg-white flex-shrink-0">
+            <div className="border-t border-border px-5 py-4 bg-card flex-shrink-0">
               {selectedMeeting.status === 'COMPLETED' ? (
                 <button
                   onClick={() => { setRatingId(selectedMeeting.id); setRating(0); setSelectedMeeting(null); }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-opacity"
                   style={{ background: 'linear-gradient(135deg, #F59E0B, #D97706)' }}
                 >
                   <Star size={14} /> Rate Your Experience
@@ -423,7 +452,7 @@ const CustomerMeeting = () => {
               ) : (
                 <button
                   onClick={() => setSelectedMeeting(null)}
-                  className="w-full py-2.5 rounded-xl text-sm border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+                  className="w-full py-2.5 rounded-xl text-[13px] border border-border text-muted-foreground hover:bg-muted transition-colors"
                 >
                   Close
                 </button>
@@ -436,16 +465,18 @@ const CustomerMeeting = () => {
       {ratingId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/30" onClick={() => setRatingId(null)} />
-          <div className="relative bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4 text-center border border-gray-100">
-            <h3 className="text-lg font-bold text-gray-900">Rate Your Experience</h3>
+          <div className="relative bg-card rounded-2xl p-6 w-full max-w-sm shadow-xl border border-border space-y-4 text-center">
+            <h3 className="text-[15px] font-bold text-foreground">Rate Your Experience</h3>
             <div className="flex gap-2 justify-center">
               {Array.from({ length: 5 }, (_, i) => (
                 <button key={i} onClick={() => setRating(i + 1)}>
-                  <Star size={28} className={i < rating ? 'text-amber-400 fill-amber-400' : 'text-gray-200'} />
+                  <Star size={28} className={i < rating ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground'} />
                 </button>
               ))}
             </div>
-            <button onClick={() => { toast.success('Thank you for your feedback!'); setRatingId(null); setRating(0); }} disabled={rating === 0} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 hover:opacity-90 w-full" style={{ background: 'linear-gradient(135deg, #0A7E8C, #086E7A)' }}>
+            <button onClick={() => { toast.success('Thank you for your feedback!'); setRatingId(null); setRating(0); }} disabled={rating === 0}
+              className="px-6 py-2.5 rounded-xl text-[13px] font-semibold text-white disabled:opacity-50 hover:opacity-90 w-full"
+              style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}>
               Submit Rating
             </button>
           </div>

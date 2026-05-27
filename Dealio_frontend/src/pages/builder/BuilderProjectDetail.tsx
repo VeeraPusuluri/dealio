@@ -592,19 +592,6 @@ const BuilderProjectDetail = () => {
                   </div>
                 )}
 
-                {/* Nearby Highlights */}
-                {!!project.nearbyHighlights?.length && (
-                  <div style={{ background: T.bg, border: `1px solid ${T.line}`, borderRadius: 22, padding: '28px 30px' }}>
-                    <div style={{ ...sk, marginBottom: 16 }}>Nearby</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {project.nearbyHighlights.map(n => (
-                        <span key={n} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 999, background: T.aTint, color: T.aInk, border: `1px solid ${T.accent}`, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <MapPin size={9} /> {n}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 

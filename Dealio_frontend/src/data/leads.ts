@@ -1,4 +1,4 @@
-export type LeadStage = 'New Lead' | 'Meeting Requested' | 'Meeting Confirmed' | 'Meeting Done' | 'Negotiation' | 'Booked' | 'Closed';
+export type LeadStage = 'New Lead' | 'Profile Created' | 'Meeting Requested' | 'Meeting Confirmed' | 'Meeting Done' | 'Negotiation' | 'Booked' | 'Closed';
 
 export interface Lead {
   id: string;
@@ -23,6 +23,7 @@ export interface Lead {
 
 export const leadStageColors: Record<LeadStage, string> = {
   'New Lead': '#0EA5E9',
+  'Profile Created': '#3C5A45',
   'Meeting Requested': '#6366F1',
   'Meeting Confirmed': '#8B5CF6',
   'Meeting Done': '#EC4899',
