@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -7,6 +7,7 @@ import {
   Building2, MapPin, Search, Loader2, X, Bookmark,
   SlidersHorizontal, ArrowUpDown, ChevronDown, Check, Wifi, Car,
   Dumbbell, TreePine, Shield, Waves, Coffee, UtensilsCrossed,
+  Navigation, LocateFixed,
 } from 'lucide-react';
 import ProjectPlaceholder from '@/components/shared/ProjectPlaceholder';
 
@@ -32,7 +33,8 @@ interface ProjectSummary {
 }
 
 type FilterTab = 'all' | 'saved' | 'ready2027' | 'under1cr' | 'nearme';
-type SortOption = 'default' | 'price-asc' | 'price-desc';
+type SortOption = 'default' | 'price-asc' | 'price-desc' | 'distance';
+type GeoStatus = 'idle' | 'locating' | 'done' | 'denied' | 'error';
 
 /* ─── Constants ──────────────────────────────────────────────────── */
 const SHORTLIST_KEY = 'dealio_customer_shortlist';
@@ -109,12 +111,13 @@ function othersSaved(id: number): number {
 
 /* ─── Project Card ───────────────────────────────────────────────── */
 function ProjectCard({
-  project, shortlist, onToggleShortlist, onClick,
+  project, shortlist, onToggleShortlist, onClick, distanceKm,
 }: {
   project: ProjectSummary;
   shortlist: Set<number>;
   onToggleShortlist: (id: number, e: React.MouseEvent) => void;
   onClick: () => void;
+  distanceKm?: number;
 }) {
   const isSaved   = shortlist.has(project.id);
   const savedCount = othersSaved(project.id);
@@ -151,14 +154,18 @@ function ProjectCard({
           </button>
         </div>
 
-        {/* Others saved count - bottom left */}
-        {savedCount > 0 && (
-          <div className="absolute bottom-2.5 left-2.5">
+        {/* Bottom-left: distance badge (distance sort) or others-saved count */}
+        <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1">
+          {distanceKm != null && distanceKm < 99999 ? (
+            <span className="flex items-center gap-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-black/50 backdrop-blur text-white">
+              <Navigation size={8} /> {distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(1)} km`}
+            </span>
+          ) : savedCount > 0 ? (
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-black/40 backdrop-blur text-white">
               {savedCount} others saved
             </span>
-          </div>
-        )}
+          ) : null}
+        </div>
       </div>
 
       {/* ── Body ── */}
@@ -248,6 +255,37 @@ function CardSkeleton() {
   );
 }
 
+/* ─── Haversine distance (km) ────────────────────────────────────── */
+function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/* ─── Reverse geocode lat/lon → city name via BigDataCloud ───────── */
+async function reverseGeocode(lat: number, lon: number): Promise<string> {
+  const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('geocode failed');
+  const data = await res.json();
+  // city is a top-level field — correctly returns "Hyderabad" for Rangareddy-district locations
+  return data.city || data.locality || data.principalSubdivision || '';
+}
+
+/* ─── Forward geocode a locality name → {lat, lon} ──────────────── */
+async function forwardGeocode(place: string): Promise<{ lat: number; lon: number } | null> {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}&limit=1`;
+  const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data[0]) return null;
+  return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+}
+
 /* ─── Main component ─────────────────────────────────────────────── */
 const CustomerHome = () => {
   const navigate   = useNavigate();
@@ -262,18 +300,105 @@ const CustomerHome = () => {
   const [sortBy,      setSortBy]      = useState<SortOption>('default');
   const [sortOpen,    setSortOpen]    = useState(false);
   const [search,      setSearch]      = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters,   setShowFilters]   = useState(false);
+  const [statusFilter,  setStatusFilter]  = useState<string[]>([]);
+  const [typeFilter,    setTypeFilter]    = useState<string[]>([]);
+  const [cityFilter,    setCityFilter]    = useState<string[]>([]);
+
+  /* ── Location state ── */
+  const [geoCity,        setGeoCity]        = useState<string>('');
+  const [geoStatus,      setGeoStatus]      = useState<GeoStatus>('idle');
+  const [userCoords,     setUserCoords]     = useState<{ lat: number; lon: number } | null>(null);
+  const [localityCoords, setLocalityCoords] = useState<Map<string, { lat: number; lon: number }>>(new Map());
+  const geocodingRef = useRef<Set<string>>(new Set()); // tracks in-flight geocode requests
 
   const preferredCity = getPrefs().preferredCity;
+  // effective city: saved pref wins, then geo-detected, then all
+  const activeCity = preferredCity || geoCity;
 
-  /* ── Load all public projects on mount ── */
-  useEffect(() => {
-    const city = preferredCity || '';
+  /* ── Load projects whenever activeCity changes ── */
+  const loadProjects = useCallback((city: string) => {
+    setLoading(true);
+    setError('');
     builderApi.getPublicProjects(city || undefined)
       .then(data => setProjects((data as ProjectSummary[]) || []))
       .catch(() => setError('Could not load projects. Please try again.'))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { loadProjects(activeCity); }, [activeCity, loadProjects]);
+
+  /* ── Listen for preferred-city changes from Settings page ── */
+  useEffect(() => {
+    const handler = () => loadProjects(getPrefs().preferredCity || geoCity);
+    window.addEventListener('dealio:city-changed', handler);
+    return () => window.removeEventListener('dealio:city-changed', handler);
+  }, [geoCity, loadProjects]);
+
+  /* ── Auto-detect location on mount (only if no preferred city) ── */
+  useEffect(() => {
+    if (preferredCity || !navigator.geolocation) return;
+    setGeoStatus('locating');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        setUserCoords({ lat, lon });
+        try {
+          const city = await reverseGeocode(lat, lon);
+          if (city) { setGeoCity(city); setGeoStatus('done'); }
+          else       { setGeoStatus('idle'); }
+        } catch {
+          setGeoStatus('error');
+        }
+      },
+      () => setGeoStatus('denied'),
+      { timeout: 8000, maximumAge: 5 * 60 * 1000 },
+    );
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── Manual re-detect ── */
+  const requestLocation = () => {
+    if (!navigator.geolocation) return;
+    setGeoStatus('locating');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        setUserCoords({ lat, lon });
+        try {
+          const city = await reverseGeocode(lat, lon);
+          if (city) { setGeoCity(city); setGeoStatus('done'); }
+          else       { setGeoStatus('idle'); }
+        } catch { setGeoStatus('error'); }
+      },
+      () => setGeoStatus('denied'),
+      { timeout: 8000 },
+    );
+  };
+
+  const clearGeoCity = () => { setGeoCity(''); setGeoStatus('idle'); };
+
+  /* ── Geocode project localities when distance sort is active ── */
+  useEffect(() => {
+    if (sortBy !== 'distance' || !userCoords || !projects.length) return;
+    const unique = [...new Set(projects.map(p => p.locality || p.city).filter(Boolean) as string[])]
+      .filter(loc => !localityCoords.has(loc) && !geocodingRef.current.has(loc));
+    if (!unique.length) return;
+
+    unique.forEach(loc => geocodingRef.current.add(loc));
+
+    (async () => {
+      const updates = new Map<string, { lat: number; lon: number }>();
+      for (const loc of unique) {
+        const coords = await forwardGeocode(loc);
+        if (coords) updates.set(loc, coords);
+        await new Promise(r => setTimeout(r, 600)); // Nominatim 1 req/s policy
+      }
+      if (updates.size > 0) {
+        setLocalityCoords(prev => new Map([...prev, ...updates]));
+      }
+      unique.forEach(loc => geocodingRef.current.delete(loc));
+    })();
+  }, [sortBy, userCoords, projects]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleShortlist = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -307,6 +432,15 @@ const CustomerHome = () => {
     if (filterTab === 'under1cr')  list = list.filter(p => (p.priceMin ?? 0) < 10_000_000);
     if (filterTab === 'nearme')    list = list.filter(p => !!p.locality);
 
+    if (statusFilter.length > 0)
+      list = list.filter(p => statusFilter.includes(p.status));
+
+    if (typeFilter.length > 0)
+      list = list.filter(p => typeFilter.some(t => p.projectType?.toLowerCase().includes(t.toLowerCase())));
+
+    if (cityFilter.length > 0)
+      list = list.filter(p => cityFilter.includes(p.city));
+
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(p =>
@@ -319,9 +453,17 @@ const CustomerHome = () => {
 
     if (sortBy === 'price-asc')  list.sort((a, b) => (a.priceMin ?? 0) - (b.priceMin ?? 0));
     if (sortBy === 'price-desc') list.sort((a, b) => (b.priceMin ?? 0) - (a.priceMin ?? 0));
+    if (sortBy === 'distance' && userCoords) {
+      const getKm = (p: ProjectSummary) => {
+        const key = p.locality || p.city || '';
+        const c = localityCoords.get(key);
+        return c ? haversine(userCoords.lat, userCoords.lon, c.lat, c.lon) : Infinity;
+      };
+      list.sort((a, b) => getKm(a) - getKm(b));
+    }
 
     return list;
-  }, [projects, filterTab, shortlist, search, sortBy]);
+  }, [projects, filterTab, shortlist, search, sortBy, statusFilter, typeFilter, cityFilter, userCoords, localityCoords]);
 
   const TABS: { id: FilterTab; label: string }[] = [
     { id: 'all',       label: 'All' },
@@ -331,10 +473,11 @@ const CustomerHome = () => {
     { id: 'nearme',    label: 'Near me' },
   ];
 
-  const SORT_OPTIONS: [SortOption, string][] = [
+  const SORT_OPTIONS: [SortOption, string, boolean?][] = [
     ['default',    'Default'],
     ['price-asc',  'Price: Low → High'],
     ['price-desc', 'Price: High → Low'],
+    ['distance',   'Nearest first', !userCoords], // third element = disabled
   ];
 
   const sortLabel = SORT_OPTIONS.find(([k]) => k === sortBy)?.[1] ?? 'Sort';
@@ -357,14 +500,48 @@ const CustomerHome = () => {
                 pace.
               </em>
             </h1>
-            <p className="text-sm text-slate-500 mt-2">
+
+            {/* Location line */}
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               {preferredCity ? (
-                <>Curated for you in <strong className="text-slate-700">{preferredCity}</strong> · <strong className="text-slate-700">{shortlist.size} shortlisted</strong> · Compare configs, EMI and possession side by side.</>
-              ) : (
-                <>Hi <strong className="text-slate-700">{firstName}</strong>! Discover verified projects — shortlist and compare your favourites.</>
-              )}
-            </p>
+                <span className="flex items-center gap-1.5 text-[12px] font-medium text-teal-700 bg-teal-50 border border-teal-100 px-2.5 py-1 rounded-full">
+                  <MapPin size={10} className="shrink-0" /> {preferredCity}
+                  <span className="text-[10px] text-teal-500 ml-0.5">(from preferences)</span>
+                </span>
+              ) : geoStatus === 'locating' ? (
+                <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground bg-muted/60 border border-border px-2.5 py-1 rounded-full">
+                  <Loader2 size={10} className="animate-spin shrink-0" /> Detecting location…
+                </span>
+              ) : geoCity ? (
+                <span className="flex items-center gap-1.5 text-[12px] font-medium text-teal-700 bg-teal-50 border border-teal-100 px-2.5 py-1 rounded-full">
+                  <Navigation size={10} className="shrink-0" /> {geoCity}
+                  <button onClick={clearGeoCity} className="ml-0.5 text-teal-400 hover:text-teal-700 transition-colors">
+                    <X size={10} />
+                  </button>
+                </span>
+              ) : geoStatus === 'denied' ? (
+                <button
+                  onClick={requestLocation}
+                  className="flex items-center gap-1.5 text-[12px] text-muted-foreground border border-dashed border-border px-2.5 py-1 rounded-full hover:bg-muted/40 transition-colors">
+                  <LocateFixed size={10} className="shrink-0" /> Enable location for nearby projects
+                </button>
+              ) : geoStatus === 'idle' ? (
+                <button
+                  onClick={requestLocation}
+                  className="flex items-center gap-1.5 text-[12px] text-muted-foreground border border-dashed border-border px-2.5 py-1 rounded-full hover:bg-muted/40 transition-colors">
+                  <LocateFixed size={10} className="shrink-0" /> Use my location
+                </button>
+              ) : null}
+
+              <p className="text-[12px] text-slate-500">
+                {activeCity
+                  ? <><strong className="text-slate-700">{projects.length} project{projects.length !== 1 ? 's' : ''}</strong> in {activeCity} · <strong className="text-slate-700">{shortlist.size} shortlisted</strong></>
+                  : <>Hi <strong className="text-slate-700">{firstName}</strong>! Discover verified projects — shortlist and compare.</>
+                }
+              </p>
+            </div>
           </div>
+
           <div className="flex items-center gap-2 shrink-0 mt-1">
             <button
               onClick={() => setShowFilters(v => !v)}
@@ -381,33 +558,38 @@ const CustomerHome = () => {
         </div>
 
         {/* ══ TABS + SEARCH ══ */}
-        <div className="flex items-center gap-0 border-b border-gray-200 overflow-x-auto scrollbar-none">
-          <div className="flex items-center shrink-0">
-            {TABS.map(tab => (
-              <button key={tab.id} onClick={() => setFilterTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                  filterTab === tab.id
-                    ? 'border-teal-600 text-teal-700'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                }`}>
-                {tab.label}
-                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
-                  filterTab === tab.id ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-slate-500'
-                }`}>
-                  {tabCounts[tab.id]}
-                </span>
-              </button>
-            ))}
+        {/* Search + sort sit outside the scrollable tabs row so the dropdown is never clipped */}
+        <div className="flex items-center gap-2 border-b border-gray-200">
+          {/* Tabs — scrollable independently */}
+          <div className="flex-1 overflow-x-auto scrollbar-none min-w-0">
+            <div className="flex items-center">
+              {TABS.map(tab => (
+                <button key={tab.id} onClick={() => setFilterTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                    filterTab === tab.id
+                      ? 'border-teal-600 text-teal-700'
+                      : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                  }`}>
+                  {tab.label}
+                  <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
+                    filterTab === tab.id ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-slate-500'
+                  }`}>
+                    {tabCounts[tab.id]}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="ml-auto flex items-center gap-2 pb-1 pl-4 shrink-0">
+          {/* Search + sort — shrink-0, no overflow, so absolute dropdown works */}
+          <div className="flex items-center gap-2 pb-1 shrink-0">
             <div className="relative">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search projects, locality…"
-                className="pl-7 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-gray-50 w-48 focus:outline-none focus:ring-1 focus:ring-teal-300 focus:border-teal-300 transition-all"
+                className="pl-7 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-gray-50 w-44 focus:outline-none focus:ring-1 focus:ring-teal-300 focus:border-teal-300 transition-all"
               />
               {search && (
                 <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -424,11 +606,23 @@ const CustomerHome = () => {
               {sortOpen && (
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setSortOpen(false)} />
-                  <div className="absolute z-40 right-0 mt-1.5 min-w-[180px] bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
-                    {SORT_OPTIONS.map(([k, label]) => (
-                      <button key={k} onClick={() => { setSortBy(k); setSortOpen(false); }}
-                        className={`w-full text-left px-3.5 py-2 text-xs font-medium flex items-center justify-between transition-colors ${sortBy === k ? 'bg-teal-50 text-teal-700' : 'text-slate-600 hover:bg-gray-50'}`}>
-                        {label} {sortBy === k && <Check size={11} strokeWidth={3} />}
+                  <div className="absolute z-40 right-0 mt-1.5 min-w-[190px] bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
+                    {SORT_OPTIONS.map(([k, label, disabled]) => (
+                      <button key={k}
+                        disabled={!!disabled}
+                        onClick={() => { if (!disabled) { setSortBy(k); setSortOpen(false); } }}
+                        className={`w-full text-left px-3.5 py-2 text-xs font-medium flex items-center justify-between transition-colors ${
+                          disabled
+                            ? 'text-slate-300 cursor-not-allowed'
+                            : sortBy === k
+                              ? 'bg-teal-50 text-teal-700'
+                              : 'text-slate-600 hover:bg-gray-50'
+                        }`}>
+                        <span>{label}</span>
+                        <span className="flex items-center gap-1">
+                          {disabled && <span className="text-[10px] text-slate-300">no location</span>}
+                          {sortBy === k && !disabled && <Check size={11} strokeWidth={3} />}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -437,6 +631,125 @@ const CustomerHome = () => {
             </div>
           </div>
         </div>
+
+        {/* ══ FILTER PANEL ══ */}
+        {showFilters && (
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mt-3 space-y-3">
+            {/* Status filter */}
+            <div>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Status</p>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { label: 'All',               keys: [] as string[] },
+                  { label: 'Pre-launch',        keys: ['PRE_LAUNCH', 'NEW_LAUNCH'] },
+                  { label: 'Selling',           keys: ['LAUNCHED', 'ACTIVE'] },
+                  { label: 'Under constr.',     keys: ['UNDER_CONSTRUCTION'] },
+                  { label: 'Ready to move',     keys: ['READY_TO_MOVE'] },
+                  { label: 'Closing soon',      keys: ['CLOSING_SOON'] },
+                ].map(({ label, keys }) => {
+                  const isActive = keys.length === 0
+                    ? statusFilter.length === 0
+                    : keys.every(k => statusFilter.includes(k));
+                  return (
+                    <button
+                      key={label}
+                      onClick={() => setStatusFilter(keys.length === 0 ? [] : keys)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        isActive
+                          ? 'text-white border-transparent'
+                          : 'bg-white border-gray-200 text-slate-600 hover:border-teal-300 hover:text-teal-700'
+                      }`}
+                      style={isActive ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : {}}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* City filter */}
+            {(() => {
+              const cities = [...new Set(projects.map(p => p.city).filter(Boolean))].sort();
+              if (!cities.length) return null;
+              return (
+                <div>
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">City</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => setCityFilter([])}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        cityFilter.length === 0 ? 'text-white border-transparent' : 'bg-white border-gray-200 text-slate-600 hover:border-teal-300 hover:text-teal-700'
+                      }`}
+                      style={cityFilter.length === 0 ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : {}}>
+                      All
+                    </button>
+                    {cities.map(city => {
+                      const isActive = cityFilter.includes(city);
+                      return (
+                        <button
+                          key={city}
+                          onClick={() => setCityFilter(prev =>
+                            prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city],
+                          )}
+                          className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                            isActive ? 'text-white border-transparent' : 'bg-white border-gray-200 text-slate-600 hover:border-teal-300 hover:text-teal-700'
+                          }`}
+                          style={isActive ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : {}}>
+                          {city}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Type filter */}
+            <div>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Property type</p>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { label: 'All',        key: '' },
+                  { label: 'Apartment',  key: 'apartment' },
+                  { label: 'Villa',      key: 'villa' },
+                  { label: 'Plot',       key: 'plot' },
+                  { label: 'Commercial', key: 'commercial' },
+                ].map(({ label, key }) => {
+                  const isActive = key === ''
+                    ? typeFilter.length === 0
+                    : typeFilter.includes(key);
+                  return (
+                    <button
+                      key={label}
+                      onClick={() => {
+                        if (key === '') { setTypeFilter([]); return; }
+                        setTypeFilter(prev =>
+                          prev.includes(key) ? prev.filter(t => t !== key) : [...prev, key],
+                        );
+                      }}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        isActive
+                          ? 'text-white border-transparent'
+                          : 'bg-white border-gray-200 text-slate-600 hover:border-teal-300 hover:text-teal-700'
+                      }`}
+                      style={isActive ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : {}}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Clear filters */}
+            {(statusFilter.length > 0 || typeFilter.length > 0 || cityFilter.length > 0) && (
+              <button
+                onClick={() => { setStatusFilter([]); setTypeFilter([]); setCityFilter([]); }}
+                className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors">
+                Clear all filters
+              </button>
+            )}
+          </div>
+        )}
 
         {/* ══ GRID ══ */}
         <div className="pt-5">
@@ -475,15 +788,23 @@ const CustomerHome = () => {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-              {displayed.map(p => (
-                <ProjectCard
-                  key={p.id}
-                  project={p}
-                  shortlist={shortlist}
-                  onToggleShortlist={toggleShortlist}
-                  onClick={() => navigate(`/customer/projects/${p.id}`, { state: { project: p } })}
-                />
-              ))}
+              {displayed.map(p => {
+                const key = p.locality || p.city || '';
+                const coords = localityCoords.get(key);
+                const distanceKm = (sortBy === 'distance' && userCoords && coords)
+                  ? haversine(userCoords.lat, userCoords.lon, coords.lat, coords.lon)
+                  : undefined;
+                return (
+                  <ProjectCard
+                    key={p.id}
+                    project={p}
+                    shortlist={shortlist}
+                    onToggleShortlist={toggleShortlist}
+                    onClick={() => navigate(`/customer/projects/${p.id}`, { state: { project: p } })}
+                    distanceKm={distanceKm}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
