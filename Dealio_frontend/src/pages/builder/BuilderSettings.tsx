@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuthStore, roleLabels, roleColors } from '@/stores/useAuthStore';
 import { builderApi } from '@/lib/api';
 import {
-  Settings, User, Building2, Mail, Phone, Globe, MapPin,
+  User, Building2, Mail, Phone, Globe, MapPin,
   Save, CheckCircle2, Loader2, Calendar, FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -31,36 +31,29 @@ function emptyProfile(): BuilderProfile {
   return { companyName: '', description: '', website: '', established: '', officeAddress: '', city: '', reraLicense: '', totalProjectsDelivered: '' };
 }
 
-const ic = 'w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-300 transition-all placeholder:text-slate-400 shadow-sm';
-
-const SectionCard = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
-  <div className="la-card p-6 space-y-4">
-    <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-      <span className="text-teal-500">{icon}</span>
-      <h3 className="font-bold text-slate-800">{title}</h3>
-    </div>
-    {children}
-  </div>
-);
+const TABS = [
+  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'company', label: 'Company', icon: Building2 },
+];
 
 const BuilderSettings = () => {
   const { user } = useAuthStore();
+  const [activeTab, setActiveTab] = useState('profile');
 
-  // ── Profile fields ──────────────────────────────────────────────────────────
+  const color = user ? roleColors[user.role] || '#0A7E8C' : '#0A7E8C';
+  const initials = (user?.name || 'U').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
+
   const [name,  setName]  = useState(user?.name  || '');
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaved,  setProfileSaved]  = useState(false);
 
-  // ── Company fields ──────────────────────────────────────────────────────────
   const [profile, setProfile] = useState<BuilderProfile>(emptyProfile());
   const [savingCompany, setSavingCompany] = useState(false);
   const [companySaved,  setCompanySaved]  = useState(false);
 
-  useEffect(() => {
-    setProfile(loadProfile());
-  }, []);
+  useEffect(() => { setProfile(loadProfile()); }, []);
 
   const setField = (key: keyof BuilderProfile) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -72,13 +65,10 @@ const BuilderSettings = () => {
     try {
       const resolvedEmail = email || `uid${user.id}@dealio.builder`;
       await builderApi.ensureBuilder(name.trim() || user.name, resolvedEmail, phone || user.phone, user.id);
-
-      // Update localStorage user record
       const stored = JSON.parse(localStorage.getItem(USER_KEY) || '{}');
       const updated = { ...stored, name: name.trim() || stored.name, email: email || stored.email, phone: phone || stored.phone };
       localStorage.setItem(USER_KEY, JSON.stringify(updated));
       useAuthStore.setState(s => ({ user: s.user ? { ...s.user, name: updated.name, email: updated.email, phone: updated.phone } : s.user }));
-
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 2500);
       toast.success('Profile updated');
@@ -103,151 +93,197 @@ const BuilderSettings = () => {
     }
   };
 
+  if (!user) return null;
+
+  const inp = 'w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:border-ring transition-all';
+
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-3xl mx-auto space-y-5 pb-8">
 
-        {/* Header */}
-        <div className="la-banner px-5 py-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-teal-100">
-            <Settings size={20} className="text-teal-600" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-800">Account Settings</h2>
-            <p className="text-sm text-slate-400">Manage your profile and company information</p>
+        {/* Profile header */}
+        <div className="rounded-2xl border border-border overflow-hidden bg-card">
+          <div className="h-16" style={{ background: `linear-gradient(135deg, ${color}22, ${color}08)` }} />
+          <div className="px-5 pb-5 -mt-7 flex items-end gap-4">
+            <div
+              className="w-14 h-14 rounded-xl border-4 border-card flex items-center justify-center text-white text-lg font-bold flex-shrink-0"
+              style={{ background: `linear-gradient(135deg, ${color}, ${color}bb)`, boxShadow: `0 4px 14px ${color}40` }}
+            >
+              {initials}
+            </div>
+            <div className="pb-0.5 flex-1 min-w-0">
+              <h2 className="text-[15px] font-bold text-card-foreground truncate">{user.name}</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: color }}>
+                  {roleLabels[user.role]}
+                </span>
+                {user.email && <span className="text-[11px] text-muted-foreground truncate">{user.email}</span>}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* ── Profile ──────────────────────────────────────────────────────────── */}
-        <SectionCard title="Profile" icon={<User size={17} />}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-slate-600 mb-1 block">Full Name</label>
-              <div className="relative">
-                <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input value={name} onChange={e => setName(e.target.value)}
-                  className={`${ic} pl-9`} placeholder="Your full name" />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-600 mb-1 block">Email Address</label>
-              <div className="relative">
-                <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  className={`${ic} pl-9`} placeholder="you@example.com" />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-600 mb-1 block">Phone Number</label>
-              <div className="relative">
-                <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                  className={`${ic} pl-9`} placeholder="+91 98765 43210" />
-              </div>
-            </div>
+        {/* Tabs + Content */}
+        <div className="flex gap-4">
+
+          {/* Left nav */}
+          <div className="w-40 flex-shrink-0 space-y-0.5">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] transition-all text-left ${
+                  activeTab === tab.id
+                    ? 'font-medium text-card-foreground bg-muted'
+                    : 'text-muted-foreground hover:text-card-foreground hover:bg-muted/50'
+                }`}
+              >
+                <tab.icon size={14} style={activeTab === tab.id ? { color } : undefined} className={activeTab === tab.id ? '' : 'opacity-60'} />
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          <div className="flex justify-end pt-2">
-            <button onClick={handleSaveProfile} disabled={savingProfile}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60 hover:opacity-90 transition-opacity shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #0A7E8C, #086E7A)' }}>
-              {savingProfile
-                ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
-                : profileSaved
-                  ? <><CheckCircle2 size={14} /> Saved!</>
-                  : <><Save size={14} /> Save Profile</>}
-            </button>
+          {/* Content panel */}
+          <div className="flex-1 min-w-0">
+
+            {/* ── Profile ── */}
+            {activeTab === 'profile' && (
+              <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-border">
+                  <User size={14} style={{ color }} />
+                  <h3 className="text-[13px] font-semibold text-card-foreground">Personal Information</h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground">Full Name</label>
+                    <div className="relative">
+                      <User size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      <input value={name} onChange={e => setName(e.target.value)} className={`${inp} pl-9`} placeholder="Your full name" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground">Email Address</label>
+                    <div className="relative">
+                      <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={`${inp} pl-9`} placeholder="you@example.com" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground">Phone Number</label>
+                    <div className="relative">
+                      <Phone size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={`${inp} pl-9`} placeholder="+91 98765 43210" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={savingProfile}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-all disabled:opacity-60"
+                    style={{ background: `linear-gradient(135deg, ${color}, ${color}bb)` }}
+                  >
+                    {savingProfile ? <><Loader2 size={13} className="animate-spin" />Saving…</>
+                      : profileSaved ? <><CheckCircle2 size={13} />Saved!</>
+                      : <><Save size={13} />Save Profile</>}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Company ── */}
+            {activeTab === 'company' && (
+              <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-border">
+                  <Building2 size={14} style={{ color }} />
+                  <h3 className="text-[13px] font-semibold text-card-foreground">Company Information</h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground">Company / Developer Name</label>
+                    <div className="relative">
+                      <Building2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      <input value={profile.companyName} onChange={setField('companyName')} className={`${inp} pl-9`} placeholder="e.g. Prestige Estates Ltd." />
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground">About the Company</label>
+                    <textarea value={profile.description} onChange={setField('description')} rows={3}
+                      className={`${inp} resize-none`} placeholder="Brief description of the company, vision, and track record…" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground">Website</label>
+                    <div className="relative">
+                      <Globe size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      <input type="url" value={profile.website} onChange={setField('website')} className={`${inp} pl-9`} placeholder="https://yourcompany.com" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground">Year Established</label>
+                    <div className="relative">
+                      <Calendar size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      <input type="number" value={profile.established} onChange={setField('established')} className={`${inp} pl-9`} placeholder="e.g. 1996" min={1900} max={new Date().getFullYear()} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground">Projects Delivered</label>
+                    <div className="relative">
+                      <Building2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      <input type="number" value={profile.totalProjectsDelivered} onChange={setField('totalProjectsDelivered')} className={`${inp} pl-9`} placeholder="e.g. 42" min={0} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground">RERA License / Registration</label>
+                    <div className="relative">
+                      <FileText size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      <input value={profile.reraLicense} onChange={setField('reraLicense')} className={`${inp} pl-9`} placeholder="e.g. A51800001234" />
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground">Office Address</label>
+                    <div className="relative">
+                      <MapPin size={13} className="absolute left-3 top-3 text-muted-foreground pointer-events-none" />
+                      <textarea value={profile.officeAddress} onChange={setField('officeAddress')} rows={2}
+                        className={`${inp} pl-9 resize-none`} placeholder="Full office address" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground">City</label>
+                    <div className="relative">
+                      <MapPin size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      <input value={profile.city} onChange={setField('city')} className={`${inp} pl-9`} placeholder="e.g. Hyderabad" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    onClick={handleSaveCompany}
+                    disabled={savingCompany}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-all disabled:opacity-60"
+                    style={{ background: `linear-gradient(135deg, ${color}, ${color}bb)` }}
+                  >
+                    {savingCompany ? <><Loader2 size={13} className="animate-spin" />Saving…</>
+                      : companySaved ? <><CheckCircle2 size={13} />Saved!</>
+                      : <><Save size={13} />Save Company Info</>}
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
-        </SectionCard>
-
-        {/* ── Company Info ──────────────────────────────────────────────────────── */}
-        <SectionCard title="Company Information" icon={<Building2 size={17} />}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-slate-600 mb-1 block">Company / Developer Name</label>
-              <div className="relative">
-                <Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input value={profile.companyName} onChange={setField('companyName')}
-                  className={`${ic} pl-9`} placeholder="e.g. Prestige Estates Ltd." />
-              </div>
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-slate-600 mb-1 block">About the Company</label>
-              <textarea value={profile.description} onChange={setField('description')} rows={3}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 resize-none focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-300 transition-all placeholder:text-slate-400 shadow-sm"
-                placeholder="Brief description of the company, vision, and track record…" />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-slate-600 mb-1 block">Website</label>
-              <div className="relative">
-                <Globe size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="url" value={profile.website} onChange={setField('website')}
-                  className={`${ic} pl-9`} placeholder="https://yourcompany.com" />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-slate-600 mb-1 block">Year Established</label>
-              <div className="relative">
-                <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="number" value={profile.established} onChange={setField('established')}
-                  className={`${ic} pl-9`} placeholder="e.g. 1996" min={1900} max={new Date().getFullYear()} />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-slate-600 mb-1 block">Projects Delivered</label>
-              <div className="relative">
-                <Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="number" value={profile.totalProjectsDelivered} onChange={setField('totalProjectsDelivered')}
-                  className={`${ic} pl-9`} placeholder="e.g. 42" min={0} />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-slate-600 mb-1 block">RERA License / Registration</label>
-              <div className="relative">
-                <FileText size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input value={profile.reraLicense} onChange={setField('reraLicense')}
-                  className={`${ic} pl-9`} placeholder="e.g. A51800001234" />
-              </div>
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-slate-600 mb-1 block">Office Address</label>
-              <div className="relative">
-                <MapPin size={15} className="absolute left-3 top-3 text-muted-foreground" />
-                <textarea value={profile.officeAddress} onChange={setField('officeAddress')} rows={2}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 resize-none focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-300 transition-all placeholder:text-slate-400 shadow-sm"
-                  placeholder="Full office address" />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-slate-600 mb-1 block">City</label>
-              <div className="relative">
-                <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input value={profile.city} onChange={setField('city')}
-                  className={`${ic} pl-9`} placeholder="e.g. Hyderabad" />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-2">
-            <button onClick={handleSaveCompany} disabled={savingCompany}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60 hover:opacity-90 transition-opacity shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #0A7E8C, #086E7A)' }}>
-              {savingCompany
-                ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
-                : companySaved
-                  ? <><CheckCircle2 size={14} /> Saved!</>
-                  : <><Save size={14} /> Save Company Info</>}
-            </button>
-          </div>
-        </SectionCard>
-
+        </div>
       </div>
     </DashboardLayout>
   );
