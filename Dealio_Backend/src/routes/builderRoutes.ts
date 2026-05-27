@@ -50,6 +50,10 @@ router.get('/notifications', requireAuth, builderController.getBuilderNotificati
 router.post('/customer/meetings', builderController.bookMeeting);
 router.get('/customer/meetings', builderController.getMeetings);
 
+// CP share link — public endpoints (no auth)
+router.post('/projects/:projectId/leads/from-share', builderController.createLeadFromShare);
+router.get('/share/:token', builderController.resolveShareToken);
+
 // Parameterised builder routes
 router.post('/:builderId/projects', builderController.createProject);
 router.get('/:builderId/projects', builderController.getProjects);
