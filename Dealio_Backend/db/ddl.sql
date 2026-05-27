@@ -231,3 +231,22 @@ ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "link" TEXT;
 -- Meeting: CP tracking and CP notes
 ALTER TABLE "Meeting" ADD COLUMN IF NOT EXISTS "cpId"    INTEGER;
 ALTER TABLE "Meeting" ADD COLUMN IF NOT EXISTS "cpNotes" TEXT;
+
+-- ─────────────────────────────────────────
+-- Project v2: rich detail fields
+-- ─────────────────────────────────────────
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "landArea"             TEXT;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "buildingPermitNumber" TEXT;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "reraState"            TEXT;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "clubhouseAreaSqft"    INTEGER;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "specifications"       JSONB;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "paymentPlans"         JSONB;
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "locationAdvantages"   JSONB;
+
+-- Builder v2: company profile fields
+ALTER TABLE "Builder" ADD COLUMN IF NOT EXISTS "about"             TEXT;
+ALTER TABLE "Builder" ADD COLUMN IF NOT EXISTS "yearEstablished"   INTEGER;
+ALTER TABLE "Builder" ADD COLUMN IF NOT EXISTS "deliveredProjects" INTEGER;
+ALTER TABLE "Builder" ADD COLUMN IF NOT EXISTS "website"           TEXT;
+ALTER TABLE "Builder" ADD COLUMN IF NOT EXISTS "contactPhone"      TEXT;
+ALTER TABLE "Builder" ADD COLUMN IF NOT EXISTS "contactEmail"      TEXT;

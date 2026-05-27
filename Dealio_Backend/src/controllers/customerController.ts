@@ -28,7 +28,15 @@ export const customerController = {
     const { id } = req.params;
     const project = await prisma.project.findUnique({
       where: { id: Number(id) },
-      include: { builder: { select: { companyName: true, user: { select: { fullName: true } } } } },
+      include: {
+        builder: {
+          select: {
+            companyName: true, about: true, yearEstablished: true,
+            deliveredProjects: true, website: true, contactPhone: true, contactEmail: true,
+            user: { select: { fullName: true } },
+          },
+        },
+      },
     });
     if (project) {
       const { priceFrom, priceTo, builder, ...rest } = project as any;
@@ -36,7 +44,13 @@ export const customerController = {
         ...rest,
         priceMin:    priceFrom ?? null,
         priceMax:    priceTo   ?? null,
-        builderName: builder?.companyName || builder?.user?.fullName || null,
+        builderName:              builder?.companyName || builder?.user?.fullName || null,
+        builderAbout:             builder?.about             ?? null,
+        builderYearEstablished:   builder?.yearEstablished   ?? null,
+        builderDeliveredProjects: builder?.deliveredProjects ?? null,
+        builderWebsite:           builder?.website           ?? null,
+        builderContactPhone:      builder?.contactPhone      ?? null,
+        builderContactEmail:      builder?.contactEmail      ?? null,
       }});
     } else {
       res.status(404).json({ ok: false, message: 'Project not found' });

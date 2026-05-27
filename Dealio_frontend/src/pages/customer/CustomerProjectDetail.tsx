@@ -41,6 +41,10 @@ interface NearbyPlace {
   category: 'hospital' | 'school' | 'transit' | 'mall' | 'park' | 'supermarket';
   lat: number; lng: number; distanceKm: number;
 }
+interface LocAdv { category: string; name: string; distanceKm: string; driveMinutes: string; }
+interface PayPlan { name: string; description: string; }
+interface Specs { structure?: string; flooring?: string; doors?: string; windows?: string;
+                  electrical?: string; plumbing?: string; kitchen?: string; bathrooms?: string; painting?: string; }
 interface ProjectDetail {
   id: number; builderId?: number; builderName?: string; name: string;
   projectType: string | null; status: string; description: string | null;
@@ -56,6 +60,19 @@ interface ProjectDetail {
   possessionDate: string | null; featured: boolean; closingSoon: boolean;
   videoUrl: string | null; imageUrl: string | null;
   availableUnits: number | null; bookedUnits: number | null; soldUnits: number | null;
+  // Rich detail fields
+  landArea?: string | null;
+  buildingPermitNumber?: string | null;
+  clubhouseAreaSqft?: number | null;
+  specifications?: Specs | null;
+  paymentPlans?: PayPlan[] | null;
+  locationAdvantages?: LocAdv[] | null;
+  builderAbout?: string | null;
+  builderYearEstablished?: number | null;
+  builderDeliveredProjects?: number | null;
+  builderWebsite?: string | null;
+  builderContactPhone?: string | null;
+  builderContactEmail?: string | null;
 }
 interface ProjectDocument {
   id: number; docType: string; fileName: string; fileUrl: string; uploadedAt: string;
@@ -1360,6 +1377,45 @@ const CustomerProjectDetail = () => {
           </section>
         )}
 
+        {/* ── CONSTRUCTION SPECIFICATIONS ──────────────────────────────────── */}
+        {project.specifications && Object.values(project.specifications).some(v => v) && (
+          <section style={{ maxWidth: 1100, margin: '96px auto 0', padding: '0 24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'end', gap: 28, marginBottom: 32 }}>
+              <div>
+                <div style={sk}>— Build quality</div>
+                <h2 style={secH2}>Engineered to <em style={{ fontStyle: 'italic', color: T.aInk }}>last.</em></h2>
+              </div>
+              <div style={{ color: T.muted, fontSize: 14, maxWidth: 420, textAlign: 'right', marginLeft: 'auto', lineHeight: 1.5 }}>
+                Construction specifications — materials, finishes and systems as filed with RERA.
+              </div>
+            </div>
+            <div style={{ background: T.bg2, borderRadius: 24, border: `1px solid ${T.line}`, overflow: 'hidden' }}>
+              {[
+                ['Structure',   project.specifications.structure],
+                ['Flooring',    project.specifications.flooring],
+                ['Main Doors',  project.specifications.doors],
+                ['Windows',     project.specifications.windows],
+                ['Electrical',  project.specifications.electrical],
+                ['Plumbing',    project.specifications.plumbing],
+                ['Kitchen',     project.specifications.kitchen],
+                ['Bathrooms',   project.specifications.bathrooms],
+                ['Painting',    project.specifications.painting],
+              ].filter(([, v]) => v).map(([label, value], i, arr) => (
+                <div key={label as string} style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 20, padding: '16px 28px', borderBottom: i < arr.length - 1 ? `1px solid ${T.line}` : 'none', alignItems: 'center' }}>
+                  <span style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: T.muted, fontWeight: 500 }}>{label as string}</span>
+                  <span style={{ fontSize: 14, color: T.ink, fontWeight: 400, lineHeight: 1.5 }}>{value as string}</span>
+                </div>
+              ))}
+              {project.clubhouseAreaSqft && (
+                <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 20, padding: '16px 28px', borderTop: `1px solid ${T.line}`, alignItems: 'center' }}>
+                  <span style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: T.muted, fontWeight: 500 }}>Clubhouse</span>
+                  <span style={{ fontSize: 14, color: T.ink, fontWeight: 400 }}>{project.clubhouseAreaSqft.toLocaleString('en-IN')} sqft</span>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* Pricing moved to Payment/EMI section below */}
 
         {/* ── LOCATION ─────────────────────────────────────────────────────── */}
@@ -1622,6 +1678,37 @@ const CustomerProjectDetail = () => {
                 )}
               </div>
             )}
+          {/* ── Builder-provided Location Advantages ── */}
+          {project.locationAdvantages && project.locationAdvantages.filter(a => a.name).length > 0 && (
+            <div style={{ marginTop: 64 }}>
+              <div style={{ fontFamily: T.mono, fontSize: 10.5, letterSpacing: '0.14em', color: T.muted, textTransform: 'uppercase', marginBottom: 14 }}>
+                — Distance guide
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
+                {project.locationAdvantages.filter(a => a.name).map((adv, i) => (
+                  <div key={i} style={{ padding: '16px 18px', background: T.bg2, border: `1px solid ${T.line}`, borderRadius: 14, display: 'grid', gridTemplateColumns: '34px 1fr auto', gap: 10, alignItems: 'center' }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 9, background: T.aTint, color: T.aInk, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700 }}>
+                      {adv.category.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 500, color: T.ink, lineHeight: 1.2 }}>{adv.name}</div>
+                      <div style={{ fontSize: 11.5, color: T.muted, marginTop: 2 }}>{adv.category}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      {adv.driveMinutes && (
+                        <div style={{ fontFamily: T.serif, fontStyle: 'italic', fontSize: 18, color: T.aInk, lineHeight: 1 }}>
+                          {adv.driveMinutes}<small style={{ fontFamily: 'system-ui', fontSize: 10, color: T.muted, fontStyle: 'normal', marginLeft: 2 }}>min</small>
+                        </div>
+                      )}
+                      {adv.distanceKm && (
+                        <div style={{ fontFamily: T.mono, fontSize: 11, color: T.muted, marginTop: 2 }}>{adv.distanceKm} km</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           </section>
         )}
 
@@ -1791,28 +1878,50 @@ const CustomerProjectDetail = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22 }}>
               {/* Payment milestone plan */}
               <div style={{ border: `1px solid ${T.line}`, borderRadius: 22, padding: '32px 34px', background: T.bg }}>
-                <h3 style={{ margin: '0 0 6px', fontFamily: T.serif, fontSize: 26, fontWeight: 300, letterSpacing: '-0.02em' }}>
-                  The <em style={{ fontStyle: 'italic', color: T.aInk }}>20 : 30 : 50</em> plan
-                </h3>
-                <div style={{ color: T.muted, fontSize: 12.5, marginBottom: 22 }}>For a typical {fmtPrice(project.priceMin)} home</div>
-                {[
-                  { num: '01', nm: 'Booking & agreement', sub: '21 days from token — refundable till sale deed', pct: '20%', amt: fmtPrice(Math.round(project.priceMin * 0.2)) },
-                  { num: '02', nm: 'Foundation milestone', sub: 'Tower-wise — as per construction progress', pct: '10%', amt: fmtPrice(Math.round(project.priceMin * 0.1)) },
-                  { num: '03', nm: 'Slab-wise · 4 milestones', sub: '5% each as the building rises', pct: '20%', amt: fmtPrice(Math.round(project.priceMin * 0.2)) },
-                  { num: '04', nm: 'Finishing & possession', sub: project.possessionDate ? `Key handover · ${new Date(project.possessionDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}` : 'Key handover on possession', pct: '50%', amt: fmtPrice(Math.round(project.priceMin * 0.5)) },
-                ].map((m, i, arr) => (
-                  <div key={m.num} style={{ display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 14, alignItems: 'center', padding: '14px 0', borderTop: `1px solid ${T.line}`, borderBottom: i === arr.length - 1 ? `1px solid ${T.line}` : 'none' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: T.aTint, color: T.aInk, display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 11, fontWeight: 600, border: `1px solid ${T.accent}` }}>{m.num}</div>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: T.ink }}>{m.nm}</div>
-                      <div style={{ fontSize: 12, color: T.muted, marginTop: 1 }}>{m.sub}</div>
-                    </div>
-                    <div style={{ fontFamily: T.mono, fontSize: 13, fontWeight: 600, color: T.ink, textAlign: 'right' }}>
-                      {m.amt}
-                      <small style={{ fontFamily: 'system-ui', fontSize: 10.5, color: T.muted, fontWeight: 400, display: 'block' }}>{m.pct}</small>
-                    </div>
-                  </div>
-                ))}
+                {project.paymentPlans && project.paymentPlans.length > 0 ? (
+                  <>
+                    <h3 style={{ margin: '0 0 6px', fontFamily: T.serif, fontSize: 26, fontWeight: 300, letterSpacing: '-0.02em' }}>
+                      Payment <em style={{ fontStyle: 'italic', color: T.aInk }}>plans</em>
+                    </h3>
+                    <div style={{ color: T.muted, fontSize: 12.5, marginBottom: 22 }}>Builder-provided options for {fmtPrice(project.priceMin)} onwards</div>
+                    {project.paymentPlans.map((plan, i) => (
+                      <div key={i} style={{ padding: '16px 0', borderTop: `1px solid ${T.line}`, borderBottom: i === project.paymentPlans!.length - 1 ? `1px solid ${T.line}` : 'none', display: 'grid', gridTemplateColumns: '36px 1fr', gap: 14, alignItems: 'start' }}>
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: T.aTint, color: T.aInk, display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 11, fontWeight: 600, border: `1px solid ${T.accent}` }}>
+                          {String(i + 1).padStart(2, '0')}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{plan.name}</div>
+                          <div style={{ fontSize: 13, color: T.muted, marginTop: 3, lineHeight: 1.5 }}>{plan.description}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <h3 style={{ margin: '0 0 6px', fontFamily: T.serif, fontSize: 26, fontWeight: 300, letterSpacing: '-0.02em' }}>
+                      The <em style={{ fontStyle: 'italic', color: T.aInk }}>20 : 30 : 50</em> plan
+                    </h3>
+                    <div style={{ color: T.muted, fontSize: 12.5, marginBottom: 22 }}>For a typical {fmtPrice(project.priceMin)} home</div>
+                    {[
+                      { num: '01', nm: 'Booking & agreement', sub: '21 days from token — refundable till sale deed', pct: '20%', amt: fmtPrice(Math.round(project.priceMin! * 0.2)) },
+                      { num: '02', nm: 'Foundation milestone', sub: 'Tower-wise — as per construction progress', pct: '10%', amt: fmtPrice(Math.round(project.priceMin! * 0.1)) },
+                      { num: '03', nm: 'Slab-wise · 4 milestones', sub: '5% each as the building rises', pct: '20%', amt: fmtPrice(Math.round(project.priceMin! * 0.2)) },
+                      { num: '04', nm: 'Finishing & possession', sub: project.possessionDate ? `Key handover · ${new Date(project.possessionDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}` : 'Key handover on possession', pct: '50%', amt: fmtPrice(Math.round(project.priceMin! * 0.5)) },
+                    ].map((m, i, arr) => (
+                      <div key={m.num} style={{ display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 14, alignItems: 'center', padding: '14px 0', borderTop: `1px solid ${T.line}`, borderBottom: i === arr.length - 1 ? `1px solid ${T.line}` : 'none' }}>
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: T.aTint, color: T.aInk, display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 11, fontWeight: 600, border: `1px solid ${T.accent}` }}>{m.num}</div>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 500, color: T.ink }}>{m.nm}</div>
+                          <div style={{ fontSize: 12, color: T.muted, marginTop: 1 }}>{m.sub}</div>
+                        </div>
+                        <div style={{ fontFamily: T.mono, fontSize: 13, fontWeight: 600, color: T.ink, textAlign: 'right' }}>
+                          {m.amt}
+                          <small style={{ fontFamily: 'system-ui', fontSize: 10.5, color: T.muted, fontWeight: 400, display: 'block' }}>{m.pct}</small>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
                 {(project.maintenanceCharges || project.floorRiseCharges) && (
                   <div style={{ marginTop: 16, padding: '12px 16px', background: T.bg2, borderRadius: 12 }}>
                     {project.maintenanceCharges && (
@@ -1910,6 +2019,45 @@ const CustomerProjectDetail = () => {
               dealio checks every claim against the RERA filing, builder track record and on-ground inspection. Nothing here is a brochure number.
             </div>
           </div>
+
+          {/* About Developer — full width if builder data available */}
+          {(project.builderAbout || project.builderYearEstablished || project.builderDeliveredProjects) && (
+            <div style={{ background: T.bgCream, borderRadius: 22, padding: '32px 36px', marginBottom: 28, display: 'grid', gridTemplateColumns: project.builderAbout ? '1fr auto' : '1fr', gap: 32, alignItems: 'start' }}>
+              <div>
+                <div style={{ fontFamily: T.mono, fontSize: 10.5, letterSpacing: '0.14em', color: T.aInk, textTransform: 'uppercase', marginBottom: 10 }}>— About the developer</div>
+                <h3 style={{ margin: '0 0 12px', fontFamily: T.serif, fontSize: 24, fontWeight: 300, letterSpacing: '-0.02em', color: T.ink }}>
+                  <em style={{ fontStyle: 'italic', color: T.aInk }}>{project.builderName ?? 'The Developer'}</em>
+                </h3>
+                {project.builderAbout && (
+                  <p style={{ fontSize: 14, color: T.ink2, lineHeight: 1.65, margin: '0 0 18px', maxWidth: 680 }}>{project.builderAbout}</p>
+                )}
+                <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                  {project.builderYearEstablished && (
+                    <div>
+                      <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.muted, marginBottom: 4 }}>Est.</div>
+                      <div style={{ fontFamily: T.serif, fontSize: 28, fontWeight: 300, color: T.aInk, lineHeight: 1 }}>{project.builderYearEstablished}</div>
+                    </div>
+                  )}
+                  {project.builderDeliveredProjects && (
+                    <div>
+                      <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.muted, marginBottom: 4 }}>Delivered</div>
+                      <div style={{ fontFamily: T.serif, fontSize: 28, fontWeight: 300, color: T.aInk, lineHeight: 1 }}>{project.builderDeliveredProjects} <small style={{ fontFamily: 'system-ui', fontSize: 13, color: T.muted, fontWeight: 400 }}>projects</small></div>
+                    </div>
+                  )}
+                  {project.builderWebsite && (
+                    <div style={{ alignSelf: 'flex-end' }}>
+                      <a href={project.builderWebsite.startsWith('http') ? project.builderWebsite : 'https://' + project.builderWebsite}
+                        target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 13, fontWeight: 600, color: T.aInk, textDecoration: 'none', borderBottom: `1px solid ${T.accent}` }}>
+                        <Globe size={12} /> {project.builderWebsite.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+                        <ExternalLink size={10} />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28 }}>
             {/* Testimonial */}

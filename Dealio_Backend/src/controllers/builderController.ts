@@ -90,14 +90,29 @@ export const builderController = {
         status: projectData.status || 'ACTIVE',
         videoUrl: projectData.videoUrl || null,
         googleMapsLink: projectData.googleMapsLink || null,
+        landArea: projectData.landArea || null,
+        buildingPermitNumber: projectData.buildingPermitNumber || null,
+        reraState: projectData.reraState || null,
+        clubhouseAreaSqft: projectData.clubhouseAreaSqft || null,
+        specifications: projectData.specifications || null,
+        paymentPlans: projectData.paymentPlans || null,
+        locationAdvantages: projectData.locationAdvantages || null,
       }
     });
 
-    // Save the developer/company name on the Builder record when first provided
-    if (projectData.builderName) {
+    // Save the developer/company name and profile on the Builder record
+    if (projectData.builderName || projectData.builderAbout || projectData.builderYearEstablished) {
       await prisma.builder.update({
         where: { id: Number(builderId) },
-        data: { companyName: projectData.builderName },
+        data: {
+          ...(projectData.builderName          && { companyName: projectData.builderName }),
+          ...(projectData.builderAbout         && { about: projectData.builderAbout }),
+          ...(projectData.builderYearEstablished && { yearEstablished: Number(projectData.builderYearEstablished) }),
+          ...(projectData.builderDeliveredProjects && { deliveredProjects: Number(projectData.builderDeliveredProjects) }),
+          ...(projectData.builderWebsite       && { website: projectData.builderWebsite }),
+          ...(projectData.builderContactPhone  && { contactPhone: projectData.builderContactPhone }),
+          ...(projectData.builderContactEmail  && { contactEmail: projectData.builderContactEmail }),
+        },
       }).catch(() => {});
     }
 
@@ -228,10 +243,17 @@ export const builderController = {
     if (b.priceMin       !== undefined) data.priceFrom      = b.priceMin;
     if (b.priceMax       !== undefined) data.priceTo        = b.priceMax;
     if (b.commissionValue !== undefined) data.commissionValue = b.commissionValue;
-    if (b.imageUrl       !== undefined) data.imageUrl        = b.imageUrl;
-    if (b.coverUrl       !== undefined) data.imageUrl        = b.coverUrl;
-    if (b.videoUrl       !== undefined) data.videoUrl        = b.videoUrl;
-    if (b.googleMapsLink !== undefined) data.googleMapsLink  = b.googleMapsLink || null;
+    if (b.imageUrl              !== undefined) data.imageUrl             = b.imageUrl;
+    if (b.coverUrl              !== undefined) data.imageUrl             = b.coverUrl;
+    if (b.videoUrl              !== undefined) data.videoUrl             = b.videoUrl;
+    if (b.googleMapsLink        !== undefined) data.googleMapsLink       = b.googleMapsLink || null;
+    if (b.landArea              !== undefined) data.landArea             = b.landArea || null;
+    if (b.buildingPermitNumber  !== undefined) data.buildingPermitNumber = b.buildingPermitNumber || null;
+    if (b.reraState             !== undefined) data.reraState            = b.reraState || null;
+    if (b.clubhouseAreaSqft     !== undefined) data.clubhouseAreaSqft    = b.clubhouseAreaSqft || null;
+    if (b.specifications        !== undefined) data.specifications       = b.specifications;
+    if (b.paymentPlans          !== undefined) data.paymentPlans         = b.paymentPlans;
+    if (b.locationAdvantages    !== undefined) data.locationAdvantages   = b.locationAdvantages;
 
     try {
       const updatedProject = await prisma.project.update({

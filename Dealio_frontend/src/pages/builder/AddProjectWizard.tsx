@@ -305,6 +305,36 @@ const AddProjectWizard = () => {
     { bhkType: '3BHK', carpetArea: 0, superBuiltUp: 0, floors: '', count: 0, basePrice: 0, status: 'Available' },
   ]);
 
+  // Section 1 extras — identity details
+  const [landArea,             setLandArea]             = useState('');
+  const [buildingPermitNumber, setBuildingPermitNumber] = useState('');
+  const [reraState,            setReraState]            = useState('');
+  // Builder profile
+  const [builderAbout,             setBuilderAbout]             = useState('');
+  const [builderYearEstablished,   setBuilderYearEstablished]   = useState<number | ''>('');
+  const [builderDeliveredProjects, setBuilderDeliveredProjects] = useState<number | ''>('');
+  const [builderWebsite,           setBuilderWebsite]           = useState('');
+
+  // Section 2 extras — structured location advantages
+  interface LocAdv { category: string; name: string; distanceKm: string; driveMinutes: string; }
+  const [locationAdvantages, setLocationAdvantages] = useState<LocAdv[]>([
+    { category: 'Corporate', name: '', distanceKm: '', driveMinutes: '' },
+  ]);
+
+  // Section 3 extras — payment plans
+  interface PayPlan { name: string; description: string; }
+  const [paymentPlans, setPaymentPlans] = useState<PayPlan[]>([
+    { name: '20:80', description: '20% on booking, 80% on possession' },
+  ]);
+
+  // Section 5 extras — construction specs + clubhouse
+  interface Specs { structure: string; flooring: string; doors: string; windows: string;
+                    electrical: string; plumbing: string; kitchen: string; bathrooms: string; painting: string; }
+  const [specifications, setSpecifications] = useState<Specs>({
+    structure: '', flooring: '', doors: '', windows: '', electrical: '', plumbing: '', kitchen: '', bathrooms: '', painting: '',
+  });
+  const [clubhouseAreaSqft, setClubhouseAreaSqft] = useState<number | ''>('');
+
   // Section 5 — Amenities & Documents
   const [amenities,      setAmenities]      = useState<string[]>(['Swimming Pool', 'Gym', 'Clubhouse']);
   const [videoUrl,       setVideoUrl]       = useState('');
@@ -355,6 +385,9 @@ const AddProjectWizard = () => {
       priceFrom, priceTo, pricePerSqftFrom, pricePerSqftTo, maintenance, floorRise,
       commissionType, flatPercent, slabRows, cpIncentive, possessionDate, closingSoon, featured,
       unitConfigs, amenities, videoUrl, virtualTourUrl,
+      landArea, buildingPermitNumber, reraState,
+      builderAbout, builderYearEstablished, builderDeliveredProjects, builderWebsite,
+      locationAdvantages, paymentPlans, specifications, clubhouseAreaSqft,
     }));
     toast.success('Draft saved! Come back anytime to continue.');
   };
@@ -399,6 +432,17 @@ const AddProjectWizard = () => {
       if (d.amenities)      setAmenities(d.amenities as string[]);
       if (d.videoUrl)       setVideoUrl(d.videoUrl as string);
       if (d.virtualTourUrl) setVirtualTourUrl(d.virtualTourUrl as string);
+      if (d.landArea)             setLandArea(d.landArea as string);
+      if (d.buildingPermitNumber) setBuildingPermitNumber(d.buildingPermitNumber as string);
+      if (d.reraState)            setReraState(d.reraState as string);
+      if (d.builderAbout)         setBuilderAbout(d.builderAbout as string);
+      if (d.builderYearEstablished)   setBuilderYearEstablished(d.builderYearEstablished as number);
+      if (d.builderDeliveredProjects) setBuilderDeliveredProjects(d.builderDeliveredProjects as number);
+      if (d.builderWebsite)       setBuilderWebsite(d.builderWebsite as string);
+      if (d.locationAdvantages)   setLocationAdvantages(d.locationAdvantages as typeof locationAdvantages);
+      if (d.paymentPlans)         setPaymentPlans(d.paymentPlans as typeof paymentPlans);
+      if (d.specifications)       setSpecifications(d.specifications as typeof specifications);
+      if (d.clubhouseAreaSqft)    setClubhouseAreaSqft(d.clubhouseAreaSqft as number);
       toast.info('Draft restored — continue where you left off.');
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -478,6 +522,20 @@ const AddProjectWizard = () => {
         cpIncentive: cpIncentive || undefined, closingSoon, featured,
         videoUrl: videoUrl || undefined, virtualTourUrl: virtualTourUrl || undefined,
         builderName: builderName || undefined,
+        landArea: landArea || undefined,
+        buildingPermitNumber: buildingPermitNumber || undefined,
+        reraState: reraState || undefined,
+        builderAbout: builderAbout || undefined,
+        builderYearEstablished: builderYearEstablished || undefined,
+        builderDeliveredProjects: builderDeliveredProjects || undefined,
+        builderWebsite: builderWebsite || undefined,
+        locationAdvantages: locationAdvantages.filter(l => l.name).length
+          ? locationAdvantages.filter(l => l.name) : undefined,
+        paymentPlans: paymentPlans.filter(p => p.name).length
+          ? paymentPlans.filter(p => p.name) : undefined,
+        specifications: Object.values(specifications).some(v => v)
+          ? specifications : undefined,
+        clubhouseAreaSqft: clubhouseAreaSqft || undefined,
       };
 
       const created = await builderApi.createProject(builderId, payload) as { id?: number; projectId?: number };
@@ -721,7 +779,7 @@ const AddProjectWizard = () => {
                 </div>
 
                 {/* RERA */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <label className={lbl}>RERA Number <span className="text-destructive">*</span></label>
                     <input value={reraNumber} maxLength={30}
@@ -731,10 +789,64 @@ const AddProjectWizard = () => {
                     <p className="text-[10px] text-muted-foreground">{30 - reraNumber.length} chars remaining</p>
                     <FieldError msg={errors.reraNumber} />
                   </div>
+                  <div className="space-y-1.5">
+                    <label className={lbl}>RERA State</label>
+                    <select value={reraState} onChange={e => setReraState(e.target.value)} className={inp()}>
+                      <option value="">Select state</option>
+                      {['Telangana','Andhra Pradesh','Karnataka','Maharashtra','Tamil Nadu','Delhi','Gujarat','Rajasthan','Uttar Pradesh','West Bengal','Kerala','Punjab','Haryana','Madhya Pradesh','Odisha'].map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
                   <DatePickerField label="RERA Expiry" value={reraExpiry}
                     onChange={v => { setReraExpiry(v); setErrors(p => ({ ...p, reraExpiry: '' })); }}
                     error={errors.reraExpiry} required placeholder="Select expiry date"
                     fromYear={new Date().getFullYear()} toYear={new Date().getFullYear() + 20} />
+                </div>
+
+                {/* Land area + permit */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className={lbl}>Land Area</label>
+                    <input value={landArea} onChange={e => setLandArea(e.target.value)}
+                      className={inp()} placeholder="e.g. 9.8 Acres" />
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
+                    <label className={lbl}>Building / GHMC Permit No.</label>
+                    <input value={buildingPermitNumber} onChange={e => setBuildingPermitNumber(e.target.value)}
+                      className={inp()} placeholder="e.g. GHMC/DP/2024/12345" />
+                  </div>
+                </div>
+
+                {/* Builder profile */}
+                <div className="pt-2 border-t border-border">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground mb-3">Developer Profile</p>
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className={lbl}>About the Developer</label>
+                      <textarea value={builderAbout} onChange={e => setBuilderAbout(e.target.value)}
+                        rows={3} className={ta()} placeholder="Brief description of the developer's background, legacy, and values…" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-1.5">
+                        <label className={lbl}>Est. Year</label>
+                        <input type="number" min={1900} max={new Date().getFullYear()} value={builderYearEstablished}
+                          onChange={e => setBuilderYearEstablished(parseInt(e.target.value) || '')}
+                          className={inp()} placeholder="e.g. 1998" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className={lbl}>Delivered Projects</label>
+                        <input type="number" min={0} value={builderDeliveredProjects}
+                          onChange={e => setBuilderDeliveredProjects(parseInt(e.target.value) || '')}
+                          className={inp()} placeholder="e.g. 24" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className={lbl}>Website</label>
+                        <input value={builderWebsite} onChange={e => setBuilderWebsite(e.target.value)}
+                          className={inp()} placeholder="https://…" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -794,6 +906,46 @@ const AddProjectWizard = () => {
                       </Chip>
                     ))}
                   </div>
+                </div>
+
+                {/* Location Advantages */}
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Location Advantages</p>
+                  <div className="hidden grid-cols-4 gap-2 px-1">
+                    {['Category', 'Place Name', 'Distance (km)', 'Drive (min)'].map(h => (
+                      <span key={h} className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">{h}</span>
+                    ))}
+                  </div>
+                  {locationAdvantages.map((adv, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <select value={adv.category}
+                        onChange={e => { const a = [...locationAdvantages]; a[i] = { ...a[i], category: e.target.value }; setLocationAdvantages(a); }}
+                        className={`${inp()} w-36 shrink-0`}>
+                        {['Corporate', 'Healthcare', 'Education', 'Shopping', 'Transit', 'Recreation', 'Other'].map(c => (
+                          <option key={c}>{c}</option>
+                        ))}
+                      </select>
+                      <input value={adv.name}
+                        onChange={e => { const a = [...locationAdvantages]; a[i] = { ...a[i], name: e.target.value }; setLocationAdvantages(a); }}
+                        className={inp()} placeholder="Place name (e.g. Financial District)" />
+                      <input value={adv.distanceKm}
+                        onChange={e => { const a = [...locationAdvantages]; a[i] = { ...a[i], distanceKm: e.target.value }; setLocationAdvantages(a); }}
+                        className={`${inp()} w-24 shrink-0`} placeholder="km" />
+                      <input value={adv.driveMinutes}
+                        onChange={e => { const a = [...locationAdvantages]; a[i] = { ...a[i], driveMinutes: e.target.value }; setLocationAdvantages(a); }}
+                        className={`${inp()} w-24 shrink-0`} placeholder="min" />
+                      <button type="button"
+                        onClick={() => setLocationAdvantages(locationAdvantages.filter((_, j) => j !== i))}
+                        className="text-muted-foreground hover:text-destructive transition-colors p-1 shrink-0">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button"
+                    onClick={() => setLocationAdvantages([...locationAdvantages, { category: 'Corporate', name: '', distanceKm: '', driveMinutes: '' }])}
+                    className="text-[12px] font-semibold text-muted-foreground hover:text-foreground border border-dashed border-border rounded-xl px-4 py-2 transition-colors hover:border-primary/40">
+                    + Add Location
+                  </button>
                 </div>
               </div>
 
@@ -951,6 +1103,31 @@ const AddProjectWizard = () => {
                   <input value={cpIncentive} onChange={e => setCpIncentive(e.target.value)}
                     className={inp()} placeholder="e.g. Extra 0.25% for deals closed before Mar 31" />
                 </div>
+
+                {/* Payment Plans */}
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Payment Plans</p>
+                  {paymentPlans.map((plan, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input value={plan.name}
+                        onChange={e => { const p = [...paymentPlans]; p[i] = { ...p[i], name: e.target.value }; setPaymentPlans(p); }}
+                        className={`${inp()} w-40 shrink-0`} placeholder="Plan name (e.g. 20:80)" />
+                      <input value={plan.description}
+                        onChange={e => { const p = [...paymentPlans]; p[i] = { ...p[i], description: e.target.value }; setPaymentPlans(p); }}
+                        className={inp()} placeholder="e.g. 20% on booking, 80% on possession" />
+                      <button type="button"
+                        onClick={() => setPaymentPlans(paymentPlans.filter((_, j) => j !== i))}
+                        className="text-muted-foreground hover:text-destructive transition-colors p-1 shrink-0">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button"
+                    onClick={() => setPaymentPlans([...paymentPlans, { name: '', description: '' }])}
+                    className="text-[12px] font-semibold text-muted-foreground hover:text-foreground border border-dashed border-border rounded-xl px-4 py-2 transition-colors hover:border-primary/40">
+                    + Add Plan
+                  </button>
+                </div>
               </div>
 
               {/* ── 4. Unit Configuration ── */}
@@ -1041,6 +1218,49 @@ const AddProjectWizard = () => {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* Construction Specifications */}
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Construction Specifications</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    {([
+                      ['structure',  'Structure'],
+                      ['flooring',   'Flooring'],
+                      ['doors',      'Main Doors'],
+                      ['windows',    'Windows'],
+                      ['electrical', 'Electrical'],
+                      ['plumbing',   'Plumbing'],
+                      ['kitchen',    'Kitchen'],
+                      ['bathrooms',  'Bathrooms'],
+                      ['painting',   'Painting'],
+                    ] as [keyof typeof specifications, string][]).map(([key, label]) => (
+                      <div key={key} className="space-y-1.5">
+                        <label className={lbl}>{label}</label>
+                        <input value={specifications[key]}
+                          onChange={e => setSpecifications(s => ({ ...s, [key]: e.target.value }))}
+                          className={inp()} placeholder={
+                            key === 'structure'  ? 'e.g. RCC framed structure' :
+                            key === 'flooring'   ? 'e.g. Vitrified tiles' :
+                            key === 'doors'      ? 'e.g. Teak wood frame' :
+                            key === 'windows'    ? 'e.g. UPVC sliding' :
+                            key === 'electrical' ? 'e.g. Concealed copper wiring' :
+                            key === 'plumbing'   ? 'e.g. CPVC pipes' :
+                            key === 'kitchen'    ? 'e.g. Granite counter, ceramic tiles' :
+                            key === 'bathrooms'  ? 'e.g. Anti-skid tiles, EWC' :
+                            'e.g. OBD/Emulsion paint'
+                          } />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Clubhouse Area */}
+                <div className="space-y-1.5">
+                  <label className={lbl}>Clubhouse Area (sqft)</label>
+                  <input type="number" min={0} value={clubhouseAreaSqft}
+                    onChange={e => setClubhouseAreaSqft(parseInt(e.target.value) || '')}
+                    className={`w-48 ${inp()}`} placeholder="e.g. 12000" />
                 </div>
 
                 {/* Doc uploads */}

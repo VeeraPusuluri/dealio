@@ -36,13 +36,19 @@ model Notification {
 }
 
 model Builder {
-  id          Int       @id @default(autoincrement())
-  userId      Int       @unique
-  companyName String?
-  user        User      @relation(fields: [userId], references: [id])
-  projects    Project[]
-  meetings    Meeting[] @relation("BuilderMeetings")
-  deals       Deal[]
+  id                Int       @id @default(autoincrement())
+  userId            Int       @unique
+  companyName       String?
+  about             String?
+  yearEstablished   Int?
+  deliveredProjects Int?
+  website           String?
+  contactPhone      String?
+  contactEmail      String?
+  user              User      @relation(fields: [userId], references: [id])
+  projects          Project[]
+  meetings          Meeting[] @relation("BuilderMeetings")
+  deals             Deal[]
 }
 
 model Project {
@@ -64,17 +70,25 @@ model Project {
   commissionValue Float?
   featured        Boolean   @default(false)
   closingSoon     Boolean   @default(false)
-  imageUrl        String?
-  videoUrl        String?
-  googleMapsLink  String?
-  possessionDate  String?
-  published       Boolean   @default(true)
-  status          String    @default("ACTIVE")
-  createdAt       DateTime  @default(now())
-  meetings        Meeting[]
-  deals           Deal[]
-  documents       Document[]
-  shareLinks      ProjectShareLink[]
+  imageUrl              String?
+  videoUrl              String?
+  googleMapsLink        String?
+  possessionDate        String?
+  published             Boolean   @default(true)
+  status                String    @default("ACTIVE")
+  createdAt             DateTime  @default(now())
+  // Rich detail fields (from AddProjectWizard v2)
+  landArea              String?
+  buildingPermitNumber  String?
+  reraState             String?
+  clubhouseAreaSqft     Int?
+  specifications        Json?
+  paymentPlans          Json?
+  locationAdvantages    Json?
+  meetings              Meeting[]
+  deals                 Deal[]
+  documents             Document[]
+  shareLinks            ProjectShareLink[]
 }
 
 model ProjectShareLink {
