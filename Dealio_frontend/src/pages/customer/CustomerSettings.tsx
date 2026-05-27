@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { customerApi } from '@/lib/api';
-import { useAuthStore } from '@/stores/useAuthStore';
-import { MapPin, Bell, Save, Settings, X, CheckCircle2, Loader2, Mail } from 'lucide-react';
+import { useAuthStore, roleLabels, roleColors } from '@/stores/useAuthStore';
+import { MapPin, Bell, Save, Mail, CheckCircle2, Loader2, X } from 'lucide-react';
 
 const PREF_KEY = 'dealio_customer_prefs';
 const USER_KEY = 'dealio_user';
@@ -12,10 +12,19 @@ function getPrefs(): { preferredCity?: string } {
   try { return JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); } catch { return {}; }
 }
 
-const inp = 'flex-1 px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary focus:bg-white transition-all';
+const TABS = [
+  { id: 'preferences', label: 'Preferences', icon: MapPin },
+  { id: 'account',     label: 'Account',     icon: Mail },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+];
 
 const CustomerSettings = () => {
   const user = useAuthStore((s) => s.user);
+
+  const color = user ? roleColors[user.role] || '#0A7E8C' : '#0A7E8C';
+  const initials = (user?.name || 'U').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
+
+  const [activeTab, setActiveTab] = useState('preferences');
   const [cities, setCities] = useState<string[]>([]);
   const [loadingCities, setLoadingCities] = useState(true);
   const [preferredCity, setPreferredCity] = useState('');
@@ -77,84 +86,221 @@ const CustomerSettings = () => {
     try { const prefs = getPrefs(); delete prefs.preferredCity; localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch { /* ignore */ }
   };
 
+  if (!user) return null;
+
+  const inp = 'w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:border-ring transition-all';
+
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto space-y-6 pb-8">
-        <div className="pt-1 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #0A7E8C, #086E7A)' }}>
-            <Settings size={18} className="text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Settings</h1>
-            <p className="text-sm text-gray-500">Manage your preferences and notifications</p>
+      <div className="max-w-3xl mx-auto space-y-5 pb-8">
+
+        {/* Profile header */}
+        <div className="rounded-2xl border border-border overflow-hidden bg-card">
+          <div className="h-16" style={{ background: `linear-gradient(135deg, ${color}22, ${color}08)` }} />
+          <div className="px-5 pb-5 -mt-7 flex items-end gap-4">
+            <div
+              className="w-14 h-14 rounded-xl border-4 border-card flex items-center justify-center text-white text-lg font-bold flex-shrink-0"
+              style={{ background: `linear-gradient(135deg, ${color}, ${color}bb)`, boxShadow: `0 4px 14px ${color}40` }}
+            >
+              {initials}
+            </div>
+            <div className="pb-0.5 flex-1 min-w-0">
+              <h2 className="text-[15px] font-bold text-card-foreground truncate">{user.name}</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: color }}>
+                  {roleLabels[user.role]}
+                </span>
+                {preferredCity && (
+                  <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <MapPin size={10} />{preferredCity}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Preferred City */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <MapPin size={15} className="text-secondary" />
-            <h3 className="text-base font-semibold text-gray-900">Preferred City</h3>
+        {/* Tabs + Content */}
+        <div className="flex gap-4">
+
+          {/* Left nav */}
+          <div className="w-40 flex-shrink-0 space-y-0.5">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] transition-all text-left ${
+                  activeTab === tab.id
+                    ? 'font-medium text-card-foreground bg-muted'
+                    : 'text-muted-foreground hover:text-card-foreground hover:bg-muted/50'
+                }`}
+              >
+                <tab.icon size={14} style={activeTab === tab.id ? { color } : undefined} className={activeTab === tab.id ? '' : 'opacity-60'} />
+                {tab.label}
+              </button>
+            ))}
           </div>
-          <p className="text-sm text-gray-500">Choose your preferred city and you'll be notified the moment a builder lists a new project there.</p>
-          {loadingCities ? (
-            <div className="flex items-center gap-2 text-sm text-gray-400 py-2"><Loader2 size={14} className="animate-spin" /> Loading cities…</div>
-          ) : (
-            <>
-              <div className="flex gap-3">
-                <select value={preferredCity} onChange={(e) => { setPreferredCity(e.target.value); setSaved(false); }} className={inp}>
-                  <option value="">— No preference —</option>
-                  {cities.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <button onClick={handleSave} disabled={saving || !preferredCity} className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #0A7E8C, #086E7A)' }}>
-                  {saving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : saved ? <><CheckCircle2 size={14} /> Saved!</> : <><Save size={14} /> Save</>}
-                </button>
+
+          {/* Content panel */}
+          <div className="flex-1 min-w-0">
+
+            {/* ── Preferences ── */}
+            {activeTab === 'preferences' && (
+              <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-border">
+                  <MapPin size={14} style={{ color }} />
+                  <h3 className="text-[13px] font-semibold text-card-foreground">Preferred City</h3>
+                </div>
+
+                <p className="text-[13px] text-muted-foreground">
+                  Choose your preferred city and you'll be notified the moment a builder lists a new project there.
+                </p>
+
+                {loadingCities ? (
+                  <div className="flex items-center gap-2 text-[13px] text-muted-foreground py-2">
+                    <Loader2 size={13} className="animate-spin" />Loading cities…
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <select
+                        value={preferredCity}
+                        onChange={(e) => { setPreferredCity(e.target.value); setSaved(false); }}
+                        className={`${inp} flex-1`}
+                      >
+                        <option value="">— No preference —</option>
+                        {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <button
+                        onClick={handleSave}
+                        disabled={saving || !preferredCity}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 shrink-0"
+                        style={{ background: `linear-gradient(135deg, ${color}, ${color}bb)` }}
+                      >
+                        {saving ? <><Loader2 size={13} className="animate-spin" />Saving…</>
+                          : saved ? <><CheckCircle2 size={13} />Saved!</>
+                          : <><Save size={13} />Save</>}
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-[11px] text-muted-foreground">Quick pick:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {cities.map((c) => (
+                          <button
+                            key={c}
+                            onClick={() => { setPreferredCity(c); setSaved(false); }}
+                            className={`text-[12px] px-3 py-1.5 rounded-full border font-medium transition-all ${
+                              preferredCity === c
+                                ? 'text-white border-transparent'
+                                : 'border-border text-muted-foreground hover:text-card-foreground hover:border-ring bg-card'
+                            }`}
+                            style={preferredCity === c ? { backgroundColor: color, borderColor: color } : undefined}
+                          >
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {preferredCity && (
+                      <button onClick={handleClear} className="flex items-center gap-1 text-[12px] text-muted-foreground hover:text-card-foreground transition-colors">
+                        <X size={11} />Clear preference
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
-              <div className="flex flex-wrap gap-2">
-                <span className="text-xs text-gray-400 self-center">Quick pick:</span>
-                {cities.map((c) => (
-                  <button key={c} onClick={() => { setPreferredCity(c); setSaved(false); }}
-                    className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${preferredCity === c ? 'bg-secondary text-white border-secondary' : 'border-gray-200 text-gray-500 hover:border-secondary hover:text-secondary bg-white'}`}>
-                    {c}
+            )}
+
+            {/* ── Account ── */}
+            {activeTab === 'account' && (
+              <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-border">
+                  <Mail size={14} style={{ color }} />
+                  <h3 className="text-[13px] font-semibold text-card-foreground">Email Address</h3>
+                </div>
+
+                <p className="text-[13px] text-muted-foreground">Your email is used for important updates and project notifications.</p>
+
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setEmailSaved(false); setEmailError(''); }}
+                    placeholder="you@example.com"
+                    className={`${inp} flex-1`}
+                  />
+                  <button
+                    onClick={handleEmailSave}
+                    disabled={emailSaving}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 active:scale-95 transition-all disabled:opacity-60 shrink-0"
+                    style={{ background: `linear-gradient(135deg, ${color}, ${color}bb)` }}
+                  >
+                    {emailSaving ? <><Loader2 size={13} className="animate-spin" />Saving…</>
+                      : emailSaved ? <><CheckCircle2 size={13} />Saved!</>
+                      : <><Save size={13} />Save</>}
                   </button>
-                ))}
+                </div>
+
+                {emailError && <p className="text-[12px] text-destructive">{emailError}</p>}
               </div>
-              {preferredCity && (
-                <button onClick={handleClear} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
-                  <X size={12} /> Clear preference
-                </button>
-              )}
-            </>
-          )}
-        </div>
+            )}
 
-        {/* Email */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <Mail size={15} className="text-secondary" />
-            <h3 className="text-base font-semibold text-gray-900">Email Address</h3>
-          </div>
-          <p className="text-sm text-gray-500">Your email is used for important updates and project notifications.</p>
-          <div className="flex gap-3">
-            <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setEmailSaved(false); setEmailError(''); }} placeholder="you@example.com" className={inp} />
-            <button onClick={handleEmailSave} disabled={emailSaving} className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all disabled:opacity-60" style={{ background: 'linear-gradient(135deg, #0A7E8C, #086E7A)' }}>
-              {emailSaving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : emailSaved ? <><CheckCircle2 size={14} /> Saved!</> : <><Save size={14} /> Save</>}
-            </button>
-          </div>
-          {emailError && <p className="text-xs text-red-500">{emailError}</p>}
-        </div>
+            {/* ── Notifications ── */}
+            {activeTab === 'notifications' && (
+              <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-border">
+                  <Bell size={14} style={{ color }} />
+                  <h3 className="text-[13px] font-semibold text-card-foreground">Project Notifications</h3>
+                </div>
 
-        {/* Notifications */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <Bell size={15} className="text-secondary" />
-            <h3 className="text-base font-semibold text-gray-900">Project Notifications</h3>
-          </div>
-          <div className={`flex items-start gap-3 p-4 rounded-xl border ${preferredCity ? 'bg-secondary/5 border-secondary/20' : 'bg-gray-50 border-gray-100'}`}>
-            <Bell size={14} className={`mt-0.5 shrink-0 ${preferredCity ? 'text-secondary' : 'text-gray-400'}`} />
-            <p className="text-sm text-gray-500">
-              {preferredCity ? <>You'll receive a notification whenever a builder lists a new project in <strong className="text-gray-900">{preferredCity}</strong>.</> : 'Set a preferred city above to get instant notifications when new projects are listed there.'}
-            </p>
+                <div className={`flex items-start gap-3 p-4 rounded-xl border ${
+                  preferredCity
+                    ? 'border-border/50 bg-muted/30'
+                    : 'border-border bg-muted/20'
+                }`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                    preferredCity ? 'bg-card border border-border' : 'bg-muted'
+                  }`}>
+                    <Bell size={14} style={preferredCity ? { color } : undefined} className={preferredCity ? '' : 'text-muted-foreground'} />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-medium text-card-foreground">New Project Alerts</p>
+                    <p className="text-[12px] text-muted-foreground mt-0.5">
+                      {preferredCity
+                        ? <>You'll be notified when a builder lists a new project in <strong className="text-card-foreground">{preferredCity}</strong>.</>
+                        : 'Set a preferred city in Preferences to receive instant new-project alerts.'}
+                    </p>
+                    {!preferredCity && (
+                      <button
+                        onClick={() => setActiveTab('preferences')}
+                        className="mt-2 text-[12px] font-medium hover:underline"
+                        style={{ color }}
+                      >
+                        Set preferred city →
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {preferredCity && (
+                  <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-muted/30 border border-border">
+                    <div className="flex items-center gap-2">
+                      <MapPin size={13} className="text-muted-foreground" />
+                      <span className="text-[13px] text-card-foreground">Preferred city</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] font-semibold" style={{ color }}>{preferredCity}</span>
+                      <button onClick={handleClear} className="text-muted-foreground hover:text-destructive transition-colors">
+                        <X size={13} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
           </div>
         </div>
       </div>

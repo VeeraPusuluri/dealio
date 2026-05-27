@@ -10,7 +10,7 @@ import {
   MessageSquare, FileText, Layers, Download,
   Copy, IndianRupee, Calculator, Star, Clock, Shield,
   Image as ImageIcon, Video, Bookmark,
-  Map, Newspaper, LayoutGrid, Link2, ExternalLink,
+  Map as MapIcon, Newspaper, LayoutGrid, Link2, ExternalLink,
   Users, Search, Check, Sparkles, Filter, ArrowUpDown,
   ChevronDown, Briefcase, Flame, Percent, ArrowUp, Phone,
   ChevronRight,
@@ -483,7 +483,7 @@ const DRAWER_TABS: { id: DrawerTab; label: string; icon: React.ElementType }[] =
   { id: 'overview',   label: 'Overview',    icon: LayoutGrid  },
   { id: 'pipeline',   label: 'Pipeline',    icon: TrendingUp  },
   { id: 'floorplans', label: 'Floor Plans', icon: Layers      },
-  { id: 'location',   label: 'Location',    icon: Map         },
+  { id: 'location',   label: 'Location',    icon: MapIcon     },
   { id: 'news',       label: 'Updates',     icon: Newspaper   },
 ];
 
@@ -978,7 +978,7 @@ function ProjectDetailDrawer({
                 <a href={`https://maps.apple.com/?q=${encodeURIComponent([project.address, project.locality, project.city].filter(Boolean).join(', '))}`}
                   target="_blank" rel="noreferrer"
                   className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-800 text-white text-sm font-bold hover:bg-slate-700 transition-colors">
-                  <Map size={14} /> Apple Maps
+                  <MapIcon size={14} /> Apple Maps
                 </a>
               </div>
               <button
