@@ -86,6 +86,7 @@ export const aiController = {
         select: { name: true, city: true, priceMin: true, priceMax: true, status: true },
         take: 15,
         orderBy: { createdAt: 'desc' },
+        where: { city: { not: null } },
       });
     } catch { /* DB unavailable — continue without project list */ }
 
