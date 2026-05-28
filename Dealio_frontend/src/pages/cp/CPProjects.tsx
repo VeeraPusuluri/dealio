@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { builderApi, cpApi } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -11,9 +12,9 @@ import {
   Copy, IndianRupee, Calculator, Star, Clock, Shield,
   Image as ImageIcon, Video, Bookmark,
   Map as MapIcon, Newspaper, LayoutGrid, Link2, ExternalLink,
-  Users, Search, Check, Sparkles, Filter, ArrowUpDown,
-  ChevronDown, Briefcase, Flame, Percent, ArrowUp, Phone,
-  ChevronRight,
+  Users, Search, Check, Filter, ArrowUpDown,
+  ChevronDown, Flame, Percent, Phone,
+  ChevronRight, FileDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -476,6 +477,305 @@ function ShareToContactsModal({
   );
 }
 
+/* ─── Share Type Picker ──────────────────────────────────────────── */
+function ShareTypePicker({
+  project, onClose, onSelectLink, onSelectBrochure,
+}: {
+  project: ProjectSummary;
+  onClose: () => void;
+  onSelectLink: () => void;
+  onSelectBrochure: () => void;
+}) {
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px]" style={{ zIndex: 60 }} onClick={onClose} />
+      <div className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ zIndex: 70 }}>
+        <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl">
+          <div className="flex items-start gap-3 p-5 border-b border-slate-100">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+              style={{ backgroundColor: '#25D36618' }}>
+              <Share2 size={20} style={{ color: '#25D366' }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-slate-900">Share via WhatsApp</h3>
+              <p className="text-xs text-slate-500 mt-0.5 truncate">{project.name} · {project.city}</p>
+            </div>
+            <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg shrink-0">
+              <X size={17} className="text-slate-500" />
+            </button>
+          </div>
+
+          <div className="p-5 space-y-3">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">What would you like to share?</p>
+
+            <button onClick={onSelectLink}
+              className="w-full flex items-start gap-4 p-4 rounded-2xl border-2 border-slate-100 hover:border-teal-300 hover:bg-teal-50/40 transition-all text-left group">
+              <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center shrink-0 group-hover:bg-teal-100 transition-colors">
+                <Link2 size={22} className="text-teal-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-slate-800 text-sm mb-1">Share Project Link</p>
+                <p className="text-xs text-slate-500 leading-relaxed">Send personalized WhatsApp messages with your unique referral link to your contacts</p>
+              </div>
+              <ChevronRight size={16} className="text-slate-300 group-hover:text-teal-500 shrink-0 mt-1 transition-colors" />
+            </button>
+
+            <button onClick={onSelectBrochure}
+              className="w-full flex items-start gap-4 p-4 rounded-2xl border-2 border-slate-100 hover:border-orange-300 hover:bg-orange-50/40 transition-all text-left group">
+              <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center shrink-0 group-hover:bg-orange-100 transition-colors">
+                <FileDown size={22} className="text-[#E87722]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-slate-800 text-sm mb-1">Share Project Brochure</p>
+                <p className="text-xs text-slate-500 leading-relaxed">Generate a professional PDF brochure and share it with your contacts via WhatsApp</p>
+              </div>
+              <ChevronRight size={16} className="text-slate-300 group-hover:text-orange-400 shrink-0 mt-1 transition-colors" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ─── Share Brochure Modal ───────────────────────────────────────── */
+interface ProjectDoc { id: number; docType: string; fileName: string; fileUrl: string; }
+
+function ShareBrochureModal({
+  project, cpId, onClose,
+}: {
+  project: ProjectSummary;
+  cpId?: string | number | null;
+  onClose: () => void;
+}) {
+  const [contacts, setContacts]       = useState<Contact[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [search, setSearch]           = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [sending, setSending]         = useState(false);
+  const [pdfLoading, setPdfLoading]   = useState(false);
+  // undefined = still loading, null = none found, ProjectDoc = found
+  const [uploadedBrochure, setUploadedBrochure] = useState<ProjectDoc | null | undefined>(undefined);
+
+  useEffect(() => {
+    // Check builder docs for an uploaded BROCHURE
+    builderApi.getDocuments(project.builderId, project.id)
+      .then((docs) => {
+        const brochure = (docs as ProjectDoc[]).find(d => d.docType === 'BROCHURE');
+        setUploadedBrochure(brochure ?? null);
+      })
+      .catch(() => setUploadedBrochure(null));
+
+    if (!cpId) { setLoading(false); return; }
+    cpApi.getContacts(cpId)
+      .then(d => {
+        const list = (d as Contact[]) ?? [];
+        setContacts(list);
+        const autoSelected = new Set(list.filter(c => matchScore(c, project) >= 2).map(c => c.id));
+        setSelectedIds(autoSelected);
+      })
+      .catch(() => setContacts([]))
+      .finally(() => setLoading(false));
+  }, [cpId, project.id, project.builderId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filtered = contacts.filter(c =>
+    !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search),
+  );
+
+  const allVisible = filtered.length > 0 && filtered.every(c => selectedIds.has(c.id));
+  const toggleAll = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allVisible) filtered.forEach(c => next.delete(c.id));
+      else filtered.forEach(c => next.add(c.id));
+      return next;
+    });
+  };
+  const toggle = (id: number) => {
+    setSelectedIds(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  };
+
+  const buildBrochureMsg = (contact: Contact, brochureUrl?: string) => {
+    const firstName = contact.name.split(' ')[0];
+    const priceStr = fmtPrice(project.priceMin, project.priceMax);
+    return (
+      `Hi ${firstName}! 👋\n\n` +
+      `I'm sharing the brochure for *${project.name}*${project.city ? ` — ${project.city}` : ''}.\n\n` +
+      `📋 *Project Highlights:*\n` +
+      (priceStr !== 'Price on request' ? `💰 Price: ${priceStr}\n` : '') +
+      (project.configurations?.length ? `🏠 ${project.configurations.slice(0, 3).join(' / ')}\n` : '') +
+      (project.possessionDate ? `📅 Possession: ${project.possessionDate.slice(0, 7)}\n` : '') +
+      (project.reraNumber ? `✅ RERA: ${project.reraNumber}\n` : '') +
+      (brochureUrl ? `\n📄 View brochure: ${brochureUrl}\n` : `\nI've downloaded the brochure and will share it with you.\n`) +
+      `\nInterested? I'll arrange a FREE site visit! 🙏`
+    );
+  };
+
+  const handleSend = async () => {
+    const targets = contacts.filter(c => selectedIds.has(c.id));
+    if (!targets.length) return;
+    setSending(true);
+
+    let brochureShareUrl: string | undefined;
+
+    if (uploadedBrochure) {
+      // Use builder-uploaded brochure URL directly — no download needed
+      brochureShareUrl = uploadedBrochure.fileUrl;
+      toast.success('Using builder-uploaded brochure');
+    } else {
+      // Generate PDF and trigger download
+      try {
+        setPdfLoading(true);
+        const blobUrl = await builderApi.getProjectPdfUrl(project.builderId, project.id);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `${project.name.replace(/\s+/g, '_')}_Brochure.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+        toast.success('Brochure PDF downloaded!');
+      } catch {
+        toast.error('Could not generate brochure PDF');
+        setSending(false);
+        setPdfLoading(false);
+        return;
+      } finally {
+        setPdfLoading(false);
+      }
+    }
+
+    targets.forEach((contact, i) => {
+      setTimeout(() => {
+        const msg = buildBrochureMsg(contact, brochureShareUrl);
+        window.open(`https://wa.me/91${contact.phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+        if (i === targets.length - 1) {
+          toast.success(`WhatsApp opened for ${targets.length} contact${targets.length !== 1 ? 's' : ''}!`);
+          setSending(false);
+          onClose();
+        }
+      }, i * 700);
+    });
+  };
+
+  const docsLoading = uploadedBrochure === undefined;
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px]" style={{ zIndex: 60 }} onClick={onClose} />
+      <div className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ zIndex: 70 }}>
+        <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh]">
+          <div className="flex items-start gap-3 p-5 border-b border-slate-100 shrink-0">
+            <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
+              <FileDown size={20} className="text-[#E87722]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-slate-900">Share Brochure via WhatsApp</h3>
+              <p className="text-xs text-slate-500 mt-0.5 truncate">{project.name} · {project.city}</p>
+            </div>
+            <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg shrink-0">
+              <X size={17} className="text-slate-500" />
+            </button>
+          </div>
+
+          {/* Brochure source indicator */}
+          <div className="mx-5 mt-4 shrink-0">
+            {docsLoading ? (
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-2.5">
+                <Loader2 size={13} className="text-slate-400 animate-spin shrink-0" />
+                <p className="text-xs text-slate-500">Checking for uploaded brochure…</p>
+              </div>
+            ) : uploadedBrochure ? (
+              <div className="p-3 bg-green-50 rounded-xl border border-green-100 flex items-start gap-2.5">
+                <FileDown size={13} className="text-green-600 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-green-700">Using builder-uploaded brochure</p>
+                  <p className="text-[11px] text-green-500 truncate">{uploadedBrochure.fileName}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex items-center gap-2.5">
+                <Download size={13} className="text-amber-600 shrink-0" />
+                <p className="text-xs text-amber-700">No brochure uploaded by builder — will generate a PDF automatically</p>
+              </div>
+            )}
+          </div>
+
+          <div className="mx-5 mt-3 relative shrink-0">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search by name or phone…"
+              className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#E87722]/20 focus:border-[#E87722]" />
+          </div>
+
+          <div className="flex-1 overflow-y-auto mx-5 mt-3 mb-1">
+            {loading ? (
+              <div className="flex justify-center py-12"><Loader2 size={22} className="animate-spin text-slate-300" /></div>
+            ) : contacts.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">
+                <Users size={36} className="mx-auto mb-3 opacity-30" />
+                <p className="font-medium text-sm">No contacts yet</p>
+                <p className="text-xs mt-1">Add contacts in "My Contacts" to share brochures</p>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-8 text-slate-400 text-sm">No contacts match your search</div>
+            ) : (
+              <div className="border border-slate-100 rounded-xl overflow-hidden">
+                <label className="flex items-center gap-3 px-4 py-2.5 bg-slate-50 border-b border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors">
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${allVisible ? 'bg-[#E87722] border-[#E87722]' : 'border-slate-300 bg-white'}`} onClick={toggleAll}>
+                    {allVisible && <Check size={10} className="text-white" strokeWidth={3} />}
+                  </div>
+                  <span className="text-xs font-semibold text-slate-500 select-none" onClick={toggleAll}>
+                    {allVisible ? 'Deselect all' : `Select all visible (${filtered.length})`}
+                  </span>
+                </label>
+                {filtered.map(contact => {
+                  const isSel = selectedIds.has(contact.id);
+                  const hasBhk = bhkMatches(contact.bhkPreference, project.configurations);
+                  return (
+                    <label key={contact.id} onClick={() => toggle(contact.id)}
+                      className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors border-b border-slate-50 last:border-0 ${isSel ? 'bg-orange-50/60' : 'hover:bg-slate-50'}`}>
+                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isSel ? 'bg-[#E87722] border-[#E87722]' : 'border-slate-300 bg-white'}`}>
+                        {isSel && <Check size={10} className="text-white" strokeWidth={3} />}
+                      </div>
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                        style={{ background: 'linear-gradient(135deg,#E87722,#D4691C)' }}>
+                        {contact.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-semibold text-slate-800">{contact.name}</span>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[11px] text-slate-400">{contact.phone}</span>
+                          {contact.bhkPreference && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5 ${hasBhk ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+                              <Home size={8} /> {contact.bhkPreference}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="p-5 border-t border-slate-100 space-y-2.5 shrink-0">
+            <button onClick={handleSend} disabled={selectedIds.size === 0 || sending}
+              className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-90"
+              style={{ backgroundColor: '#25D366' }}>
+              {sending
+                ? <><Loader2 size={16} className="animate-spin" />{pdfLoading ? 'Generating PDF…' : 'Opening WhatsApp…'}</>
+                : <><FileDown size={16} /> Send Brochure to {selectedIds.size} contact{selectedIds.size !== 1 ? 's' : ''}</>}
+            </button>
+            <p className="text-center text-[11px] text-slate-400">PDF downloads first · WhatsApp opens per contact</p>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 /* ─── Drawer Tabs ────────────────────────────────────────────────── */
 type DrawerTab = 'overview' | 'pipeline' | 'floorplans' | 'location' | 'news';
 
@@ -733,59 +1033,90 @@ function ProjectDetailDrawer({
         <div className="flex-1 overflow-y-auto">
 
           {/* Overview */}
-          {activeTab === 'overview' && (
-            <div>
-              <div className="mx-6 mt-6 rounded-2xl p-5 flex items-center gap-4" style={{ background: 'linear-gradient(135deg,#f0fdfa,#ccfbf1)' }}>
-                <div className="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
-                  <Percent size={20} className="text-teal-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide">Your Commission</p>
-                  <p className="text-2xl font-black text-teal-700">{commRate > 0 ? `${commRate}%` : '—'}</p>
-                  {exampleComm > 0 && <p className="text-xs text-teal-500 mt-0.5">Est. {fmt(exampleComm)} on avg. deal</p>}
-                </div>
-                {avail > 0 && (
-                  <div className="text-right">
-                    <p className="text-2xl font-black text-emerald-600">{avail}</p>
-                    <p className="text-xs text-emerald-500 font-medium">units left</p>
+          {activeTab === 'overview' && (() => {
+            const detailItems = [
+              project.possessionDate && { label: 'Possession', value: project.possessionDate.slice(0, 7), icon: Calendar,    color: '#7C3AED', bg: '#F5F3FF' },
+              project.status        && { label: 'Status',     value: STATUS_LABEL[project.status] ?? project.status, icon: TrendingUp, color: '#0D9488', bg: '#F0FDFA' },
+              project.city          && { label: 'City',       value: project.city,       icon: MapPin,     color: '#2563EB', bg: '#EFF6FF'  },
+              project.createdAt     && { label: 'Listed',     value: new Date(project.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }), icon: Clock, color: '#64748b', bg: '#F8FAFC' },
+            ].filter(Boolean) as { label: string; value: string; icon: React.ElementType; color: string; bg: string }[];
+
+            const hasPrice = project.priceMin != null || project.priceMax != null;
+
+            return (
+              <div className="px-6 py-5 space-y-5">
+
+                {/* ── Key metrics ── */}
+                {(commRate > 0 || hasPrice || avail > 0) && (
+                  <div className={`grid gap-3 ${[commRate > 0, hasPrice, avail > 0].filter(Boolean).length === 1 ? 'grid-cols-1' : [commRate > 0, hasPrice, avail > 0].filter(Boolean).length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                    {commRate > 0 && (
+                      <div className="rounded-2xl p-4" style={{ background: 'linear-gradient(135deg,#f0fdfa,#ccfbf1)' }}>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <Percent size={11} className="text-teal-600" />
+                          <p className="text-[10px] font-bold text-teal-600 uppercase tracking-wide">Commission</p>
+                        </div>
+                        <p className="text-2xl font-black text-teal-700 leading-none">{commRate}%</p>
+                        {exampleComm > 0 && <p className="text-[10px] text-teal-500 mt-1">~{fmt(exampleComm)}/deal</p>}
+                      </div>
+                    )}
+                    {hasPrice && (
+                      <div className="rounded-2xl p-4 bg-orange-50 border border-orange-100">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <IndianRupee size={11} className="text-[#E87722]" />
+                          <p className="text-[10px] font-bold text-[#E87722] uppercase tracking-wide">Price</p>
+                        </div>
+                        <p className="text-base font-black text-slate-800 leading-snug">{fmtPrice(project.priceMin, project.priceMax)}</p>
+                      </div>
+                    )}
+                    {avail > 0 && (
+                      <div className="rounded-2xl p-4 bg-emerald-50 border border-emerald-100">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <Home size={11} className="text-emerald-600" />
+                          <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Units left</p>
+                        </div>
+                        <p className="text-2xl font-black text-emerald-700 leading-none">{avail}</p>
+                        {total > 0 && <p className="text-[10px] text-emerald-500 mt-1">of {total} total</p>}
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
 
-              <div className="px-6 py-4 space-y-0">
-                <Divider />
-                <SectionHead icon={IndianRupee} label="Pricing" color="#0D9488" />
-                <div className="grid grid-cols-2 gap-4 mb-2">
-                  <div className="bg-slate-50 rounded-2xl p-4">
-                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mb-1.5">Starting from</p>
-                    <p className="text-lg font-black text-slate-800">{project.priceMin ? fmt(project.priceMin) : '—'}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-2xl p-4">
-                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mb-1.5">Up to</p>
-                    <p className="text-lg font-black text-slate-800">{project.priceMax ? fmt(project.priceMax) : '—'}</p>
-                  </div>
-                </div>
-
-                <Divider />
-                <SectionHead icon={Calculator} label="Commission Calculator" color="#7C3AED" />
-                <div className="bg-violet-50 rounded-xl p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex-1">
-                      <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-wide mb-1">Deal value (₹)</p>
-                      <input type="number" placeholder="e.g. 8500000" value={dealValue} onChange={e => setDealValue(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border border-violet-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-300" />
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-wide mb-1">You earn</p>
-                      <p className="text-xl font-black text-violet-700">{commEarning > 0 ? fmt(commEarning) : '—'}</p>
+                {/* ── Configurations ── */}
+                {project.configurations && project.configurations.length > 0 && (
+                  <div>
+                    <SectionHead icon={Layers} label="Configurations" color="#2563EB" />
+                    <div className="flex flex-wrap gap-2">
+                      {project.configurations.map(c => (
+                        <span key={c} className="text-sm font-bold px-4 py-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-100">{c}</span>
+                      ))}
                     </div>
                   </div>
-                  <p className="text-[10px] text-violet-400">@ {commRate > 0 ? `${commRate}% commission rate` : 'Commission rate not set'}</p>
-                </div>
+                )}
 
+                {/* ── Commission Calculator ── */}
+                {commRate > 0 && (
+                  <div>
+                    <SectionHead icon={Calculator} label="Commission Calculator" color="#7C3AED" />
+                    <div className="bg-violet-50 rounded-xl p-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="flex-1">
+                          <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-wide mb-1">Deal value (₹)</p>
+                          <input type="number" placeholder="e.g. 8500000" value={dealValue} onChange={e => setDealValue(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg border border-violet-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-wide mb-1">You earn</p>
+                          <p className="text-xl font-black text-violet-700">{commEarning > 0 ? fmt(commEarning) : '—'}</p>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-violet-400">@ {commRate}% commission rate</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Unit Availability ── */}
                 {total > 0 && (
-                  <>
-                    <Divider />
+                  <div>
                     <SectionHead icon={Home} label="Unit Availability" color="#0D9488" />
                     <div className="space-y-2.5 mb-1">
                       <UnitBar label="Available" value={avail}  total={total} color="#16A34A" />
@@ -796,53 +1127,40 @@ function ProjectDetailDrawer({
                       <span className="text-xs text-slate-400">Total units</span>
                       <span className="text-sm font-black text-slate-700">{total}</span>
                     </div>
-                  </>
+                  </div>
                 )}
 
-                {project.configurations && project.configurations.length > 0 && (
-                  <>
-                    <Divider />
-                    <SectionHead icon={Layers} label="Configurations" color="#2563EB" />
-                    <div className="flex flex-wrap gap-2">
-                      {project.configurations.map(c => (
-                        <span key={c} className="text-sm font-bold px-4 py-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-100">{c}</span>
+                {/* ── Project details (only populated fields) ── */}
+                {detailItems.length > 0 && (
+                  <div>
+                    <SectionHead icon={FileText} label="Project Details" color="#64748b" />
+                    <div className="grid grid-cols-2 gap-3">
+                      {detailItems.map(({ label, value, icon: Icon, color, bg }) => (
+                        <div key={label} className="flex items-center gap-3 rounded-2xl p-3.5" style={{ backgroundColor: bg }}>
+                          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: color + '20' }}>
+                            <Icon size={14} style={{ color }} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] text-slate-400 font-medium leading-none mb-1">{label}</p>
+                            <p className="text-sm font-bold text-slate-700 truncate">{value}</p>
+                          </div>
+                        </div>
                       ))}
                     </div>
-                  </>
+                  </div>
                 )}
 
-                <Divider />
-                <SectionHead icon={FileText} label="Project Details" color="#64748b" />
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { label: 'Possession', value: project.possessionDate?.slice(0,7) ?? '—', icon: Calendar,    color: '#7C3AED', bg: '#F5F3FF' },
-                    { label: 'Status',     value: STATUS_LABEL[project.status] ?? project.status, icon: TrendingUp, color: '#0D9488', bg: '#F0FDFA' },
-                    { label: 'City',       value: project.city || '—',           icon: MapPin,      color: '#2563EB', bg: '#EFF6FF' },
-                    { label: 'Listed',     value: project.createdAt ? new Date(project.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : '—', icon: Clock, color: '#64748b', bg: '#F8FAFC' },
-                  ].map(({ label, value, icon: Icon, color, bg }) => (
-                    <div key={label} className="flex items-center gap-3.5 rounded-2xl p-4" style={{ backgroundColor: bg }}>
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: color + '20' }}>
-                        <Icon size={14} style={{ color }} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[10px] text-slate-400 font-medium leading-none mb-1">{label}</p>
-                        <p className="text-sm font-bold text-slate-700 truncate">{value}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
+                {/* ── Description ── */}
                 {project.description && (
-                  <>
-                    <Divider />
+                  <div>
                     <SectionHead icon={FileText} label="About This Project" color="#64748b" />
                     <p className="text-sm text-slate-600 leading-relaxed">{project.description}</p>
-                  </>
+                  </div>
                 )}
 
+                {/* ── RERA ── */}
                 {project.reraNumber && (
-                  <>
-                    <Divider />
+                  <div>
                     <SectionHead icon={Shield} label="RERA Compliance" color="#16A34A" />
                     <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 space-y-2">
                       <div className="flex items-center justify-between">
@@ -852,16 +1170,16 @@ function ProjectDetailDrawer({
                       {project.reraExpiry && (
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-slate-500">Valid Until</span>
-                          <span className="text-xs font-bold text-slate-700">{project.reraExpiry.slice(0,10)}</span>
+                          <span className="text-xs font-bold text-slate-700">{project.reraExpiry.slice(0, 10)}</span>
                         </div>
                       )}
                     </div>
-                  </>
+                  </div>
                 )}
 
+                {/* ── Video ── */}
                 {project.videoUrl && (
-                  <>
-                    <Divider />
+                  <div>
                     <SectionHead icon={Video} label="Virtual Tour / Video" color="#7C3AED" />
                     <a href={project.videoUrl} target="_blank" rel="noreferrer"
                       className="flex items-center gap-3 bg-violet-50 rounded-xl p-3.5 hover:bg-violet-100 transition-colors">
@@ -874,35 +1192,37 @@ function ProjectDetailDrawer({
                       </div>
                       <ExternalLink size={14} className="text-violet-400 shrink-0" />
                     </a>
-                  </>
-                )}
-
-                <Divider />
-                <SectionHead icon={Download} label="Documents" color="#0D9488" />
-                {docsLoading ? (
-                  <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-slate-300" /></div>
-                ) : otherDocs.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-2">No documents uploaded yet</p>
-                ) : (
-                  <div className="space-y-2">
-                    {otherDocs.map(doc => (
-                      <a key={doc.id} href={doc.fileUrl} target="_blank" rel="noreferrer"
-                        className="flex items-center gap-3 bg-slate-50 rounded-xl px-3.5 py-3 hover:bg-slate-100 transition-colors group">
-                        <span className="text-lg">{DOC_ICON[doc.docType] ?? '📄'}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-700 truncate">{doc.fileName}</p>
-                          <p className="text-[10px] text-slate-400">{doc.docType.replace(/_/g, ' ')} · {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                        </div>
-                        <Download size={14} className="text-slate-400 group-hover:text-teal-600 transition-colors shrink-0" />
-                      </a>
-                    ))}
                   </div>
                 )}
 
-                <div className="pb-6" />
+                {/* ── Documents ── */}
+                {(docsLoading || otherDocs.length > 0) && (
+                  <div>
+                    <SectionHead icon={Download} label="Documents" color="#0D9488" />
+                    {docsLoading ? (
+                      <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-slate-300" /></div>
+                    ) : (
+                      <div className="space-y-2">
+                        {otherDocs.map(doc => (
+                          <a key={doc.id} href={doc.fileUrl} target="_blank" rel="noreferrer"
+                            className="flex items-center gap-3 bg-slate-50 rounded-xl px-3.5 py-3 hover:bg-slate-100 transition-colors group">
+                            <span className="text-lg">{DOC_ICON[doc.docType] ?? '📄'}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-700 truncate">{doc.fileName}</p>
+                              <p className="text-[10px] text-slate-400">{doc.docType.replace(/_/g, ' ')} · {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                            </div>
+                            <Download size={14} className="text-slate-400 group-hover:text-teal-600 transition-colors shrink-0" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="pb-2" />
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Pipeline */}
           {activeTab === 'pipeline' && (
@@ -1228,15 +1548,18 @@ function CardSkeleton() {
 /* ─── Main CPProjects component ──────────────────────────────────── */
 const CPProjects = () => {
   const { user }    = useAuthStore();
+  const navigate    = useNavigate();
   const [projects, setProjects]         = useState<ProjectSummary[]>([]);
   const [cpLeads, setCpLeads]           = useState<CPLead[]>([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState('');
-  const [flyerProject, setFlyerProject] = useState<ProjectSummary | null>(null);
-  const [selected, setSelected]         = useState<ProjectSummary | null>(null);
-  const [bookmarks, setBookmarks]       = useState<Set<number>>(loadBookmarks);
-  const [filterTab, setFilterTab]       = useState<FilterTab>('all');
-  const [shareModalProject, setShareModalProject] = useState<ProjectSummary | null>(null);
+  const [flyerProject, setFlyerProject]       = useState<ProjectSummary | null>(null);
+  const [selected, setSelected]               = useState<ProjectSummary | null>(null);
+  const [bookmarks, setBookmarks]             = useState<Set<number>>(loadBookmarks);
+  const [filterTab, setFilterTab]             = useState<FilterTab>('all');
+  const [shareTypePickerProject, setShareTypePickerProject] = useState<ProjectSummary | null>(null);
+  const [shareModalProject, setShareModalProject]           = useState<ProjectSummary | null>(null);
+  const [shareBrochureProject, setShareBrochureProject]     = useState<ProjectSummary | null>(null);
   const [search, setSearch]             = useState('');
   const [sortKey, setSortKey]           = useState<SortKey>('recent');
   const [sortOpen, setSortOpen]         = useState(false);
@@ -1378,34 +1701,41 @@ const CPProjects = () => {
         <div className="grid grid-cols-3 gap-3 mb-4">
           {[
             {
-              label:   'Leads this month',
-              value:   String(monthlyLeadCount || cpLeads.length),
-              sub:     monthlyLeadCount > 0 ? `${monthlyLeadCount} added in ${new Date().toLocaleString('en-IN', { month: 'long' })}` : `${cpLeads.length} total across all projects`,
-              icon:    TrendingUp,
-              color:   '#0D9488',
-              bg:      'from-teal-50 to-emerald-50',
-              border:  'border-teal-100',
+              label:  'Leads this month',
+              value:  String(monthlyLeadCount || cpLeads.length),
+              sub:    monthlyLeadCount > 0 ? `${monthlyLeadCount} added in ${new Date().toLocaleString('en-IN', { month: 'long' })}` : `${cpLeads.length} total across all projects`,
+              icon:   TrendingUp,
+              color:  '#0D9488',
+              bg:     'from-teal-50 to-emerald-50',
+              border: 'border-teal-100',
+              href:   '/cp/leads',
             },
             {
-              label:   'Pending commission',
-              value:   pendingCommission > 0 ? fmt(pendingCommission) : '₹—',
-              sub:     pendingCommission > 0 ? 'Not yet released by builder' : 'No pending commissions',
-              icon:    IndianRupee,
-              color:   '#7C3AED',
-              bg:      'from-violet-50 to-purple-50',
-              border:  'border-violet-100',
+              label:  'Pending commission',
+              value:  pendingCommission > 0 ? fmt(pendingCommission) : '₹—',
+              sub:    pendingCommission > 0 ? 'Not yet released by builder' : 'No pending commissions',
+              icon:   IndianRupee,
+              color:  '#7C3AED',
+              bg:     'from-violet-50 to-purple-50',
+              border: 'border-violet-100',
+              href:   '/cp/commissions',
             },
             {
-              label:   'Bookmarked',
-              value:   String(bookmarks.size),
-              sub:     bookmarks.size > 0 ? 'Projects you\'re tracking' : 'Bookmark projects to track them',
-              icon:    Bookmark,
-              color:   '#D97706',
-              bg:      'from-amber-50 to-orange-50',
-              border:  'border-amber-100',
+              label:  'Bookmarked',
+              value:  String(bookmarks.size),
+              sub:    bookmarks.size > 0 ? 'Projects you\'re tracking' : 'Bookmark projects to track them',
+              icon:   Bookmark,
+              color:  '#D97706',
+              bg:     'from-amber-50 to-orange-50',
+              border: 'border-amber-100',
+              href:   null as string | null,
             },
           ].map(stat => (
-            <div key={stat.label} className={`rounded-2xl border bg-gradient-to-br p-4 ${stat.bg} ${stat.border}`}>
+            <button
+              key={stat.label}
+              onClick={() => stat.href ? navigate(stat.href) : setFilterTab('backed')}
+              className={`rounded-2xl border bg-gradient-to-br p-4 text-left transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.99] ${stat.bg} ${stat.border}`}
+            >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: stat.color + 'CC' }}>{stat.label}</p>
@@ -1416,7 +1746,11 @@ const CPProjects = () => {
                   <stat.icon size={15} style={{ color: stat.color }} />
                 </div>
               </div>
-            </div>
+              <div className="flex items-center gap-0.5 mt-2" style={{ color: stat.color + 'BB' }}>
+                <span className="text-[10px] font-semibold">{stat.href ? 'View all' : 'Show bookmarked'}</span>
+                <ChevronRight size={10} />
+              </div>
+            </button>
           ))}
         </div>
 
@@ -1508,7 +1842,7 @@ const CPProjects = () => {
                   project={project}
                   bookmarks={bookmarks}
                   onSelect={setSelected}
-                  onShare={setShareModalProject}
+                  onShare={setShareTypePickerProject}
                   onFlyer={setFlyerProject}
                   onToggleBookmark={toggleBookmark}
                   cpId={user?.id}
@@ -1525,11 +1859,20 @@ const CPProjects = () => {
           project={selected}
           onClose={() => setSelected(null)}
           onFlyer={() => { setFlyerProject(selected); setSelected(null); }}
-          onShare={() => { setShareModalProject(selected); setSelected(null); }}
+          onShare={() => { setShareTypePickerProject(selected); setSelected(null); }}
           bookmarks={bookmarks}
           onToggleBookmark={toggleBookmark}
           cpId={user?.id}
           projectLeads={leadsByProject.get(selected.id) ?? []}
+        />
+      )}
+
+      {shareTypePickerProject && (
+        <ShareTypePicker
+          project={shareTypePickerProject}
+          onClose={() => setShareTypePickerProject(null)}
+          onSelectLink={() => { setShareModalProject(shareTypePickerProject); setShareTypePickerProject(null); }}
+          onSelectBrochure={() => { setShareBrochureProject(shareTypePickerProject); setShareTypePickerProject(null); }}
         />
       )}
 
@@ -1538,6 +1881,14 @@ const CPProjects = () => {
           project={shareModalProject}
           cpId={user?.id}
           onClose={() => setShareModalProject(null)}
+        />
+      )}
+
+      {shareBrochureProject && (
+        <ShareBrochureModal
+          project={shareBrochureProject}
+          cpId={user?.id}
+          onClose={() => setShareBrochureProject(null)}
         />
       )}
 

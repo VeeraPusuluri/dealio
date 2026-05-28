@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { cpApi } from '@/lib/api';
-import { projects } from '@/data/projects';
-import { formatCurrency } from '@/lib/format';
+import { cpApi, builderApi } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +12,27 @@ import {
   AlertCircle, X, MapPin,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useDealStore } from '@/stores/useDealStore';
+import DatePickerField from '@/components/shared/DatePickerField';
+
+interface RealProject {
+  id: number;
+  name: string;
+  city: string;
+  builderName: string | null;
+  priceMin: number | null;
+  priceMax: number | null;
+  configurations: string[] | null;
+  commissionPercent?: number | null;
+  imageUrl?: string | null;
+  locality?: string | null;
+}
+
+const fmtPrice = (n: number | null) => {
+  if (!n) return '?';
+  if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(1)}Cr`;
+  if (n >= 100_000)    return `₹${(n / 100_000).toFixed(0)}L`;
+  return `₹${n.toLocaleString('en-IN')}`;
+};
 
 interface ApiMeeting {
   id: number;
@@ -61,7 +79,6 @@ const STEPS = ['Select City', 'Select Project', 'Customer Details'] as const;
 
 const CPMeetingRequests = () => {
   const { user } = useAuthStore();
-  const { addShareEvent, shareEvents } = useDealStore();
   const cpUserId = user?.id ?? '';
 
   const [tab, setTab] = useState<'meetings' | 'sharing'>('meetings');
@@ -71,19 +88,22 @@ const CPMeetingRequests = () => {
   const [noteInput, setNoteInput] = useState('');
   const [savingNote, setSavingNote] = useState(false);
 
+  // Real projects
+  const [realProjects, setRealProjects] = useState<RealProject[]>([]);
+
   // New meeting request form state
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [step, setStep] = useState(1);
   const [selectedCity, setSelectedCity] = useState('');
-  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [form, setForm] = useState({ customerName: '', customerPhone: '', preferredDate: '', preferredTime: '', notes: '' });
 
   // Share modal
-  const [showShareModal, setShowShareModal] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState<number | null>(null);
   const [shareContact, setShareContact] = useState('');
 
-  const cities = [...new Set(projects.map(p => p.city))].sort();
-  const cityProjects = projects.filter(p => p.city === selectedCity);
+  const cities = [...new Set(realProjects.map(p => p.city))].sort();
+  const cityProjects = realProjects.filter(p => p.city === selectedCity);
 
   const loadMeetings = useCallback(async () => {
     if (!cpUserId) { setLoading(false); return; }
@@ -104,6 +124,12 @@ const CPMeetingRequests = () => {
     window.addEventListener('dealio:new-meeting', h);
     return () => window.removeEventListener('dealio:new-meeting', h);
   }, [loadMeetings]);
+
+  useEffect(() => {
+    builderApi.getPublicProjects()
+      .then(d => setRealProjects((d as RealProject[]) || []))
+      .catch(() => {});
+  }, []);
 
   const handleSaveNote = async () => {
     if (!selected || !cpUserId) return;
@@ -127,30 +153,31 @@ const CPMeetingRequests = () => {
   };
 
   // New meeting request
-  const closeForm = () => { setShowRequestForm(false); setStep(1); setSelectedCity(''); setSelectedProjectId(''); setForm({ customerName: '', customerPhone: '', preferredDate: '', preferredTime: '', notes: '' }); };
+  const closeForm = () => { setShowRequestForm(false); setStep(1); setSelectedCity(''); setSelectedProjectId(null); setForm({ customerName: '', customerPhone: '', preferredDate: '', preferredTime: '', notes: '' }); };
 
-  const handleSubmitRequest = () => {
-    const project = projects.find(p => p.id === selectedProjectId);
+  const handleSubmitRequest = async () => {
+    const project = realProjects.find(p => p.id === selectedProjectId);
     if (!project || !form.customerName || !form.customerPhone) { toast.error('Please fill all required fields'); return; }
-    useDealStore.getState().createMeetingRequest({
-      cpId: String(cpUserId), cpName: user?.name ?? 'CP',
-      builderId: 'B001', builderName: project.builder,
-      projectId: selectedProjectId, projectName: project.name,
-      customerName: form.customerName, customerPhone: form.customerPhone,
-      preferredDate: form.preferredDate, preferredTime: form.preferredTime, notes: form.notes,
-    });
-    toast.success('Meeting request sent to builder');
-    closeForm();
-    setTimeout(loadMeetings, 500);
+    try {
+      await builderApi.createLeadFromShare(project.id, {
+        cpUserId: cpUserId || null,
+        customerName: form.customerName,
+        customerPhone: form.customerPhone,
+      });
+      toast.success('Meeting request sent to builder');
+      closeForm();
+      setTimeout(loadMeetings, 500);
+    } catch {
+      toast.error('Failed to send request');
+    }
   };
 
-  const handleWhatsAppShare = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
+  const handleWhatsAppShare = (projectId: number) => {
+    const project = realProjects.find(p => p.id === projectId);
     if (!project) return;
-    const trackingLink = `https://dealio.app/p/${projectId}?utm_source=cp&utm_cp_id=${cpUserId}`;
-    const message = `Hi! I'd like to share this property with you: ${project.name} in ${project.location}. ${project.bhkTypes.join('/')} starting ${formatCurrency(project.priceRange[0])}. ${trackingLink}`;
+    const price = project.priceMin ? fmtPrice(project.priceMin) : 'great price';
+    const message = `Hi! Check out ${project.name} in ${project.city} by ${project.builderName ?? 'a trusted builder'} — starting ${price}. Contact me for more details!`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
-    addShareEvent({ cpId: String(cpUserId), projectId, projectName: project.name, sharedWith: shareContact || 'Unknown', sharedVia: 'WhatsApp' });
     toast.success('Shared via WhatsApp');
     setShowShareModal(null);
     setShareContact('');
@@ -274,53 +301,48 @@ const CPMeetingRequests = () => {
         {/* ── Project Sharing tab ──────────────────────────────────────── */}
         {tab === 'sharing' && (
           <>
-            {/* Recent shares */}
-            {shareEvents.filter(s => s.cpId === String(cpUserId)).length > 0 && (
-              <div className="rounded-2xl border border-border bg-card p-5">
-                <h3 className="text-[13px] font-bold text-foreground mb-3">Recent Shares</h3>
-                <div className="space-y-2">
-                  {shareEvents.filter(s => s.cpId === String(cpUserId)).slice(0, 5).map(se => (
-                    <div key={se.id} className="flex items-center gap-3 text-[13px]">
-                      <Share2 size={13} className="text-emerald-500 shrink-0" />
-                      <span className="text-foreground font-medium truncate">{se.projectName}</span>
-                      <span className="text-muted-foreground text-[12px]">→ {se.sharedWith} via {se.sharedVia}</span>
-                      <span className="text-[11px] text-muted-foreground ml-auto shrink-0">{new Date(se.timestamp).toLocaleDateString()}</span>
-                    </div>
-                  ))}
-                </div>
+            {realProjects.length === 0 ? (
+              <div className="rounded-2xl border border-border bg-card flex flex-col items-center justify-center py-14 text-center">
+                <Building2 size={28} className="text-muted-foreground mb-3" />
+                <p className="text-[13px] font-semibold text-foreground">No projects available</p>
+                <p className="text-[12px] text-muted-foreground mt-1">Projects will appear here once builders publish them.</p>
               </div>
-            )}
-
-            {/* Project cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {projects.map(p => (
-                <div key={p.id} className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <img src={p.image} alt={p.name} className="w-full h-32 object-cover" />
-                  <div className="p-4">
-                    <h4 className="font-semibold text-foreground text-[13px]">{p.name}</h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{p.builder} · {p.location}</p>
-                    <div className="flex items-center gap-2 mt-2 text-[12px]">
-                      <Badge variant="outline">{p.available} units</Badge>
-                      <Badge className="bg-muted text-foreground border-border">{p.commissionPercent}%</Badge>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                      <button onClick={() => setShowShareModal(p.id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[12px] font-medium border border-border text-foreground hover:bg-muted transition-colors">
-                        <Share2 size={11} /> Share
-                      </button>
-                      <button onClick={() => {
-                        setStep(3); setSelectedCity(p.city); setSelectedProjectId(p.id);
-                        setForm({ customerName: '', customerPhone: '', preferredDate: '', preferredTime: '', notes: '' });
-                        setShowRequestForm(true);
-                      }}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[12px] font-medium border border-border text-foreground hover:bg-muted transition-colors">
-                        <Calendar size={11} /> Meet
-                      </button>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {realProjects.map(p => (
+                  <div key={p.id} className="rounded-2xl border border-border bg-card overflow-hidden">
+                    {p.imageUrl
+                      ? <img src={p.imageUrl} alt={p.name} className="w-full h-32 object-cover" />
+                      : <div className="w-full h-32 bg-muted flex items-center justify-center"><Building2 size={28} className="text-muted-foreground" /></div>
+                    }
+                    <div className="p-4">
+                      <h4 className="font-semibold text-foreground text-[13px]">{p.name}</h4>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{p.builderName ?? '—'} · {p.city}</p>
+                      <div className="flex items-center gap-2 mt-2 text-[12px]">
+                        {p.priceMin && <Badge variant="outline">{fmtPrice(p.priceMin)}</Badge>}
+                        {p.configurations && p.configurations.length > 0 && (
+                          <Badge className="bg-muted text-foreground border-border">{p.configurations[0]}</Badge>
+                        )}
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <button onClick={() => setShowShareModal(p.id)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[12px] font-medium border border-border text-foreground hover:bg-muted transition-colors">
+                          <Share2 size={11} /> Share
+                        </button>
+                        <button onClick={() => {
+                          setStep(3); setSelectedCity(p.city); setSelectedProjectId(p.id);
+                          setForm({ customerName: '', customerPhone: '', preferredDate: '', preferredTime: '', notes: '' });
+                          setShowRequestForm(true);
+                        }}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[12px] font-medium border border-border text-foreground hover:bg-muted transition-colors">
+                          <Calendar size={11} /> Meet
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -470,14 +492,18 @@ const CPMeetingRequests = () => {
           {step === 1 && (
             <div className="space-y-4">
               <p className="text-sm text-gray-500">Choose the city for the site visit.</p>
-              <div className="grid grid-cols-2 gap-2">
-                {cities.map(city => (
-                  <button key={city} onClick={() => { setSelectedCity(city); setSelectedProjectId(''); }}
-                    className={`flex items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all ${selectedCity === city ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 hover:border-teal-200 text-gray-700'}`}>
-                    <MapPin size={13} /> {city}
-                  </button>
-                ))}
-              </div>
+              {cities.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No projects available yet.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {cities.map(city => (
+                    <button key={city} onClick={() => { setSelectedCity(city); setSelectedProjectId(null); }}
+                      className={`flex items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all ${selectedCity === city ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 hover:border-teal-200 text-gray-700'}`}>
+                      <MapPin size={13} /> {city}
+                    </button>
+                  ))}
+                </div>
+              )}
               <Button className="w-full bg-teal-600 hover:bg-teal-700" disabled={!selectedCity} onClick={() => setStep(2)}>Next <ChevronRight size={13} className="ml-1" /></Button>
             </div>
           )}
@@ -490,7 +516,7 @@ const CPMeetingRequests = () => {
                   <button key={p.id} onClick={() => setSelectedProjectId(p.id)}
                     className={`w-full text-left p-3 rounded-xl border transition-all ${selectedProjectId === p.id ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-teal-200'}`}>
                     <p className="font-medium text-sm text-gray-900">{p.name}</p>
-                    <p className="text-xs text-gray-400">{p.builder} · {p.location}</p>
+                    <p className="text-xs text-gray-400">{p.builderName ?? '—'} · {p.locality ?? p.city}</p>
                   </button>
                 ))}
               </div>
@@ -505,12 +531,19 @@ const CPMeetingRequests = () => {
             <div className="space-y-3">
               {selectedProjectId && (
                 <div className="p-2.5 rounded-lg bg-teal-50 text-xs text-teal-700 font-medium border border-teal-100">
-                  <Building2 size={11} className="inline mr-1" />{projects.find(p => p.id === selectedProjectId)?.name}
+                  <Building2 size={11} className="inline mr-1" />{realProjects.find(p => p.id === selectedProjectId)?.name}
                 </div>
               )}
               <Input placeholder="Customer Name *" value={form.customerName} onChange={e => setForm({ ...form, customerName: e.target.value })} />
               <Input placeholder="Customer Phone *" value={form.customerPhone} onChange={e => setForm({ ...form, customerPhone: e.target.value })} />
-              <Input type="date" value={form.preferredDate} onChange={e => setForm({ ...form, preferredDate: e.target.value })} />
+              <DatePickerField
+                value={form.preferredDate}
+                onChange={v => setForm({ ...form, preferredDate: v })}
+                placeholder="Preferred Date"
+                minDate={new Date().toISOString().split('T')[0]}
+                fromYear={new Date().getFullYear()}
+                toYear={new Date().getFullYear() + 2}
+              />
               <Input placeholder="Preferred Time (e.g. 10:00 AM)" value={form.preferredTime} onChange={e => setForm({ ...form, preferredTime: e.target.value })} />
               <Input placeholder="Notes (optional)" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
               <div className="flex gap-2">

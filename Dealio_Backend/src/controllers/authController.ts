@@ -2,9 +2,42 @@ import { Request, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { authService } from '../services/authService';
 import prisma from '../utils/prisma';
+import { channelManager } from '../services/channelManager';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dealio-secret-key-12345';
+
+// Referral code format: CP-FIRSTNAME-USERID  (e.g. CP-JOHN-42)
+async function processReferral(newUserId: number, newUserRole: string, referralCode: string) {
+  const parts = referralCode.trim().split('-');
+  const referringUserId = parseInt(parts[parts.length - 1]);
+  if (isNaN(referringUserId) || referringUserId === newUserId) return;
+
+  const referringCp = await prisma.channelPartner.findUnique({ where: { userId: referringUserId } });
+  if (!referringCp) return;
+
+  // If new user is a CP, persist the referral relationship
+  if (newUserRole?.toUpperCase() === 'CP') {
+    let newCp = await prisma.channelPartner.findUnique({ where: { userId: newUserId } });
+    if (!newCp) {
+      await prisma.channelPartner.create({ data: { userId: newUserId, referredById: referringCp.id } });
+    } else if (!newCp.referredById) {
+      await prisma.channelPartner.update({ where: { id: newCp.id }, data: { referredById: referringCp.id } });
+    }
+  }
+
+  const newUser = await prisma.user.findUnique({ where: { id: newUserId }, select: { fullName: true } });
+  const newUserName = newUser?.fullName ?? 'Someone';
+
+  const title   = 'New Referral Joined!';
+  const message = `${newUserName} joined Dealio using your referral code.`;
+  await prisma.notification.create({
+    data: { userId: referringCp.userId, title, message, type: 'success', link: '/cp/referral' },
+  });
+  channelManager.publish(`user:${referringCp.userId}`, {
+    type: 'referral_signup', title, message, city: '', timestamp: new Date().toISOString(), link: '/cp/referral',
+  });
+}
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
   || process.env.VITE_GOOGLE_CLIENT_ID
@@ -36,9 +69,15 @@ export const authController = {
   },
 
   signupVerifyOtp: async (req: Request, res: Response) => {
-    const { phone, otp, fullName, role } = req.body;
+    const { phone, otp, fullName, role, referralCode } = req.body;
+    const isNewUser = !(await prisma.user.findUnique({ where: { phone }, select: { id: true } }));
     const result = await authService.verifyOtp(phone, otp, { fullName, role });
     if (result.success) {
+      if (isNewUser && referralCode) {
+        processReferral(result.data.user.id, role, referralCode).catch(err =>
+          console.error('[referral] processReferral error:', err)
+        );
+      }
       res.json({ ok: true, data: result.data });
     } else {
       res.status(400).json({ ok: false, message: result.message });
@@ -47,7 +86,7 @@ export const authController = {
 
   googleAuth: async (req: Request, res: Response) => {
     console.log('[googleAuth] hit — body keys:', Object.keys(req.body));
-    const { idToken, role } = req.body;
+    const { idToken, role, referralCode } = req.body;
 
     if (!idToken) {
       res.status(400).json({ ok: false, message: 'Google ID token is required' });
@@ -80,6 +119,7 @@ export const authController = {
       // Find or create user by email
       let user = await prisma.user.findUnique({ where: { email: googleEmail } });
 
+      const isNewUser = !user;
       if (!user) {
         user = await prisma.user.create({
           data: {
@@ -93,6 +133,12 @@ export const authController = {
         // Auto-create Builder profile if needed
         if (user.role === 'BUILDER') {
           await prisma.builder.create({ data: { userId: user.id } });
+        }
+
+        if (referralCode) {
+          processReferral(user.id, normalizedRole, referralCode).catch(err =>
+            console.error('[referral] processReferral error:', err)
+          );
         }
       } else if (role) {
         // Update role on explicit signup

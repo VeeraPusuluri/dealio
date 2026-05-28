@@ -26,8 +26,13 @@ export const customerController = {
 
   getProject: async (req: Request, res: Response) => {
     const { id } = req.params;
+    const numId = Number(id);
+    if (!id || isNaN(numId)) {
+      res.status(404).json({ ok: false, message: 'Project not found' });
+      return;
+    }
     const project = await prisma.project.findUnique({
-      where: { id: Number(id) },
+      where: { id: numId },
       include: {
         builder: {
           select: {

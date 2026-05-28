@@ -6,7 +6,7 @@ import { builderApi } from '@/lib/api';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Building2, Home, MapPin, Landmark, Trees,
-  Loader2, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
+  Loader2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, ChevronDown,
   ImageIcon, X, CheckCircle2, FileText, Layers, Video,
   IndianRupee, Percent, Sparkles, Shield,
 } from 'lucide-react';
@@ -58,7 +58,7 @@ const SECTIONS = [
 
 // ── Shared style helpers ───────────────────────────────────────────────────────
 const inp = (err?: string) =>
-  `w-full px-3.5 py-2.5 rounded-xl border text-[13px] transition-all outline-none bg-background text-foreground placeholder:text-muted-foreground
+  `w-full h-10 px-3.5 py-2.5 rounded-xl border text-[13px] transition-all outline-none bg-background text-foreground placeholder:text-muted-foreground
    ${err ? 'border-destructive focus:ring-2 focus:ring-destructive/20' : 'border-border focus:ring-2 focus:ring-ring/20 focus:border-ring'}`;
 
 const ta = (err?: string) =>
@@ -68,6 +68,7 @@ const ta = (err?: string) =>
 const ti = `px-2.5 py-1.5 rounded-lg border border-border bg-background text-[12px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring/20 focus:border-ring transition-all`;
 
 const lbl = 'text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em] mb-1.5 block';
+const sel = (err?: string) => `${inp(err)} appearance-none pr-9`;
 
 const FieldError = ({ msg }: { msg?: string }) =>
   msg ? <p className="text-[11px] text-destructive mt-1">{msg}</p> : null;
@@ -132,7 +133,7 @@ function DatePickerField({
   const displayValue = value ? `${value.slice(8)} ${MONTHS[+value.slice(5, 7) - 1]} ${value.slice(0, 4)}` : null;
 
   return (
-    <div>
+    <div className="space-y-1.5">
       <label className={lbl}>{label}{required && <span className="text-destructive"> *</span>}</label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -772,9 +773,12 @@ const AddProjectWizard = () => {
                   </div>
                   <div className="space-y-1.5">
                     <label className={lbl}>Status <span className="text-destructive">*</span></label>
-                    <select value={projectStatus} onChange={e => setProjectStatus(e.target.value)} className={inp()}>
-                      {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                    <div className="relative">
+                      <select value={projectStatus} onChange={e => setProjectStatus(e.target.value)} className={sel()}>
+                        {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    </div>
                   </div>
                 </div>
 
@@ -791,12 +795,15 @@ const AddProjectWizard = () => {
                   </div>
                   <div className="space-y-1.5">
                     <label className={lbl}>RERA State</label>
-                    <select value={reraState} onChange={e => setReraState(e.target.value)} className={inp()}>
-                      <option value="">Select state</option>
-                      {['Telangana','Andhra Pradesh','Karnataka','Maharashtra','Tamil Nadu','Delhi','Gujarat','Rajasthan','Uttar Pradesh','West Bengal','Kerala','Punjab','Haryana','Madhya Pradesh','Odisha'].map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <select value={reraState} onChange={e => setReraState(e.target.value)} className={sel()}>
+                        <option value="">Select state</option>
+                        {['Telangana','Andhra Pradesh','Karnataka','Maharashtra','Tamil Nadu','Delhi','Gujarat','Rajasthan','Uttar Pradesh','West Bengal','Kerala','Punjab','Haryana','Madhya Pradesh','Odisha'].map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    </div>
                   </div>
                   <DatePickerField label="RERA Expiry" value={reraExpiry}
                     onChange={v => { setReraExpiry(v); setErrors(p => ({ ...p, reraExpiry: '' })); }}
@@ -867,9 +874,12 @@ const AddProjectWizard = () => {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <label className={lbl}>City <span className="text-destructive">*</span></label>
-                    <select value={city} onChange={e => setCity(e.target.value)} className={inp()}>
-                      {cityOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <div className="relative">
+                      <select value={city} onChange={e => setCity(e.target.value)} className={sel()}>
+                        {cityOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <label className={lbl}>Locality / Area <span className="text-destructive">*</span></label>
@@ -917,26 +927,29 @@ const AddProjectWizard = () => {
                     ))}
                   </div>
                   {locationAdvantages.map((adv, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <select value={adv.category}
-                        onChange={e => { const a = [...locationAdvantages]; a[i] = { ...a[i], category: e.target.value }; setLocationAdvantages(a); }}
-                        className={`${inp()} w-36 shrink-0`}>
-                        {['Corporate', 'Healthcare', 'Education', 'Shopping', 'Transit', 'Recreation', 'Other'].map(c => (
-                          <option key={c}>{c}</option>
-                        ))}
-                      </select>
+                    <div key={i} className="grid grid-cols-[140px_1fr_80px_80px_32px] items-center gap-2">
+                      <div className="relative">
+                        <select value={adv.category}
+                          onChange={e => { const a = [...locationAdvantages]; a[i] = { ...a[i], category: e.target.value }; setLocationAdvantages(a); }}
+                          className={sel()}>
+                          {['Corporate', 'Healthcare', 'Education', 'Shopping', 'Transit', 'Recreation', 'Other'].map(c => (
+                            <option key={c}>{c}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      </div>
                       <input value={adv.name}
                         onChange={e => { const a = [...locationAdvantages]; a[i] = { ...a[i], name: e.target.value }; setLocationAdvantages(a); }}
                         className={inp()} placeholder="Place name (e.g. Financial District)" />
                       <input value={adv.distanceKm}
                         onChange={e => { const a = [...locationAdvantages]; a[i] = { ...a[i], distanceKm: e.target.value }; setLocationAdvantages(a); }}
-                        className={`${inp()} w-24 shrink-0`} placeholder="km" />
+                        className={inp()} placeholder="km" />
                       <input value={adv.driveMinutes}
                         onChange={e => { const a = [...locationAdvantages]; a[i] = { ...a[i], driveMinutes: e.target.value }; setLocationAdvantages(a); }}
-                        className={`${inp()} w-24 shrink-0`} placeholder="min" />
+                        className={inp()} placeholder="min" />
                       <button type="button"
                         onClick={() => setLocationAdvantages(locationAdvantages.filter((_, j) => j !== i))}
-                        className="text-muted-foreground hover:text-destructive transition-colors p-1 shrink-0">
+                        className="text-muted-foreground hover:text-destructive transition-colors p-1 flex items-center justify-center">
                         <X size={14} />
                       </button>
                     </div>
@@ -1108,16 +1121,16 @@ const AddProjectWizard = () => {
                 <div className="space-y-3 pt-2 border-t border-border">
                   <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Payment Plans</p>
                   {paymentPlans.map((plan, i) => (
-                    <div key={i} className="flex items-center gap-2">
+                    <div key={i} className="grid grid-cols-[160px_1fr_32px] items-center gap-2">
                       <input value={plan.name}
                         onChange={e => { const p = [...paymentPlans]; p[i] = { ...p[i], name: e.target.value }; setPaymentPlans(p); }}
-                        className={`${inp()} w-40 shrink-0`} placeholder="Plan name (e.g. 20:80)" />
+                        className={inp()} placeholder="Plan name (e.g. 20:80)" />
                       <input value={plan.description}
                         onChange={e => { const p = [...paymentPlans]; p[i] = { ...p[i], description: e.target.value }; setPaymentPlans(p); }}
                         className={inp()} placeholder="e.g. 20% on booking, 80% on possession" />
                       <button type="button"
                         onClick={() => setPaymentPlans(paymentPlans.filter((_, j) => j !== i))}
-                        className="text-muted-foreground hover:text-destructive transition-colors p-1 shrink-0">
+                        className="text-muted-foreground hover:text-destructive transition-colors p-1 flex items-center justify-center">
                         <X size={14} />
                       </button>
                     </div>
@@ -1177,12 +1190,15 @@ const AddProjectWizard = () => {
                               className={`w-28 ${ti}`} />
                           </td>
                           <td className="px-3 py-2">
-                            <select value={uc.status}
-                              onChange={e => { const c = [...unitConfigs]; c[i].status = e.target.value; setUnitConfigs(c); }}
-                              className={`${ti} text-xs`}>
-                              <option>Available</option>
-                              <option>Coming Soon</option>
-                            </select>
+                            <div className="relative">
+                              <select value={uc.status}
+                                onChange={e => { const c = [...unitConfigs]; c[i].status = e.target.value; setUnitConfigs(c); }}
+                                className={`${ti} text-xs appearance-none pr-6`}>
+                                <option>Available</option>
+                                <option>Coming Soon</option>
+                              </select>
+                              <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            </div>
                           </td>
                         </tr>
                       ))}

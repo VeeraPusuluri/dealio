@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#0B1B2E"/>
+      <stop offset="60%"  stop-color="#0E2542"/>
+      <stop offset="100%" stop-color="#112E50"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+  <!-- D letterform (original 20×20 coords scaled ×1.6) -->
+  <path fill-rule="evenodd" clip-rule="evenodd"
+    d="M4.8 3.2 H14.4 C25.6 3.2 28.8 9.6 28.8 16 C28.8 22.4 25.6 28.8 14.4 28.8 H4.8 Z
+       M9.6 8.8 H14.4 C21.6 8.8 24 12 24 16 C24 20 21.6 23.2 14.4 23.2 H9.6 Z"
+    fill="white" fill-opacity="0.94"/>
+  <!-- Orange window slots on left bar -->
+  <rect x="4.8" y="12.5" width="4.8" height="2.2" rx="0.8" fill="#FF8930" fill-opacity="0.88"/>
+  <rect x="4.8" y="18.2" width="4.8" height="2.2" rx="0.8" fill="#FF8930" fill-opacity="0.62"/>
+  <!-- Teal accent dot on upper arc -->
+  <circle cx="25.9" cy="9.3" r="2.2" fill="#1CD8EE" fill-opacity="0.92"/>
+</svg>

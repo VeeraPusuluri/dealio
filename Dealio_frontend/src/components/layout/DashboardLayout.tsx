@@ -5,6 +5,7 @@ import {useNavigate, useLocation} from 'react-router-dom';
 import {useAuthStore, roleLabels, roleColors, UserRole} from '@/stores/useAuthStore';
 import {useNotificationStore} from '@/stores/useNotificationStore';
 import NotificationPanel from '@/components/shared/NotificationPanel';
+import AIChatWidget from '@/components/shared/AIChatWidget';
 import {
     Building2, Users, User, Landmark, Shield,
     LayoutDashboard, FolderOpen, Megaphone, BarChart3, FileText,
@@ -328,6 +329,10 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
     });
     const [showDropdown, setShowDropdown] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [searchIndex, setSearchIndex] = useState(0);
+    const searchRef = useRef<HTMLInputElement>(null);
 
     const toggleCollapsed = () => {
         const next = !collapsed;
@@ -348,6 +353,19 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
         window.addEventListener('dealio:city-changed', handleCityChanged);
         return () => window.removeEventListener('dealio:city-changed', handleCityChanged);
     }, [handleCityChanged]);
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                searchRef.current?.focus();
+                setSearchOpen(true);
+            }
+            if (e.key === 'Escape') { setSearchOpen(false); setSearchQuery(''); searchRef.current?.blur(); }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, []);
 
     useNotificationStream(`${CUSTOMER_BASE}/customer/subscribe`, role === 'customer', sseKey);
     useNotificationStream(`${BUILDER_BASE}/builder/notifications/stream`, role === 'builder', 0);
@@ -390,6 +408,27 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
     const navSections = getRoleNavSections(user.role, {meetings: pendingMeetings});
     const allItems = navSections.flatMap(s => s.items);
     const color = user ? roleColors[user.role] || '#0A7E8C' : '#0A7E8C';
+
+    const searchResults = searchQuery.trim().length > 0
+        ? navSections.flatMap(s =>
+              s.items
+                  .filter(item =>
+                      item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      s.title.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .map(item => ({...item, section: s.title}))
+          ).slice(0, 8)
+        : [];
+
+    const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); setSearchIndex(i => Math.min(i + 1, searchResults.length - 1)); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setSearchIndex(i => Math.max(i - 1, 0)); }
+        else if (e.key === 'Enter' && searchResults[searchIndex]) {
+            navigate(searchResults[searchIndex].path);
+            setSearchQuery(''); setSearchOpen(false); searchRef.current?.blur();
+        }
+        else if (e.key === 'Escape') { setSearchOpen(false); setSearchQuery(''); searchRef.current?.blur(); }
+    };
     const RoleIcon = user && user.role && roleIcons[user.role] ? roleIcons[user.role] : UserIcon;
     const sidebarBg = '#0B1929';
 
@@ -417,23 +456,26 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                     <div
                         className="w-8 h-8 flex items-center justify-center flex-shrink-0"
                         style={{
-                            borderRadius: 9,
-                            background: 'linear-gradient(145deg, #0FA5BB 0%, #0A7E8C 100%)',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.2), 0 4px 12px rgba(10,126,140,0.4)',
+                            borderRadius: 7,
+                            background: 'linear-gradient(145deg, #0B1B2E 0%, #0E2542 60%, #112E50 100%)',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.22), 0 4px 16px rgba(0,0,0,0.32), 0 0 0 1.5px rgba(28,216,238,0.2), inset 0 1px 0 rgba(255,255,255,0.06)',
                         }}
                     >
                         <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
                             <path
                                 fillRule="evenodd" clipRule="evenodd"
-                                d="M3.5 3 H9 A7 7 0 0 1 9 17 H3.5 Z M6 5.5 H9 A4.5 4.5 0 0 1 9 14.5 H6 Z"
-                                fill="white" fillOpacity="0.96"
+                                d="M3 2 H9 C16 2 18 6 18 10 C18 14 16 18 9 18 H3 Z M6 5.5 H9 C13.5 5.5 15 7.5 15 10 C15 12.5 13.5 14.5 9 14.5 H6 Z"
+                                fill="white" fillOpacity="0.94"
                             />
+                            <rect x="3" y="7.8"  width="3" height="1.4" rx="0.5" fill="#FF8930" fillOpacity="0.88"/>
+                            <rect x="3" y="11.4" width="3" height="1.4" rx="0.5" fill="#FF8930" fillOpacity="0.60"/>
+                            <circle cx="16.2" cy="5.8" r="1.4" fill="#1CD8EE" fillOpacity="0.92"/>
                         </svg>
                     </div>
                     {!collapsed && (
-                        <span className="ml-2.5 font-bold text-[17px] leading-none select-none" style={{letterSpacing: '-0.025em'}}>
+                        <span className="ml-2.5 font-bold text-[17px] leading-none select-none" style={{letterSpacing: '-0.03em'}}>
                             <span className="text-white">Deal</span>
-                            <span style={{color: '#5DD8E8'}}>io</span>
+                            <span style={{color: '#3ECDE2'}}>io</span>
                         </span>
                     )}
                 </div>
@@ -546,11 +588,50 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
 
                     {/* Search */}
                     <div className="relative hidden md:flex items-center">
-                        <Search size={14} className="absolute left-3 text-muted-foreground"/>
+                        <Search size={14} className="absolute left-3 text-muted-foreground pointer-events-none z-10"/>
                         <input
-                            className="pl-8 pr-4 py-1.5 rounded-lg bg-muted text-[13px] w-56 outline-none text-foreground placeholder:text-muted-foreground border border-transparent focus:border-border transition-colors"
-                            placeholder="Search..."
+                            ref={searchRef}
+                            value={searchQuery}
+                            onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); setSearchIndex(0); }}
+                            onFocus={() => setSearchOpen(true)}
+                            onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                            onKeyDown={handleSearchKeyDown}
+                            className="pl-8 pr-16 py-1.5 rounded-lg bg-muted text-[13px] w-64 outline-none text-foreground placeholder:text-muted-foreground border border-transparent focus:border-border transition-colors"
+                            placeholder="Search... ⌘K"
                         />
+                        {searchQuery && (
+                            <button onClick={() => { setSearchQuery(''); setSearchOpen(false); }} className="absolute right-3 text-muted-foreground hover:text-foreground text-[11px]">✕</button>
+                        )}
+                        {searchOpen && searchResults.length > 0 && (
+                            <div className="absolute top-full left-0 mt-1.5 w-80 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden py-1">
+                                {searchResults.map((item, i) => (
+                                    <button
+                                        key={item.path}
+                                        onMouseDown={() => { navigate(item.path); setSearchQuery(''); setSearchOpen(false); }}
+                                        onMouseEnter={() => setSearchIndex(i)}
+                                        className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left transition-colors"
+                                        style={{ background: i === searchIndex ? `${color}15` : 'transparent' }}
+                                    >
+                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                                            style={{ background: i === searchIndex ? `${color}20` : 'var(--muted)' }}>
+                                            <item.icon size={13} style={{ color: i === searchIndex ? color : undefined }} className="text-muted-foreground"/>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-[13px] font-medium text-card-foreground truncate">{item.label}</div>
+                                            <div className="text-[11px] text-muted-foreground truncate">{item.section} · {item.path}</div>
+                                        </div>
+                                        {i === searchIndex && (
+                                            <kbd className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border flex-shrink-0">↵</kbd>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {searchOpen && searchQuery.trim().length > 0 && searchResults.length === 0 && (
+                            <div className="absolute top-full left-0 mt-1.5 w-72 bg-card border border-border rounded-xl shadow-xl z-50 px-4 py-5 text-center">
+                                <p className="text-[13px] text-muted-foreground">No results for "<span className="text-foreground font-medium">{searchQuery}</span>"</p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Notifications */}
@@ -672,6 +753,7 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
 
             {showDropdown && <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)}/>}
             {showNotifications && <NotificationPanel onClose={() => setShowNotifications(false)}/>}
+            <AIChatWidget />
         </div>
     );
 };

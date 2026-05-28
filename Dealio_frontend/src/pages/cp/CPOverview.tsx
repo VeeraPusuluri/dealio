@@ -2,14 +2,27 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import LeadScoreBadge from '@/components/shared/LeadScoreBadge';
 import { formatCurrency } from '@/lib/format';
 import { cpApi } from '@/lib/api';
 import { useNotificationStore } from '@/stores/useNotificationStore';
-import { useLeadStore } from '@/stores/useLeadStore';
 import { useFollowUpStore } from '@/stores/useFollowUpStore';
 import { useCommissionStore } from '@/stores/useCommissionStore';
-import { calculateLeadScore } from '@/lib/leadScoring';
+
+interface CPLead {
+  id: number;
+  projectId: number;
+  projectName: string;
+  builderId?: number | null;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string | null;
+  dealValue?: number | null;
+  status: string;
+  commissionStatus: string;
+  commissionPercent?: number | null;
+  estimatedCommission?: number | null;
+  createdAt: string;
+}
 import {
   Users, Calendar, Handshake, TrendingUp,
   Phone, MessageSquare, Clock, Flame,
@@ -17,6 +30,7 @@ import {
   FileText, Star, ChevronRight, Activity,
   CheckCircle2, AlertCircle, Zap,
 } from 'lucide-react';
+
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -89,7 +103,7 @@ function CardHeader({ icon, title, sub, accent = '#F5821F' }: { icon: React.Reac
 const CPOverview = () => {
   const navigate = useNavigate();
   const user = useAuthStore(s => s.user);
-  const { leads } = useLeadStore();
+  const [leads, setLeads] = useState<CPLead[]>([]);
   const { followUps, callLogs } = useFollowUpStore();
   const { commissions } = useCommissionStore();
   const { addNotification } = useNotificationStore();
@@ -99,6 +113,9 @@ const CPOverview = () => {
 
   useEffect(() => {
     if (!user?.id) return;
+    cpApi.getLeads(user.id)
+      .then((data: any) => setLeads((data as CPLead[]) ?? []))
+      .catch(() => {});
     cpApi.getProfile(user.id)
       .then((data: any) => { if (data?.cp?.tier) setTier(data.cp.tier); })
       .catch(() => {});
@@ -111,15 +128,14 @@ const CPOverview = () => {
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Derived metrics ────────────────────────────────────────────────────────
-  const meetingStages = ['Meeting Requested', 'Meeting Confirmed', 'Meeting Done'];
-  const activeLeads   = leads.filter(l => l.stage !== 'Closed').length;
-  const meetingsCount = leads.filter(l => meetingStages.includes(l.stage)).length;
-  const closedCount   = leads.filter(l => l.stage === 'Closed').length;
+  const meetingStatuses = ['Meeting Requested', 'Meeting Confirmed', 'Meeting Done'];
+  const activeLeads   = leads.filter(l => !['Booked', 'Closed'].includes(l.status)).length;
+  const meetingsCount = leads.filter(l => meetingStatuses.includes(l.status)).length;
+  const closedCount   = leads.filter(l => l.status === 'Closed').length;
 
   const hotLeads = leads
-    .map(l => ({ ...l, score: calculateLeadScore(l) }))
-    .filter(l => l.score.total >= 75)
-    .sort((a, b) => b.score.total - a.score.total)
+    .filter(l => ['Negotiation', 'Meeting Done', 'Booked'].includes(l.status))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 4);
 
   const todayTasks = [
@@ -128,11 +144,11 @@ const CPOverview = () => {
   ].slice(0, 5);
 
   const funnelData = [
-    { stage: 'New',          count: leads.filter(l => l.stage === 'New Lead').length },
-    { stage: 'Meetings',     count: leads.filter(l => meetingStages.includes(l.stage)).length },
-    { stage: 'Negotiation',  count: leads.filter(l => l.stage === 'Negotiation').length },
-    { stage: 'Booked',       count: leads.filter(l => l.stage === 'Booked').length },
-    { stage: 'Closed',       count: leads.filter(l => l.stage === 'Closed').length },
+    { stage: 'New',          count: leads.filter(l => l.status === 'New Lead').length },
+    { stage: 'Meetings',     count: leads.filter(l => meetingStatuses.includes(l.status)).length },
+    { stage: 'Negotiation',  count: leads.filter(l => l.status === 'Negotiation').length },
+    { stage: 'Booked',       count: leads.filter(l => l.status === 'Booked').length },
+    { stage: 'Closed',       count: leads.filter(l => l.status === 'Closed').length },
   ];
 
   const earnedCommissions = commissions.filter(c => c.status === 'Released');
@@ -251,7 +267,7 @@ const CPOverview = () => {
             <CardHeader
               icon={<Flame size={15} style={{ color: '#EF4444' }} />}
               title="Hot Leads"
-              sub={`${hotLeads.length} leads scoring ≥ 75`}
+              sub={`${hotLeads.length} warm lead${hotLeads.length !== 1 ? 's' : ''}`}
               accent="#EF4444"
             />
             <div style={{ borderTop: '1px solid #F8FAFC' }}>
@@ -274,13 +290,13 @@ const CPOverview = () => {
                         <div style={{ fontSize: 13.5, fontWeight: 600, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.customerName}</div>
                         <div style={{ fontSize: 11, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>{lead.projectName}</div>
                       </div>
-                      <LeadScoreBadge score={lead.score} showTooltip={false} />
+                      <span style={{ fontSize: 10, fontWeight: 700, color: '#F5821F', background: '#FFF7ED', borderRadius: 6, padding: '3px 8px', flexShrink: 0 }}>{lead.status}</span>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={() => window.open(`tel:+91${lead.phone}`, '_blank')}
+                        <button onClick={() => window.open(`tel:+91${lead.customerPhone}`, '_blank')}
                           style={{ width: 30, height: 30, borderRadius: 8, background: '#F0FDF4', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Phone size={12} style={{ color: '#16A34A' }} />
                         </button>
-                        <button onClick={() => window.open(`https://wa.me/91${lead.phone}`, '_blank')}
+                        <button onClick={() => window.open(`https://wa.me/91${lead.customerPhone}`, '_blank')}
                           style={{ width: 30, height: 30, borderRadius: 8, background: '#F0FDF4', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <MessageSquare size={12} style={{ color: '#16A34A' }} />
                         </button>
