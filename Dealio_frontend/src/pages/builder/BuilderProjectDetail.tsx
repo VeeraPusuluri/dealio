@@ -144,7 +144,14 @@ const BuilderProjectDetail = () => {
         if (effectiveBid !== bid) builderApi.setCachedBuilderId(effectiveBid);
         setBuilderId(effectiveBid);
         setProject(data);
-        setMapsLink(data.googleMapsLink ?? '');
+        if (data.googleMapsLink) {
+          setMapsLink(data.googleMapsLink);
+        } else {
+          const parts = [data.address, data.locality, data.city, data.pincode].filter(Boolean);
+          if (parts.length > 0) {
+            setMapsLink(`https://maps.google.com/maps?q=${encodeURIComponent(parts.join(', '))}`);
+          }
+        }
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Failed to load project');
       } finally {
@@ -596,10 +603,10 @@ const BuilderProjectDetail = () => {
             </div>
 
             {/* Location */}
-            <div style={{ marginTop: 32, background: T.bg, border: `1px solid ${T.line}`, borderRadius: 22, overflow: 'hidden' }}>
-              <div style={{ padding: '28px 30px 20px' }}>
-                <div style={{ ...sk, marginBottom: 20 }}>Location</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px 20px', marginBottom: 8 }}>
+            <div style={{ marginTop: 32, background: T.bg, border: `1px solid ${T.line}`, borderRadius: 22 }}>
+              <div style={{ padding: '28px 30px 20px', borderBottom: `1px solid ${T.line}` }}>
+                <div style={{ ...sk, marginBottom: 16 }}>Location</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px 20px' }}>
                   {[
                     { l: 'Address',  v: project.address },
                     { l: 'City',     v: project.city },
@@ -614,20 +621,18 @@ const BuilderProjectDetail = () => {
                   ))}
                 </div>
               </div>
-              <div style={{ padding: '0 30px 30px' }}>
+              <div style={{ padding: '24px 30px 30px' }}>
                 {mapsSaving && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, fontSize: 11, color: T.muted }}>
-                    <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> Saving location link…
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, fontSize: 11, color: T.muted }}>
+                    <Loader2 size={11} className="animate-spin" /> Saving location link…
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-4">
-                  <GoogleMapsLocationField
-                    value={mapsLink}
-                    onChange={handleMapsLinkChange}
-                    address={project.address ?? ''}
-                    city={project.city ?? ''}
-                  />
-                </div>
+                <GoogleMapsLocationField
+                  value={mapsLink}
+                  onChange={handleMapsLinkChange}
+                  address={[project.address, project.locality].filter(Boolean).join(', ')}
+                  city={project.city ?? ''}
+                />
               </div>
             </div>
           </div>

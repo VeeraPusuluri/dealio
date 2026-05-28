@@ -7,6 +7,7 @@ import authRoutes from './routes/authRoutes';
 import builderRoutes from './routes/builderRoutes';
 import customerRoutes from './routes/customerRoutes';
 import cpRoutes from './routes/cpRoutes';
+import aiRoutes from './routes/aiRoutes';
 
 dotenv.config();
 
@@ -32,5 +33,6 @@ app.use('/api/builder', builderRoutes);
 app.use('/api/portal', builderRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/cp', cpRoutes);
+app.use('/api/ai', aiRoutes);
 
 export default app;

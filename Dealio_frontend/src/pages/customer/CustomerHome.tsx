@@ -304,6 +304,7 @@ const CustomerHome = () => {
   const [statusFilter,  setStatusFilter]  = useState<string[]>([]);
   const [typeFilter,    setTypeFilter]    = useState<string[]>([]);
   const [cityFilter,    setCityFilter]    = useState<string[]>([]);
+  const [locationOpen,  setLocationOpen]  = useState(false);
 
   /* ── Location state ── */
   const [geoCity,        setGeoCity]        = useState<string>('');
@@ -543,11 +544,62 @@ const CustomerHome = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0 mt-1">
+            {/* Filters button */}
             <button
               onClick={() => setShowFilters(v => !v)}
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-sm font-medium transition-colors ${showFilters ? 'bg-teal-50 border-teal-200 text-teal-700' : 'border-gray-200 text-slate-600 hover:bg-gray-50'}`}>
-              <SlidersHorizontal size={13} /> Filters
+              <SlidersHorizontal size={13} />
+              Filters
+              {(statusFilter.length > 0 || typeFilter.length > 0) && (
+                <span className="ml-0.5 min-w-[16px] h-4 px-1 rounded-full bg-teal-600 text-white text-[10px] font-bold flex items-center justify-center">
+                  {statusFilter.length + typeFilter.length}
+                </span>
+              )}
             </button>
+
+            {/* Location pill */}
+            {(() => {
+              const cities = [...new Set(projects.map(p => p.city).filter(Boolean))].sort() as string[];
+              const label = cityFilter.length === 0 ? 'All Cities' : cityFilter.length === 1 ? cityFilter[0] : `${cityFilter.length} Cities`;
+              return (
+                <div className="relative">
+                  <button
+                    onClick={() => setLocationOpen(o => !o)}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-sm font-medium transition-colors ${cityFilter.length > 0 ? 'bg-teal-50 border-teal-200 text-teal-700' : 'border-gray-200 text-slate-600 hover:bg-gray-50'}`}>
+                    <MapPin size={13} />
+                    {label}
+                    <ChevronDown size={11} className={`transition-transform ${locationOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {locationOpen && (
+                    <>
+                      <div className="fixed inset-0 z-30" onClick={() => setLocationOpen(false)} />
+                      <div className="absolute z-40 right-0 mt-1.5 min-w-[160px] bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
+                        <button
+                          onClick={() => { setCityFilter([]); setLocationOpen(false); }}
+                          className={`w-full text-left px-3.5 py-2 text-xs font-medium flex items-center justify-between transition-colors ${cityFilter.length === 0 ? 'bg-teal-50 text-teal-700' : 'text-slate-600 hover:bg-gray-50'}`}>
+                          All Cities
+                          {cityFilter.length === 0 && <Check size={11} strokeWidth={3} />}
+                        </button>
+                        {cities.map(city => (
+                          <button
+                            key={city}
+                            onClick={() => {
+                              setCityFilter(prev =>
+                                prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]
+                              );
+                            }}
+                            className={`w-full text-left px-3.5 py-2 text-xs font-medium flex items-center justify-between transition-colors ${cityFilter.includes(city) ? 'bg-teal-50 text-teal-700' : 'text-slate-600 hover:bg-gray-50'}`}>
+                            {city}
+                            {cityFilter.includes(city) && <Check size={11} strokeWidth={3} />}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
             <button
               onClick={() => setFilterTab('saved')}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold text-white transition-colors hover:opacity-90"
@@ -634,120 +686,97 @@ const CustomerHome = () => {
 
         {/* ══ FILTER PANEL ══ */}
         {showFilters && (
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mt-3 space-y-3">
-            {/* Status filter */}
-            <div>
-              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Status</p>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { label: 'All',               keys: [] as string[] },
-                  { label: 'Pre-launch',        keys: ['PRE_LAUNCH', 'NEW_LAUNCH'] },
-                  { label: 'Selling',           keys: ['LAUNCHED', 'ACTIVE'] },
-                  { label: 'Under constr.',     keys: ['UNDER_CONSTRUCTION'] },
-                  { label: 'Ready to move',     keys: ['READY_TO_MOVE'] },
-                  { label: 'Closing soon',      keys: ['CLOSING_SOON'] },
-                ].map(({ label, keys }) => {
-                  const isActive = keys.length === 0
-                    ? statusFilter.length === 0
-                    : keys.every(k => statusFilter.includes(k));
-                  return (
-                    <button
-                      key={label}
-                      onClick={() => setStatusFilter(keys.length === 0 ? [] : keys)}
-                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                        isActive
-                          ? 'text-white border-transparent'
-                          : 'bg-white border-gray-200 text-slate-600 hover:border-teal-300 hover:text-teal-700'
-                      }`}
-                      style={isActive ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : {}}>
-                      {label}
-                    </button>
-                  );
-                })}
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mt-3 overflow-hidden">
+            {/* Panel header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={13} className="text-teal-600" />
+                <span className="text-xs font-semibold text-slate-700">Filters</span>
+                {(statusFilter.length > 0 || typeFilter.length > 0) && (
+                  <span className="px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-[10px] font-bold border border-teal-100">
+                    {statusFilter.length + typeFilter.length} active
+                  </span>
+                )}
               </div>
+              {(statusFilter.length > 0 || typeFilter.length > 0) && (
+                <button
+                  onClick={() => { setStatusFilter([]); setTypeFilter([]); }}
+                  className="text-[11px] text-red-500 hover:text-red-700 font-medium transition-colors flex items-center gap-1">
+                  <X size={10} /> Clear all
+                </button>
+              )}
             </div>
 
-            {/* City filter */}
-            {(() => {
-              const cities = [...new Set(projects.map(p => p.city).filter(Boolean))].sort();
-              if (!cities.length) return null;
-              return (
-                <div>
-                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">City</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      onClick={() => setCityFilter([])}
-                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                        cityFilter.length === 0 ? 'text-white border-transparent' : 'bg-white border-gray-200 text-slate-600 hover:border-teal-300 hover:text-teal-700'
-                      }`}
-                      style={cityFilter.length === 0 ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : {}}>
-                      All
-                    </button>
-                    {cities.map(city => {
-                      const isActive = cityFilter.includes(city);
-                      return (
-                        <button
-                          key={city}
-                          onClick={() => setCityFilter(prev =>
-                            prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city],
-                          )}
-                          className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                            isActive ? 'text-white border-transparent' : 'bg-white border-gray-200 text-slate-600 hover:border-teal-300 hover:text-teal-700'
-                          }`}
-                          style={isActive ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : {}}>
-                          {city}
-                        </button>
-                      );
-                    })}
-                  </div>
+            <div className="px-4 py-4 space-y-4">
+              {/* Status filter */}
+              <div className="flex items-start gap-4">
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mt-1 w-20 shrink-0">Status</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: 'All',           keys: [] as string[],                        color: '' },
+                    { label: 'Pre-launch',    keys: ['PRE_LAUNCH', 'NEW_LAUNCH'],           color: 'violet' },
+                    { label: 'Selling',       keys: ['LAUNCHED', 'ACTIVE'],                color: 'sky' },
+                    { label: 'Under constr.', keys: ['UNDER_CONSTRUCTION'],                color: 'amber' },
+                    { label: 'Ready to move', keys: ['READY_TO_MOVE'],                     color: 'emerald' },
+                    { label: 'Closing soon',  keys: ['CLOSING_SOON'],                      color: 'red' },
+                  ].map(({ label, keys }) => {
+                    const isActive = keys.length === 0
+                      ? statusFilter.length === 0
+                      : keys.every(k => statusFilter.includes(k));
+                    return (
+                      <button
+                        key={label}
+                        onClick={() => setStatusFilter(keys.length === 0 ? [] : keys)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                          isActive
+                            ? 'text-white border-transparent shadow-sm'
+                            : 'bg-gray-50 border-gray-200 text-slate-600 hover:border-teal-200 hover:text-teal-700 hover:bg-teal-50'
+                        }`}
+                        style={isActive ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : {}}>
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
-              );
-            })()}
+              </div>
 
-            {/* Type filter */}
-            <div>
-              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Property type</p>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { label: 'All',        key: '' },
-                  { label: 'Apartment',  key: 'apartment' },
-                  { label: 'Villa',      key: 'villa' },
-                  { label: 'Plot',       key: 'plot' },
-                  { label: 'Commercial', key: 'commercial' },
-                ].map(({ label, key }) => {
-                  const isActive = key === ''
-                    ? typeFilter.length === 0
-                    : typeFilter.includes(key);
-                  return (
-                    <button
-                      key={label}
-                      onClick={() => {
-                        if (key === '') { setTypeFilter([]); return; }
-                        setTypeFilter(prev =>
-                          prev.includes(key) ? prev.filter(t => t !== key) : [...prev, key],
-                        );
-                      }}
-                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                        isActive
-                          ? 'text-white border-transparent'
-                          : 'bg-white border-gray-200 text-slate-600 hover:border-teal-300 hover:text-teal-700'
-                      }`}
-                      style={isActive ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : {}}>
-                      {label}
-                    </button>
-                  );
-                })}
+              {/* Divider */}
+              <div className="border-t border-gray-100" />
+
+              {/* Type filter */}
+              <div className="flex items-start gap-4">
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mt-1 w-20 shrink-0">Type</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: 'All',        key: '',           emoji: '🏘' },
+                    { label: 'Apartment',  key: 'apartment',  emoji: '🏢' },
+                    { label: 'Villa',      key: 'villa',      emoji: '🏡' },
+                    { label: 'Plot',       key: 'plot',       emoji: '📐' },
+                    { label: 'Commercial', key: 'commercial', emoji: '🏬' },
+                  ].map(({ label, key, emoji }) => {
+                    const isActive = key === '' ? typeFilter.length === 0 : typeFilter.includes(key);
+                    return (
+                      <button
+                        key={label}
+                        onClick={() => {
+                          if (key === '') { setTypeFilter([]); return; }
+                          setTypeFilter(prev =>
+                            prev.includes(key) ? prev.filter(t => t !== key) : [...prev, key],
+                          );
+                        }}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                          isActive
+                            ? 'text-white border-transparent shadow-sm'
+                            : 'bg-gray-50 border-gray-200 text-slate-600 hover:border-teal-200 hover:text-teal-700 hover:bg-teal-50'
+                        }`}
+                        style={isActive ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : {}}>
+                        <span>{emoji}</span> {label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-
-            {/* Clear filters */}
-            {(statusFilter.length > 0 || typeFilter.length > 0 || cityFilter.length > 0) && (
-              <button
-                onClick={() => { setStatusFilter([]); setTypeFilter([]); setCityFilter([]); }}
-                className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors">
-                Clear all filters
-              </button>
-            )}
           </div>
         )}
 

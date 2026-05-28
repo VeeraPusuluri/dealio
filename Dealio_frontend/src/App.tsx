@@ -121,7 +121,7 @@ const App = () => (
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<Home />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/signup" element={<Navigate to="/login?tab=signup" replace />} />
 
           {/* Builder */}
           <Route path="/builder" element={<ProtectedRoute><BuilderOverview /></ProtectedRoute>} />

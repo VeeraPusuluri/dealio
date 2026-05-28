@@ -600,9 +600,13 @@ export const builderController = {
       });
     }
 
-    // Look up existing deal to find the CP who brought this customer
+    // Resolve CP: explicit selection by userId takes priority, then look up from existing deal
     let cpId: number | null = null;
-    if (meetingData.projectId && customer.id) {
+    if (meetingData.cpUserId) {
+      const cp = await prisma.channelPartner.findUnique({ where: { userId: Number(meetingData.cpUserId) }, select: { id: true } });
+      cpId = cp?.id ?? null;
+    }
+    if (!cpId && meetingData.projectId && customer.id) {
       const deal = await prisma.deal.findFirst({
         where: { projectId: Number(meetingData.projectId), customerId: customer.id, cpId: { not: null } },
         select: { cpId: true },

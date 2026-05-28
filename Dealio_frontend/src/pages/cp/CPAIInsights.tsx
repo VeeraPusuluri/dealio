@@ -1,110 +1,220 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { aiLeadInsights } from '@/data/aiEngine';
-import { Brain, Phone, MessageSquare, TrendingUp, Eye, Clock, Zap, ChevronDown, ChevronUp } from 'lucide-react';
-import { toast } from 'sonner';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { cpApi } from '@/lib/api';
+import { Brain, Phone, MessageSquare, Zap, ChevronDown, ChevronUp, Loader2, RefreshCw } from 'lucide-react';
 
-const scoreColor = (label: string) => {
-  if (label === 'Hot') return { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-300', bar: 'bg-red-500' };
-  if (label === 'Warm') return { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300', bar: 'bg-amber-500' };
-  return { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300', bar: 'bg-blue-500' };
+interface CPLead {
+  id: number;
+  customerName: string;
+  customerPhone: string;
+  projectName: string;
+  status: string;
+  createdAt: string;
+}
+
+type HeatLabel = 'Hot' | 'Warm' | 'Cold';
+
+const STATUS_SCORE: Record<string, number> = {
+  'Negotiation':       88,
+  'Meeting Done':      72,
+  'Meeting Confirmed': 62,
+  'Meeting Requested': 52,
+  'Profile Created':   36,
+  'New Lead':          22,
+  'Booked':            95,
 };
 
-const CPAIInsights = () => {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'All' | 'Hot' | 'Warm' | 'Cold'>('All');
+const STATUS_LABEL: Record<string, HeatLabel> = {
+  'Negotiation':       'Hot',
+  'Booked':            'Hot',
+  'Meeting Done':      'Warm',
+  'Meeting Confirmed': 'Warm',
+  'Meeting Requested': 'Warm',
+  'Profile Created':   'Cold',
+  'New Lead':          'Cold',
+};
 
-  const filtered = filter === 'All' ? aiLeadInsights : aiLeadInsights.filter(l => l.label === filter);
-  const hotCount = aiLeadInsights.filter(l => l.label === 'Hot').length;
-  const warmCount = aiLeadInsights.filter(l => l.label === 'Warm').length;
-  const coldCount = aiLeadInsights.filter(l => l.label === 'Cold').length;
+const NEXT_ACTION: Record<string, string> = {
+  'New Lead':          'Call to introduce yourself and understand their requirements',
+  'Profile Created':   'Share the project brochure and highlight key features via WhatsApp',
+  'Meeting Requested': 'Coordinate with the builder to confirm the site visit date',
+  'Meeting Confirmed': 'Send a warm reminder 24 hours before the site visit',
+  'Meeting Done':      'Follow up with pricing, payment plan, and available configurations',
+  'Negotiation':       'Share special offers and flexible payment plans to close the deal',
+  'Booked':            'Congratulate and assist with documentation and loan requirements',
+};
+
+const heatColors: Record<HeatLabel, { bg: string; text: string; bar: string; pill: string }> = {
+  Hot:  { bg: 'bg-red-50',    text: 'text-red-700',    bar: 'bg-red-500',    pill: 'bg-red-100 text-red-700 border-red-200' },
+  Warm: { bg: 'bg-amber-50',  text: 'text-amber-700',  bar: 'bg-amber-500',  pill: 'bg-amber-100 text-amber-700 border-amber-200' },
+  Cold: { bg: 'bg-blue-50',   text: 'text-blue-700',   bar: 'bg-blue-500',   pill: 'bg-blue-100 text-blue-700 border-blue-200' },
+};
+
+function computeScore(lead: CPLead): { score: number; label: HeatLabel } {
+  const base  = STATUS_SCORE[lead.status] ?? 20;
+  const days  = Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / 86400000);
+  const decay = Math.min(days * 0.5, 20);
+  const score = Math.max(5, Math.round(base - decay));
+  const label: HeatLabel = score >= 70 ? 'Hot' : score >= 45 ? 'Warm' : 'Cold';
+  return { score, label };
+}
+
+export default function CPAIInsights() {
+  const { user } = useAuthStore();
+  const cpUserId = user?.id ?? '';
+
+  const [leads, setLeads]       = useState<CPLead[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [filter, setFilter]     = useState<'All' | HeatLabel>('All');
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const fetchLeads = useCallback(async () => {
+    if (!cpUserId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const data = await cpApi.getLeads(cpUserId);
+      const active = ((data as CPLead[]) || []).filter(l => l.status !== 'Closed');
+      setLeads(active);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, [cpUserId]);
+
+  useEffect(() => { fetchLeads(); }, [fetchLeads]);
+
+  const scored = leads.map(l => ({ ...l, ...computeScore(l) }));
+  const hot  = scored.filter(l => l.label === 'Hot').length;
+  const warm = scored.filter(l => l.label === 'Warm').length;
+  const cold = scored.filter(l => l.label === 'Cold').length;
+
+  const filtered = filter === 'All' ? scored : scored.filter(l => l.label === filter);
+  const sorted   = [...filtered].sort((a, b) => b.score - a.score);
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <Brain size={24} className="text-primary" />
-          <div>
-            <h2 className="text-lg font-bold text-card-foreground">AI Lead Intelligence</h2>
-            <p className="text-sm text-muted-foreground">Behaviour-based scoring: page views, response time, tour views</p>
+      <div className="space-y-5 pb-8">
+
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
+              <Brain size={18} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-[17px] font-bold text-foreground">AI Lead Intelligence</h1>
+              <p className="text-[12px] text-muted-foreground mt-0.5">Scoring based on lead stage and activity</p>
+            </div>
           </div>
+          <button onClick={fetchLeads} disabled={loading}
+            className="p-2 rounded-xl hover:bg-muted transition-colors text-muted-foreground">
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'Total Leads', value: aiLeadInsights.length, color: 'text-primary' },
-            { label: 'Hot Leads', value: hotCount, color: 'text-red-600' },
-            { label: 'Warm Leads', value: warmCount, color: 'text-amber-600' },
-            { label: 'Cold Leads', value: coldCount, color: 'text-blue-600' },
+            { label: 'Total Active', value: leads.length, color: 'text-foreground' },
+            { label: 'Hot Leads',    value: hot,          color: 'text-red-600' },
+            { label: 'Warm Leads',   value: warm,         color: 'text-amber-600' },
+            { label: 'Cold Leads',   value: cold,         color: 'text-blue-600' },
           ].map(s => (
-            <div key={s.label} className="bg-card rounded-lg p-4 border border-border">
-              <p className="text-xs text-muted-foreground">{s.label}</p>
-              <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+            <div key={s.label} className="rounded-2xl border border-border bg-card p-4">
+              <p className="text-[11px] text-muted-foreground font-medium">{s.label}</p>
+              <p className={`text-2xl font-bold mt-1 ${s.color}`}>{s.value}</p>
             </div>
           ))}
         </div>
 
-        <div className="flex gap-2">
+        {/* Filter */}
+        <div className="flex gap-1.5">
           {(['All', 'Hot', 'Warm', 'Cold'] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>{f}</button>
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all border ${
+                filter === f ? 'bg-teal-600 text-white border-teal-600' : 'bg-card border-border text-muted-foreground hover:border-teal-300'
+              }`}>
+              {f}
+            </button>
           ))}
         </div>
 
-        <div className="space-y-3">
-          {filtered.map(lead => {
-            const colors = scoreColor(lead.label);
-            const expanded = expandedId === lead.leadId;
-            return (
-              <div key={lead.leadId} className="bg-card rounded-lg border border-border overflow-hidden">
-                <div className="p-4 flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expanded ? null : lead.leadId)}>
-                  <div className="flex-shrink-0">
-                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-lg font-bold text-muted-foreground">{lead.leadName[0]}</div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-card-foreground">{lead.leadName}</p>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${colors.bg} ${colors.text}`}>{lead.score} · {lead.label}</span>
+        {/* Lead cards */}
+        {loading ? (
+          <div className="flex justify-center py-14">
+            <Loader2 size={24} className="animate-spin text-muted-foreground" />
+          </div>
+        ) : sorted.length === 0 ? (
+          <div className="rounded-2xl border border-border bg-card p-12 text-center">
+            <Brain size={28} className="text-muted-foreground mx-auto mb-3" />
+            <p className="text-[13px] font-semibold text-foreground">No active leads</p>
+            <p className="text-[12px] text-muted-foreground mt-1">Add leads from the Projects page to see AI scoring.</p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {sorted.map(lead => {
+              const c = heatColors[lead.label];
+              const expanded = expandedId === lead.id;
+              const action = NEXT_ACTION[lead.status];
+              return (
+                <div key={lead.id} className="rounded-2xl border border-border bg-card overflow-hidden">
+                  <button className="w-full text-left px-5 py-4 flex items-center gap-4"
+                    onClick={() => setExpandedId(expanded ? null : lead.id)}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-[15px] ${c.bg} ${c.text}`}>
+                      {lead.customerName[0]}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{lead.projectInterest} • Last contact: {lead.daysSinceContact}d ago</p>
-                  </div>
-                  <div className="w-24 flex-shrink-0">
-                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden"><div className={`h-full rounded-full ${colors.bar}`} style={{ width: `${lead.score}%` }} /></div>
-                  </div>
-                  {expanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
-                </div>
-
-                {expanded && (
-                  <div className="border-t border-border p-4 space-y-4 bg-muted/30">
-                    <div className="bg-primary/10 rounded-lg p-3 flex items-start gap-2">
-                      <Zap size={16} className="text-primary mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-xs font-semibold text-primary">Next Best Action</p>
-                        <p className="text-sm text-card-foreground mt-0.5">{lead.nextBestAction}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[13px] font-semibold text-foreground">{lead.customerName}</p>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${c.pill}`}>
+                          {lead.score} · {lead.label}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{lead.projectName} · {lead.status}</p>
+                    </div>
+                    <div className="w-20 shrink-0">
+                      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${c.bar}`} style={{ width: `${lead.score}%` }} />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground"><Eye size={14} /> {lead.pageViews} page views</div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground"><TrendingUp size={14} /> {lead.tourViews} tour views</div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground"><Clock size={14} /> Response: {lead.responseTime}</div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground"><Phone size={14} /> {lead.phone}</div>
+                    {expanded ? <ChevronUp size={14} className="text-muted-foreground shrink-0" /> : <ChevronDown size={14} className="text-muted-foreground shrink-0" />}
+                  </button>
+
+                  {expanded && (
+                    <div className="border-t border-border px-5 py-4 space-y-3 bg-muted/20">
+                      {action && (
+                        <div className="flex items-start gap-2.5 bg-teal-50 border border-teal-100 rounded-xl px-3.5 py-3">
+                          <Zap size={14} className="text-teal-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-teal-600 mb-0.5">Next Best Action</p>
+                            <p className="text-[13px] text-teal-800">{action}</p>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        {lead.customerPhone && (
+                          <>
+                            <a href={`tel:${lead.customerPhone}`}
+                              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-[12px] font-semibold hover:bg-emerald-700 transition-colors">
+                              <Phone size={12} /> Call
+                            </a>
+                            <button onClick={() => {
+                              const msg = `Hi ${lead.customerName}, ${NEXT_ACTION[lead.status] ?? 'just checking in on your property search!'}`;
+                              window.open(`https://wa.me/91${lead.customerPhone.replace(/\D/,'')}?text=${encodeURIComponent(msg)}`, '_blank');
+                            }}
+                              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-500 text-white text-[12px] font-semibold hover:bg-green-600 transition-colors">
+                              <MessageSquare size={12} /> WhatsApp
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-medium text-card-foreground mb-1.5">Behaviour Signals</p>
-                      <div className="flex flex-wrap gap-1.5">{lead.signals.map((s, i) => <span key={i} className="text-[10px] px-2 py-1 rounded-full bg-muted text-muted-foreground">{s}</span>)}</div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => { window.open(`tel:${lead.phone}`); toast.success('Calling...'); }} className="px-4 py-2 rounded-lg bg-green-600 text-white text-xs font-semibold flex items-center gap-1 hover:bg-green-700"><Phone size={12} /> Call Now</button>
-                      <button onClick={() => { window.open(`https://wa.me/91${lead.phone}`); }} className="px-4 py-2 rounded-lg bg-green-500 text-white text-xs font-semibold flex items-center gap-1 hover:bg-green-600"><MessageSquare size={12} /> WhatsApp</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
-};
-
-export default CPAIInsights;
+}

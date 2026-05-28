@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type * as LeafletType from 'leaflet';
-import { MapPin, ExternalLink, Loader2, School, Hospital, Plane, ShoppingBag, ShoppingCart, Building2, Train, Newspaper } from 'lucide-react';
+import { MapPin, ExternalLink, Loader2, School, Hospital, Plane, ShoppingBag, ShoppingCart, Train, Newspaper } from 'lucide-react';
 import { builderApi } from '@/lib/api';
 
 type LeafletModule = typeof LeafletType;
@@ -22,16 +22,6 @@ interface NearbyPlace {
   lat: number;
   lng: number;
   distanceKm: number;
-}
-
-interface OsmDevelopment {
-  id: string;
-  name: string;
-  type: 'construction' | 'apartments' | 'residential' | 'mixed' | 'estate_agent';
-  lat: number;
-  lng: number;
-  distanceKm: number;
-  openingDate?: string;
 }
 
 interface NewsItem {
@@ -93,14 +83,6 @@ function makeProjectIcon(L: LeafletModule): LeafletType.DivIcon {
     className:   '',
   });
 }
-
-const OSM_DEV_TYPE_META: Record<OsmDevelopment['type'], { label: string; color: string }> = {
-  construction:  { label: 'Under Construction', color: 'bg-amber-100 text-amber-700' },
-  apartments:    { label: 'Apartments',         color: 'bg-blue-100 text-blue-700'   },
-  residential:   { label: 'Residential',        color: 'bg-teal-100 text-teal-700'   },
-  mixed:         { label: 'Mixed Use',          color: 'bg-purple-100 text-purple-700' },
-  estate_agent:  { label: 'Real Estate Office', color: 'bg-gray-100 text-gray-600'   },
-};
 
 const lbl = 'text-xs font-semibold text-gray-500 mb-1.5 block';
 const ic  = 'w-full px-3.5 py-2.5 rounded-xl border text-sm transition-all outline-none bg-white text-gray-800 placeholder:text-gray-500 border-gray-300 focus:ring-2 focus:ring-teal-500/15 focus:border-teal-400';
@@ -242,65 +224,6 @@ async function fetchNearby(center: Coords, signal: AbortSignal): Promise<NearbyP
 }
 
 // ── Overpass query for nearby real estate developments ────────────────────────
-async function fetchNearbyDevelopments(center: Coords, signal: AbortSignal): Promise<OsmDevelopment[]> {
-  const r = 5000; // 5 km
-  const { lat, lng } = center;
-
-  const query = `[out:json][timeout:15];(
-    nwr["landuse"="construction"]["name"](around:${r},${lat},${lng});
-    nwr["building"~"^(apartments|residential|condominium)$"]["name"](around:${r},${lat},${lng});
-    nwr["building"~"^(commercial|mixed_use|retail)$"]["name"](around:${r},${lat},${lng});
-    nwr["amenity"="real_estate_agent"]["name"](around:${r},${lat},${lng});
-  );out center 40;`;
-
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    body: 'data=' + encodeURIComponent(query),
-    signal,
-  });
-  if (!res.ok) throw new Error('Overpass query failed');
-  const json = await res.json() as {
-    elements: Array<{
-      type: string; id: number;
-      lat?: number; lon?: number;
-      center?: { lat: number; lon: number };
-      tags?: Record<string, string>;
-    }>;
-  };
-
-  const seen = new Set<string>();
-  const devs: OsmDevelopment[] = [];
-  for (const e of json.elements) {
-    const tags = e.tags ?? {};
-    const name = tags.name;
-    if (!name) continue;
-    const key = name.toLowerCase().trim();
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    const elat = e.lat ?? e.center?.lat;
-    const elng = e.lon ?? e.center?.lon;
-    if (elat == null || elng == null) continue;
-
-    let type: OsmDevelopment['type'] = 'residential';
-    if (tags.landuse === 'construction') type = 'construction';
-    else if (tags.building === 'apartments' || tags.building === 'condominium') type = 'apartments';
-    else if (tags.building === 'commercial' || tags.building === 'mixed_use' || tags.building === 'retail') type = 'mixed';
-    else if (tags.amenity === 'real_estate_agent') type = 'estate_agent';
-
-    devs.push({
-      id: `${e.type}/${e.id}`,
-      name,
-      type,
-      lat: elat,
-      lng: elng,
-      distanceKm: distanceKm(center, { lat: elat, lng: elng }),
-      openingDate: tags['opening_date'] || tags['start_date'] || undefined,
-    });
-  }
-  return devs.sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 12);
-}
-
 // ── Fetch local real-estate news (Google News RSS via rss2json) ───────────────
 async function fetchLocalNews(locality: string, signal: AbortSignal): Promise<NewsItem[]> {
   const q = encodeURIComponent(`${locality} real estate`);
@@ -330,9 +253,6 @@ const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = fa
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState<NearbyPlace['category'] | 'all'>('all');
 
-  const [osmDevs, setOsmDevs]                     = useState<OsmDevelopment[]>([]);
-  const [osmDevsLoading, setOsmDevsLoading]       = useState(false);
-  const [osmDevsFetched, setOsmDevsFetched]       = useState(false);
   const [nearbyLocality, setNearbyLocality]       = useState<string | null>(null);
 
   const [newsItems, setNewsItems]   = useState<NewsItem[]>([]);
@@ -485,27 +405,6 @@ const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = fa
         setNearbyLoading(false);
       }
     }, 800);
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [coords?.lat, coords?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Fetch nearby real-world developments from Overpass (OSM) ────────────
-  useEffect(() => {
-    setOsmDevs([]);
-    setOsmDevsFetched(false);
-    if (!coords) return;
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      setOsmDevsLoading(true);
-      try {
-        const list = await fetchNearbyDevelopments(coords, controller.signal);
-        setOsmDevs(list);
-      } catch {
-        /* network/timeout — leave empty */
-      } finally {
-        setOsmDevsLoading(false);
-        setOsmDevsFetched(true);
-      }
-    }, 1000);
     return () => { controller.abort(); clearTimeout(timer); };
   }, [coords?.lat, coords?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -765,29 +664,40 @@ const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = fa
       {/* ── Nearby attractions list ───────────────────────────────────────── */}
       {coords && (
         <div className="col-span-2">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-3">
             <label className={`${lbl} mb-0`}>Nearby Attractions</label>
             {nearbyLoading && <Loader2 size={12} className="text-teal-500 animate-spin" />}
           </div>
 
-
           {!nearbyLoading && nearby.length === 0 && (
-            <p className="text-[11px] text-gray-400">No notable points of interest found nearby.</p>
+            <p className="text-[11px] text-gray-400 py-1">No notable points of interest found nearby.</p>
           )}
 
-          {visiblePlaces.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              {visiblePlaces.map(p => {
-                const { icon: Icon, color } = CATEGORY_META[p.category];
+          {totalNearby > 0 && (
+            <div className="space-y-4">
+              {(Object.keys(CATEGORY_META) as NearbyPlace['category'][]).map(cat => {
+                const places = categorized[cat];
+                if (!places.length) return null;
+                const { label, icon: CatIcon, color } = CATEGORY_META[cat];
                 return (
-                  <a key={p.id}
-                    href={`https://maps.google.com/maps?q=${p.lat},${p.lng}`}
-                    target="_blank" rel="noreferrer"
-                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[11px] hover:shadow-sm transition-shadow ${color}`}>
-                    <Icon size={12} className="shrink-0" />
-                    <span className="font-medium truncate flex-1">{p.name}</span>
-                    <span className="text-[10px] opacity-70 shrink-0">{p.distanceKm.toFixed(1)} km</span>
-                  </a>
+                  <div key={cat}>
+                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border mb-2 ${color}`}>
+                      <CatIcon size={11} className="shrink-0" />
+                      <span className="text-[10px] font-bold uppercase tracking-wide">{label}</span>
+                      <span className="text-[10px] opacity-60 font-normal">· {places.length}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {places.map(p => (
+                        <a key={p.id}
+                          href={`https://maps.google.com/maps?q=${p.lat},${p.lng}`}
+                          target="_blank" rel="noreferrer"
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 hover:border-gray-300 hover:bg-white transition-all text-[11px] group">
+                          <span className="font-medium text-gray-700 truncate flex-1 group-hover:text-teal-700">{p.name}</span>
+                          <span className="text-[10px] text-gray-400 shrink-0 tabular-nums">{p.distanceKm.toFixed(1)} km</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -795,57 +705,6 @@ const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = fa
         </div>
       )}
 
-      {/* ── Nearby Developments (from OpenStreetMap via Overpass) ────────── */}
-      {coords && (osmDevsLoading || osmDevsFetched) && (
-        <div className="col-span-2">
-          <div className="flex items-center justify-between mb-2">
-            <label className={`${lbl} mb-0 flex items-center gap-1.5`}>
-              <Building2 size={11} className="text-teal-500" />
-              Nearby Developments {nearbyLocality ? `near ${nearbyLocality}` : city ? `in ${city}` : ''}
-              <span className="text-[9px] font-medium text-gray-400 ml-1">(OpenStreetMap)</span>
-            </label>
-            {osmDevsLoading && <Loader2 size={12} className="text-teal-500 animate-spin" />}
-          </div>
-
-          {osmDevs.length === 0 && !osmDevsLoading && (
-            <p className="text-[11px] text-gray-400">No mapped construction or housing projects found within 3 km.</p>
-          )}
-
-          {osmDevs.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {osmDevs.map(d => {
-                const meta = OSM_DEV_TYPE_META[d.type];
-                return (
-                  <a
-                    key={d.id}
-                    href={`https://maps.google.com/maps?q=${d.lat},${d.lng}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-2.5 p-2 rounded-lg border border-gray-200 bg-white hover:border-teal-300 hover:shadow-sm transition-all"
-                  >
-                    <div className="w-10 h-10 rounded-md bg-teal-50 flex items-center justify-center shrink-0">
-                      <Building2 size={14} className="text-teal-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-semibold text-gray-800 truncate">{d.name}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${meta.color}`}>
-                          {meta.label}
-                        </span>
-                        <span className="text-[10px] text-gray-400">{d.distanceKm.toFixed(1)} km away</span>
-                        {d.openingDate && (
-                          <span className="text-[10px] text-gray-400">· {d.openingDate}</span>
-                        )}
-                      </div>
-                    </div>
-                    <ExternalLink size={11} className="text-gray-300 shrink-0" />
-                  </a>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
     </>
   );
 };

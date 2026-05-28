@@ -67,16 +67,16 @@ export const authApi = {
       body: JSON.stringify({ countryCode, phone, fullName, role: role.toUpperCase() }),
     }),
 
-  signupVerifyOtp: (countryCode: string, phone: string, otp: string, fullName?: string, role?: string) =>
+  signupVerifyOtp: (countryCode: string, phone: string, otp: string, fullName?: string, role?: string, referralCode?: string) =>
     authReq('/auth/signup/phone/verify-otp', {
       method: 'POST',
-      body: JSON.stringify({ countryCode, phone, otp, fullName, role }),
+      body: JSON.stringify({ countryCode, phone, otp, fullName, role, referralCode }),
     }),
 
-  googleAuth: (idToken: string, role?: string) =>
+  googleAuth: (idToken: string, role?: string, referralCode?: string) =>
     authReq('/auth/google', {
       method: 'POST',
-      body: JSON.stringify({ idToken, role: role?.toUpperCase() }),
+      body: JSON.stringify({ idToken, role: role?.toUpperCase(), referralCode }),
     }),
 
   refresh: (refreshToken: string) =>
@@ -350,6 +350,63 @@ export const cpApi = {
 };
 
 // Customer portal — calls Builder service, requires JWT, no builderId in path
+const AI_BASE = import.meta.env.VITE_BUILDER_URL ?? 'http://127.0.0.1:8090/api';
+
+export const aiApi = {
+  checkHealth: async (): Promise<boolean> => {
+    try {
+      const token = localStorage.getItem('dealio_access_token');
+      const res = await fetch(`${AI_BASE}/ai/health`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  /**
+   * Opens an SSE stream to the AI chat endpoint.
+   * Returns a ReadableStreamDefaultReader that emits JSON chunks { text } or [DONE].
+   */
+  streamChat: (
+    messages: { role: 'user' | 'assistant'; content: string }[],
+    context: { role?: string; userName?: string },
+  ): ReadableStreamDefaultReader<Uint8Array> => {
+    const token = localStorage.getItem('dealio_access_token');
+    const ctrl = new AbortController();
+    const stream = fetch(`${AI_BASE}/ai/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ messages, context }),
+      signal: ctrl.signal,
+    }).then(r => {
+      if (!r.body) throw new Error('No response body');
+      return r.body.getReader();
+    });
+    // Wrap in a proxy reader that resolves the promise
+    let resolvedReader: ReadableStreamDefaultReader<Uint8Array>;
+    const proxyStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        stream.then(reader => {
+          resolvedReader = reader;
+          const pump = () => reader.read().then(({ done, value }) => {
+            if (done) { controller.close(); return; }
+            controller.enqueue(value);
+            pump();
+          }).catch(() => controller.close());
+          pump();
+        }).catch(() => controller.close());
+      },
+      cancel() { ctrl.abort(); },
+    });
+    return proxyStream.getReader();
+  },
+};
+
 export const portalApi = {
   getMyMeetings: (phone: string) =>
     builderReq(`/portal/customer/meetings?phone=${encodeURIComponent(phone)}`),
@@ -357,6 +414,7 @@ export const portalApi = {
   bookMeeting: (data: {
     builderId: number; projectId?: number; customerName: string; customerPhone: string;
     preferredDate: string; preferredTime: string; meetingType?: string; notes?: string;
+    cpUserId?: number | string | null;
   }) =>
     builderReq('/portal/customer/meetings', { method: 'POST', body: JSON.stringify(data) }),
 

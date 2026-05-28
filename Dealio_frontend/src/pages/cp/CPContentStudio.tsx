@@ -1,160 +1,218 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { contentLibrary, socialPosts } from '@/data/socialMedia';
-import { projects } from '@/data/projects';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Image, Send, Clock, CheckCircle, AlertCircle, Instagram, Linkedin, MessageSquare, Facebook, Sparkles, Copy, ExternalLink } from 'lucide-react';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { builderApi } from '@/lib/api';
+import { Sparkles, Copy, Loader2, Building2, Instagram, Linkedin, Facebook, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 
-const platformIcons: Record<string, React.ElementType> = { instagram: Instagram, facebook: Facebook, linkedin: Linkedin, whatsapp: MessageSquare };
-const platformColors: Record<string, string> = { instagram: '#E4405F', facebook: '#1877F2', linkedin: '#0A66C2', whatsapp: '#25D366' };
-const statusConfig: Record<string, { icon: React.ElementType; color: string }> = {
-  Draft: { icon: Clock, color: 'text-muted-foreground' },
-  Scheduled: { icon: Clock, color: 'text-amber-600' },
-  Published: { icon: CheckCircle, color: 'text-green-600' },
-  Failed: { icon: AlertCircle, color: 'text-destructive' },
+interface Project {
+  id: number;
+  name: string;
+  city: string;
+  builderName: string | null;
+  priceMin: number | null;
+  priceMax: number | null;
+  configurations: string[] | null;
+  status: string;
+  locality?: string | null;
+}
+
+const PLATFORMS = [
+  { id: 'whatsapp',  label: 'WhatsApp',  Icon: MessageSquare, color: '#25D366' },
+  { id: 'instagram', label: 'Instagram', Icon: Instagram,     color: '#E4405F' },
+  { id: 'facebook',  label: 'Facebook',  Icon: Facebook,      color: '#1877F2' },
+  { id: 'linkedin',  label: 'LinkedIn',  Icon: Linkedin,      color: '#0A66C2' },
+];
+
+const fmt = (n: number | null) => {
+  if (!n) return '?';
+  if (n >= 10_000_000) return `${(n / 10_000_000).toFixed(1)}Cr`;
+  if (n >= 100_000)    return `${(n / 100_000).toFixed(0)}L`;
+  return n.toLocaleString('en-IN');
 };
 
-const CPContentStudio = () => {
-  const [selectedProject, setSelectedProject] = useState('');
-  const [generatedCaption, setGeneratedCaption] = useState('');
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
-  const [scheduleDate, setScheduleDate] = useState('');
+function generateCaption(project: Project, platform: string): string {
+  const price = project.priceMin
+    ? `₹${fmt(project.priceMin)}${project.priceMax ? ` – ₹${fmt(project.priceMax)}` : '+'}`
+    : 'Price on request';
+  const configs = project.configurations?.join(' / ') ?? 'BHK configurations';
+
+  if (platform === 'whatsapp') {
+    return `🏠 *${project.name}* by ${project.builderName ?? 'a trusted builder'}\n📍 ${project.locality ?? project.city}, ${project.city}\n💰 Starting ${price}\n🏗️ ${configs}\n\nInterested? Reply to this message or call me for more details!\n\n#RealEstate #${project.city.replace(/\s/g,'')}`;
+  }
+  if (platform === 'instagram') {
+    return `✨ Your dream home awaits! 🏡\n\n${project.name} — ${configs}\n📍 ${project.city}\n💰 Starting ${price}\n\nDM me for details, virtual tours, and exclusive offers! 🔑\n\n#${project.city.replace(/\s/g,'')}RealEstate #NewLaunch #DreamHome #PropertyInvestment #${project.name.replace(/\s/g,'')}`;
+  }
+  if (platform === 'linkedin') {
+    return `Exciting real estate opportunity: ${project.name} by ${project.builderName ?? 'a reputed developer'} in ${project.city}.\n\n• ${configs} configurations\n• Starting ${price}\n• Status: ${project.status}\n\nIdeal for end-users and investors. Reach out for a detailed presentation.\n\n#RealEstate #Investment #${project.city.replace(/\s/g,'')}`;
+  }
+  // facebook
+  return `🏠 Introducing ${project.name}!\n\n📍 ${project.city} | 💰 ${price} | 🏗️ ${configs}\n\nDeveloped by ${project.builderName ?? 'a trusted builder'}. Limited units available. Comment "INTERESTED" or DM for details!\n\n#${project.city.replace(/\s/g,'')}Homes #RealEstate #NewProject`;
+}
+
+export default function CPContentStudio() {
+  const { user } = useAuthStore();
+  const [projects, setProjects]           = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [selectedPlatform, setSelectedPlatform]   = useState('whatsapp');
+  const [caption, setCaption]             = useState('');
+  const [generating, setGenerating]       = useState(false);
+
+  const fetchProjects = useCallback(async () => {
+    setLoadingProjects(true);
+    try {
+      const data = await builderApi.getPublicProjects();
+      setProjects((data as Project[]) || []);
+    } catch { /* ignore */ }
+    finally { setLoadingProjects(false); }
+  }, []);
+
+  useEffect(() => { fetchProjects(); }, [fetchProjects]);
+
+  const selectedProject = projects.find(p => p.id === selectedProjectId) ?? null;
 
   const handleGenerate = () => {
-    const project = projects.find(p => p.id === selectedProject);
-    if (!project) { toast.error('Select a project first'); return; }
-    const caption = `🏠 ${project.name} by ${project.builder}\n📍 ${project.location}, ${project.city}\n💰 Starting ₹${(project.priceRange[0] / 100000).toFixed(0)}L\n🏗️ ${project.available} units available | Possession: ${project.possessionDate}\n\n${project.amenities.slice(0, 4).map(a => `✅ ${a}`).join('\n')}\n\n#${project.name.replace(/\s/g, '')} #${project.city}RealEstate #DreamHome #PropertyInvestment`;
-    setGeneratedCaption(caption);
-    toast.success('AI caption generated!');
+    if (!selectedProject) { toast.error('Select a project first'); return; }
+    setGenerating(true);
+    setTimeout(() => {
+      setCaption(generateCaption(selectedProject, selectedPlatform));
+      setGenerating(false);
+    }, 600);
   };
 
-  const handlePublish = () => {
-    if (!generatedCaption || selectedPlatforms.length === 0) { toast.error('Select platforms and generate caption'); return; }
-    toast.success(`Post ${scheduleDate ? 'scheduled' : 'published'} to ${selectedPlatforms.join(', ')}!`);
-    setGeneratedCaption(''); setSelectedPlatforms([]); setScheduleDate('');
+  const handleCopy = () => {
+    navigator.clipboard.writeText(caption);
+    toast.success('Caption copied!');
   };
 
-  const togglePlatform = (p: string) => setSelectedPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
+  const handleShare = () => {
+    if (!caption) return;
+    if (selectedPlatform === 'whatsapp') {
+      window.open(`https://wa.me/?text=${encodeURIComponent(caption)}`, '_blank');
+    } else {
+      navigator.clipboard.writeText(caption);
+      toast.success('Caption copied — paste it into your social app');
+    }
+  };
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <Tabs defaultValue="create">
-          <TabsList>
-            <TabsTrigger value="create">Create Post</TabsTrigger>
-            <TabsTrigger value="library">Content Library</TabsTrigger>
-            <TabsTrigger value="history">Post History</TabsTrigger>
-          </TabsList>
+      <div className="space-y-5 pb-8 max-w-3xl">
 
-          <TabsContent value="create" className="space-y-4 mt-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-card rounded-lg p-5 border border-border space-y-4">
-                <h3 className="font-semibold text-card-foreground">1-Click Post Generator</h3>
-                <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground">
-                  <option value="">Select Project</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name} — {p.location}</option>)}
-                </select>
-                <button onClick={handleGenerate} className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary/90">
-                  <Sparkles size={16} /> Generate AI Caption + Hashtags
-                </button>
-                {generatedCaption && (
-                  <div className="space-y-3">
-                    <textarea value={generatedCaption} onChange={e => setGeneratedCaption(e.target.value)} rows={8} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm resize-none text-foreground" />
-                    <button onClick={() => { navigator.clipboard.writeText(generatedCaption); toast.success('Copied!'); }} className="text-xs text-primary flex items-center gap-1"><Copy size={12} /> Copy</button>
-                  </div>
-                )}
-              </div>
+        <div>
+          <h1 className="text-[17px] font-bold text-foreground">Content Studio</h1>
+          <p className="text-[12px] text-muted-foreground mt-0.5">Generate social media captions for your projects</p>
+        </div>
 
-              <div className="bg-card rounded-lg p-5 border border-border space-y-4">
-                <h3 className="font-semibold text-card-foreground">Publish Settings</h3>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2">Select platforms</p>
-                  <div className="flex gap-2">
-                    {(['instagram', 'facebook', 'linkedin', 'whatsapp'] as const).map(p => {
-                      const Icon = platformIcons[p];
-                      const active = selectedPlatforms.includes(p);
-                      return (
-                        <button key={p} onClick={() => togglePlatform(p)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${active ? 'border-primary bg-primary/10 text-primary' : 'border-input text-muted-foreground hover:bg-muted'}`}>
-                          <Icon size={16} style={active ? { color: platformColors[p] } : {}} /> {p.charAt(0).toUpperCase() + p.slice(1)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2">Image format (auto-resized)</p>
-                  <div className="flex gap-2">
-                    {['1:1 Feed', '9:16 Story', '16:9 Cover'].map(f => (
-                      <span key={f} className="px-3 py-1.5 rounded-lg bg-muted text-xs text-muted-foreground">{f}</span>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2">Schedule (optional)</p>
-                  <input type="datetime-local" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground" />
-                  <p className="text-[10px] text-muted-foreground mt-1">💡 Best time to post: Tue & Thu, 6–8 PM IST</p>
-                </div>
-                <button onClick={handlePublish} className="w-full py-2.5 rounded-lg bg-accent text-accent-foreground text-sm font-semibold flex items-center justify-center gap-2 hover:opacity-90">
-                  <Send size={16} /> {scheduleDate ? 'Schedule Post' : 'Publish Now'}
-                </button>
-              </div>
+        {/* Project selector */}
+        <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+          <p className="text-[12px] font-bold uppercase tracking-wide text-muted-foreground">1. Pick a Project</p>
+          {loadingProjects ? (
+            <div className="flex justify-center py-6"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+          ) : projects.length === 0 ? (
+            <div className="text-center py-6">
+              <Building2 size={24} className="text-muted-foreground mx-auto mb-2" />
+              <p className="text-[12px] text-muted-foreground">No projects found. Projects will appear here once builders publish them.</p>
             </div>
-          </TabsContent>
-
-          <TabsContent value="library" className="mt-4">
-            <p className="text-sm text-muted-foreground mb-4">Builder-approved content only. CPs can share from this library — no unauthorized edits.</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {contentLibrary.map(item => (
-                <div key={item.id} className="bg-card rounded-lg border border-border overflow-hidden">
-                  <img src={item.imageUrl} alt={item.projectName} className="w-full h-40 object-cover" />
-                  <div className="p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-primary">{item.type}</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 font-medium">✅ Approved</span>
-                    </div>
-                    <p className="text-sm font-semibold text-card-foreground">{item.projectName}</p>
-                    <p className="text-xs text-muted-foreground line-clamp-2">{item.caption}</p>
-                    <div className="flex flex-wrap gap-1">{item.hashtags.map(h => <span key={h} className="text-[10px] text-primary">{h}</span>)}</div>
-                    <button onClick={() => { setGeneratedCaption(item.caption + '\n\n' + item.hashtags.join(' ')); setSelectedProject(item.projectId); toast.success('Loaded into editor'); }} className="w-full py-1.5 rounded bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20">
-                      Use This Content
-                    </button>
-                  </div>
-                </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto pr-1">
+              {projects.map(p => (
+                <button key={p.id} onClick={() => setSelectedProjectId(p.id)}
+                  className={`text-left p-3 rounded-xl border transition-all ${
+                    selectedProjectId === p.id
+                      ? 'border-teal-500 bg-teal-50'
+                      : 'border-border hover:border-teal-200 hover:bg-muted/40'
+                  }`}>
+                  <p className="text-[12px] font-semibold text-foreground truncate">{p.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{p.builderName ?? '—'} · {p.city}</p>
+                  {p.priceMin && (
+                    <p className="text-[11px] text-teal-700 font-medium mt-0.5">from ₹{fmt(p.priceMin)}</p>
+                  )}
+                </button>
               ))}
             </div>
-          </TabsContent>
+          )}
+        </div>
 
-          <TabsContent value="history" className="mt-4">
-            <div className="bg-card rounded-lg border border-border overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead><tr className="text-left text-muted-foreground border-b border-border">
-                  <th className="px-4 py-3 font-medium">Project</th><th className="px-4 py-3 font-medium">Platforms</th>
-                  <th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium text-right">Reach</th>
-                  <th className="px-4 py-3 font-medium text-right">Leads</th><th className="px-4 py-3 font-medium text-right">Engagement</th>
-                </tr></thead>
-                <tbody>
-                  {socialPosts.map(post => {
-                    const cfg = statusConfig[post.status];
-                    return (
-                      <tr key={post.id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-3 text-card-foreground font-medium">{post.projectName}</td>
-                        <td className="px-4 py-3"><div className="flex gap-1">{post.platforms.map(p => { const I = platformIcons[p]; return <I key={p} size={14} style={{ color: platformColors[p] }} />; })}</div></td>
-                        <td className="px-4 py-3"><span className={`flex items-center gap-1 text-xs font-medium ${cfg.color}`}><cfg.icon size={12} /> {post.status}</span></td>
-                        <td className="px-4 py-3 text-right text-card-foreground">{post.reach?.toLocaleString('en-IN') || '—'}</td>
-                        <td className="px-4 py-3 text-right text-card-foreground">{post.leads ?? '—'}</td>
-                        <td className="px-4 py-3 text-right text-card-foreground">{post.engagement?.toLocaleString('en-IN') || '—'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+        {/* Platform selector */}
+        <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+          <p className="text-[12px] font-bold uppercase tracking-wide text-muted-foreground">2. Choose Platform</p>
+          <div className="flex gap-2 flex-wrap">
+            {PLATFORMS.map(pl => {
+              const Icon = pl.Icon;
+              return (
+                <button key={pl.id} onClick={() => setSelectedPlatform(pl.id)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-[12px] font-semibold transition-all ${
+                    selectedPlatform === pl.id ? 'text-white border-transparent' : 'border-border text-muted-foreground hover:border-gray-300'
+                  }`}
+                  style={selectedPlatform === pl.id ? { backgroundColor: pl.color, borderColor: pl.color } : {}}>
+                  <Icon size={14} /> {pl.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Generate */}
+        <button onClick={handleGenerate} disabled={!selectedProject || generating}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold text-white disabled:opacity-50 hover:opacity-90 transition-all"
+          style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
+          {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+          {generating ? 'Generating…' : 'Generate Caption'}
+        </button>
+
+        {/* Caption output */}
+        {caption && (
+          <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[12px] font-bold uppercase tracking-wide text-muted-foreground">Generated Caption</p>
+              <button onClick={handleCopy}
+                className="flex items-center gap-1.5 text-[11px] text-teal-600 hover:text-teal-700 font-medium">
+                <Copy size={12} /> Copy
+              </button>
             </div>
-          </TabsContent>
-        </Tabs>
+            <textarea
+              value={caption}
+              onChange={e => setCaption(e.target.value)}
+              rows={8}
+              className="w-full px-3.5 py-3 rounded-xl border border-border bg-muted/30 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-teal-400/20 focus:border-teal-400 resize-none transition-all"
+            />
+            <div className="flex gap-2">
+              <button onClick={handleShare}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold text-white hover:opacity-90 transition-all"
+                style={{ background: selectedPlatform === 'whatsapp' ? '#25D366' : '#0A7E8C' }}>
+                {PLATFORMS.find(p => p.id === selectedPlatform)?.label === 'WhatsApp' ? (
+                  <><MessageSquare size={13} /> Share on WhatsApp</>
+                ) : (
+                  <><Copy size={13} /> Copy & Share</>
+                )}
+              </button>
+              <button onClick={() => setCaption('')}
+                className="px-4 py-2 rounded-xl text-[12px] font-semibold border border-border text-muted-foreground hover:bg-muted transition-colors">
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tips */}
+        <div className="rounded-2xl border border-border bg-muted/30 p-5">
+          <p className="text-[12px] font-bold text-foreground mb-3">Tips for better engagement</p>
+          <ul className="space-y-1.5">
+            {[
+              'Post during peak hours: 7–9 AM or 7–9 PM IST',
+              'Add project photos when sharing on Instagram and Facebook',
+              'Always include a clear call-to-action (DM, call, WhatsApp)',
+              'Use local hashtags like #BangaloreHomes or #PuneFlats',
+            ].map((tip, i) => (
+              <li key={i} className="flex items-start gap-2 text-[12px] text-muted-foreground">
+                <span className="text-teal-500 font-bold shrink-0">•</span> {tip}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </DashboardLayout>
   );
-};
-
-export default CPContentStudio;
+}
