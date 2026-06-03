@@ -11,9 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import {
   Calendar, Clock, CheckCircle2, XCircle, RefreshCw, Loader2,
   MessageSquare, Phone, Building2, ChevronRight, Share2, Users,
-  AlertCircle, X, MapPin, Download,
+  AlertCircle, X, MapPin,
 } from 'lucide-react';
-import { downloadCalendarInvite } from '@/lib/calendarUtils';
+import AddToCalendarButton from '@/components/shared/AddToCalendarButton';
 import { toast } from 'sonner';
 import DatePickerField from '@/components/shared/DatePickerField';
 
@@ -456,18 +456,14 @@ const CPMeetingRequests = () => {
                     </div>
                     <p className="text-[13px] font-semibold text-emerald-700 group-hover:text-emerald-600">Get Directions</p>
                   </a>
-                  <button
-                    onClick={() => downloadCalendarInvite({
-                      id: selected.id,
-                      projectName: selected.projectName,
-                      date: selected.confirmedDate ?? selected.preferredDate,
-                      time: selected.confirmedTime ?? selected.preferredTime,
-                      summary: `${selected.meetingType ?? 'Site Visit'} — ${selected.projectName}`,
-                      description: `Meeting with ${selected.customerName} (${selected.customerPhone})`,
-                    })}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold text-foreground border border-border bg-muted/40 hover:bg-muted/60 transition-colors">
-                    <Download size={13} /> Add to Calendar
-                  </button>
+                  <AddToCalendarButton opts={{
+                    id: selected.id,
+                    projectName: selected.projectName,
+                    date: selected.confirmedDate ?? selected.preferredDate,
+                    time: selected.confirmedTime ?? selected.preferredTime,
+                    summary: `${selected.meetingType ?? 'Site Visit'} — ${selected.projectName}`,
+                    description: `Meeting with ${selected.customerName} (${selected.customerPhone})`,
+                  }} />
                 </>
               )}
 

@@ -6,22 +6,11 @@ import { useNotificationStore } from '@/stores/useNotificationStore';
 import {
   Calendar, CheckCircle2, Clock, MessageSquare, Phone, Loader2,
   RefreshCw, Building2, XCircle, Users, FileText,
-  ChevronRight, Search, X, ArrowLeft, Download,
+  ChevronRight, Search, X, ArrowLeft,
 } from 'lucide-react';
-
-import { downloadCalendarInvite as _downloadICS } from '@/lib/calendarUtils';
-function downloadCalendarInvite(m: ApiMeeting) {
-  _downloadICS({
-    id: m.id,
-    projectName: m.projectName,
-    date: m.confirmedDate ?? m.preferredDate,
-    time: m.confirmedTime ?? m.preferredTime,
-    summary: `${m.meetingType ?? 'Site Visit'} — ${m.projectName}`,
-    description: `Meeting with ${m.customerName} (${m.customerPhone})`,
-  });
-}
 import { toast } from 'sonner';
 import DatePickerField from '@/components/shared/DatePickerField';
+import AddToCalendarButton from '@/components/shared/AddToCalendarButton';
 
 interface ApiMeeting {
   id: number;
@@ -463,10 +452,14 @@ const BuilderMeetings = () => {
 
                   {/* Add to Calendar — confirmed / rescheduled */}
                   {(selected.status === 'Confirmed' || selected.status === 'Rescheduled') && (
-                    <button onClick={() => downloadCalendarInvite(selected)}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold text-foreground border border-border bg-muted/40 hover:bg-muted/60 transition-colors">
-                      <Download size={14} /> Add to Calendar
-                    </button>
+                    <AddToCalendarButton opts={{
+                      id: selected.id,
+                      projectName: selected.projectName,
+                      date: selected.confirmedDate ?? selected.preferredDate,
+                      time: selected.confirmedTime ?? selected.preferredTime,
+                      summary: `${selected.meetingType ?? 'Site Visit'} — ${selected.projectName}`,
+                      description: `Meeting with ${selected.customerName} (${selected.customerPhone})`,
+                    }} />
                   )}
 
                   {/* action panel — inline form */}

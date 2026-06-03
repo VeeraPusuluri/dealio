@@ -8,9 +8,9 @@ import { pushNotifTo } from '@/lib/crossNotify';
 import {
   Calendar, MapPin, Clock, Star, Building2, FileText, Users, Loader2,
   RefreshCw, X, ChevronRight, MessageSquare, CheckCircle2, Sparkles,
-  Navigation, Phone, Plus, UserCheck, User, Download,
+  Navigation, Phone, Plus, UserCheck, User,
 } from 'lucide-react';
-import { downloadCalendarInvite } from '@/lib/calendarUtils';
+import AddToCalendarButton from '@/components/shared/AddToCalendarButton';
 import { toast } from 'sonner';
 import DatePickerField from '@/components/shared/DatePickerField';
 import { getAvailableSlotsForDate, ALL_SLOTS } from '@/lib/builderAvailability';
@@ -798,18 +798,14 @@ export default function CustomerMeeting() {
                     </div>
                     <MapPin size={14} className="text-emerald-400 shrink-0" />
                   </a>
-                  <button
-                    onClick={() => downloadCalendarInvite({
-                      id: selected.id,
-                      projectName: selected.projectName,
-                      date: selected.confirmedDate ?? selected.preferredDate,
-                      time: selected.confirmedTime ?? selected.preferredTime,
-                      summary: `Site Visit — ${selected.projectName}`,
-                      description: `Your site visit at ${selected.projectName}`,
-                    })}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-semibold text-foreground border border-border bg-muted/40 hover:bg-muted/60 transition-colors">
-                    <Download size={14} /> Add to Calendar
-                  </button>
+                  <AddToCalendarButton opts={{
+                    id: selected.id,
+                    projectName: selected.projectName,
+                    date: selected.confirmedDate ?? selected.preferredDate,
+                    time: selected.confirmedTime ?? selected.preferredTime,
+                    summary: `Site Visit — ${selected.projectName}`,
+                    description: `Your site visit at ${selected.projectName}`,
+                  }} />
                 </>
               )}
             </div>
