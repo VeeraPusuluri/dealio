@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { channelManager } from '../services/channelManager';
 import PDFDocument from 'pdfkit';
+import { generateICS } from '../services/calendarService';
+import { sendCalendarInvite } from '../services/emailService';
 
 // Maps DB column names (priceFrom/priceTo) to the frontend's expected names (priceMin/priceMax)
 function toProjectDto(p: Record<string, unknown>, builder?: Record<string, unknown>) {
@@ -801,7 +803,10 @@ export const builderController = {
           ...(confirmedDate ? { confirmedDate } : {}),
           ...(confirmedTime ? { confirmedTime } : {}),
         },
-        include: { project: { select: { name: true } } },
+        include: {
+          project: { select: { name: true, address: true, city: true } },
+          customer: { select: { email: true, fullName: true } },
+        },
       });
     } catch (err) {
       res.status(404).json({ ok: false, message: 'Meeting not found' });
@@ -836,6 +841,91 @@ export const builderController = {
     const dateStr     = meeting.confirmedDate ?? meeting.preferredDate;
     const timeStr     = meeting.confirmedTime ?? meeting.preferredTime;
     const ts          = new Date().toISOString();
+
+    // Send calendar invites on Confirmed or Rescheduled
+    if (status === 'Confirmed' || status === 'Rescheduled') {
+      try {
+        const builderRecord = await prisma.builder.findUnique({
+          where: { id: Number(builderId) },
+          select: { contactEmail: true, user: { select: { email: true, fullName: true } } },
+        });
+
+        const builderEmail  = builderRecord?.contactEmail ?? builderRecord?.user?.email ?? '';
+        const builderName   = builderRecord?.user?.fullName ?? 'Builder';
+        const customerEmail = meeting.customer?.email ?? '';
+        const customerName  = meeting.customer?.fullName ?? meeting.customerName;
+
+        // Fetch CP email if linked
+        let cpEmail = '';
+        let cpName  = '';
+        if (meeting.cpId) {
+          const cpRecord = await prisma.channelPartner.findUnique({
+            where: { id: meeting.cpId },
+            select: { user: { select: { email: true, fullName: true } } },
+          });
+          cpEmail = cpRecord?.user?.email ?? '';
+          cpName  = cpRecord?.user?.fullName ?? 'Channel Partner';
+        }
+
+        const location = [meeting.project?.address, meeting.project?.city]
+          .filter(Boolean).join(', ') || projectName;
+
+        const description =
+          `Site visit for ${projectName}\n` +
+          `Customer: ${customerName} (${meeting.customerPhone})\n` +
+          (meeting.meetingType ? `Type: ${meeting.meetingType}\n` : '') +
+          (meeting.notes ? `Notes: ${meeting.notes}` : '');
+
+        const attendees = [
+          { email: customerEmail, name: customerName, role: 'REQ-PARTICIPANT' as const },
+          ...(cpEmail ? [{ email: cpEmail, name: cpName, role: 'REQ-PARTICIPANT' as const }] : []),
+        ];
+
+        if (builderEmail && dateStr && timeStr) {
+          const icsContent = generateICS({
+            uid: `meeting-${meeting.id}-${Date.now()}@dealio.com`,
+            summary: `Site Visit — ${projectName}`,
+            description,
+            location,
+            dateStr,
+            timeStr,
+            organizer: { email: builderEmail, name: builderName, role: 'CHAIR' },
+            attendees,
+          });
+
+          const subject =
+            status === 'Confirmed'
+              ? `Site Visit Confirmed — ${projectName} on ${dateStr} at ${timeStr}`
+              : `Site Visit Rescheduled — ${projectName} now on ${dateStr} at ${timeStr}`;
+
+          const htmlBody = `
+<p>Hi,</p>
+<p>Your site visit for <strong>${projectName}</strong> has been <strong>${status.toLowerCase()}</strong>.</p>
+<ul>
+  <li><strong>Date:</strong> ${dateStr}</li>
+  <li><strong>Time:</strong> ${timeStr}</li>
+  <li><strong>Location:</strong> ${location}</li>
+</ul>
+<p>Please find the calendar invite attached. Add it to your calendar to get a reminder.</p>
+<p>— Dealio Platform</p>`;
+
+          const recipients = [
+            { email: builderEmail, name: builderName },
+            ...attendees.filter(a => a.email),
+          ];
+
+          sendCalendarInvite({
+            to: recipients,
+            subject,
+            htmlBody,
+            icsContent,
+            filename: `dealio-site-visit-${meeting.id}.ics`,
+          }).catch(err => console.error('[calendarInvite] email error:', err));
+        }
+      } catch (err) {
+        console.error('[calendarInvite] failed to send calendar invite:', err);
+      }
+    }
 
     // Notify the customer about the meeting status change
     const notifMeta: Record<string, { title: string; type: string; evtType: string }> = {
