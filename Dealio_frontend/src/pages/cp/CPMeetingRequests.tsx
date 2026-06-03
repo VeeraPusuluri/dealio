@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import {
   Calendar, Clock, CheckCircle2, XCircle, RefreshCw, Loader2,
   MessageSquare, Phone, Building2, ChevronRight, Share2, Users,
-  AlertCircle, X, MapPin,
+  AlertCircle, X, MapPin, Download,
 } from 'lucide-react';
+import { downloadCalendarInvite } from '@/lib/calendarUtils';
 import { toast } from 'sonner';
 import DatePickerField from '@/components/shared/DatePickerField';
 
@@ -444,16 +445,30 @@ const CPMeetingRequests = () => {
                 </div>
               )}
 
-              {/* Map link for confirmed */}
+              {/* Map link + Add to Calendar for confirmed / rescheduled */}
               {(selected.status === 'Confirmed' || selected.status === 'Rescheduled') && (
-                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selected.projectName)}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100 hover:border-emerald-300 transition-all group">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-                    <MapPin size={13} className="text-emerald-600" />
-                  </div>
-                  <p className="text-[13px] font-semibold text-emerald-700 group-hover:text-emerald-600">Get Directions</p>
-                </a>
+                <>
+                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selected.projectName)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100 hover:border-emerald-300 transition-all group">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <MapPin size={13} className="text-emerald-600" />
+                    </div>
+                    <p className="text-[13px] font-semibold text-emerald-700 group-hover:text-emerald-600">Get Directions</p>
+                  </a>
+                  <button
+                    onClick={() => downloadCalendarInvite({
+                      id: selected.id,
+                      projectName: selected.projectName,
+                      date: selected.confirmedDate ?? selected.preferredDate,
+                      time: selected.confirmedTime ?? selected.preferredTime,
+                      summary: `${selected.meetingType ?? 'Site Visit'} — ${selected.projectName}`,
+                      description: `Meeting with ${selected.customerName} (${selected.customerPhone})`,
+                    })}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold text-foreground border border-border bg-muted/40 hover:bg-muted/60 transition-colors">
+                    <Download size={13} /> Add to Calendar
+                  </button>
+                </>
               )}
 
               {/* CP Notes */}

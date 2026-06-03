@@ -8,8 +8,9 @@ import { pushNotifTo } from '@/lib/crossNotify';
 import {
   Calendar, MapPin, Clock, Star, Building2, FileText, Users, Loader2,
   RefreshCw, X, ChevronRight, MessageSquare, CheckCircle2, Sparkles,
-  Navigation, Phone, Plus, UserCheck, User,
+  Navigation, Phone, Plus, UserCheck, User, Download,
 } from 'lucide-react';
+import { downloadCalendarInvite } from '@/lib/calendarUtils';
 import { toast } from 'sonner';
 import DatePickerField from '@/components/shared/DatePickerField';
 import { getAvailableSlotsForDate, ALL_SLOTS } from '@/lib/builderAvailability';
@@ -783,19 +784,33 @@ export default function CustomerMeeting() {
                 </div>
               )}
 
-              {['Confirmed','CONFIRMED'].includes(selected.status) && (
-                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selected.projectName)}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-4 bg-emerald-50 rounded-xl border border-emerald-100 hover:border-emerald-300 transition-all group">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-                    <Navigation size={16} className="text-emerald-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-emerald-800 group-hover:text-emerald-600">Get Directions</p>
-                    <p className="text-[11px] text-emerald-500 truncate mt-0.5">{selected.projectName}</p>
-                  </div>
-                  <MapPin size={14} className="text-emerald-400 shrink-0" />
-                </a>
+              {['Confirmed','CONFIRMED','Rescheduled','RESCHEDULED'].includes(selected.status) && (
+                <>
+                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selected.projectName)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-4 bg-emerald-50 rounded-xl border border-emerald-100 hover:border-emerald-300 transition-all group">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                      <Navigation size={16} className="text-emerald-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-emerald-800 group-hover:text-emerald-600">Get Directions</p>
+                      <p className="text-[11px] text-emerald-500 truncate mt-0.5">{selected.projectName}</p>
+                    </div>
+                    <MapPin size={14} className="text-emerald-400 shrink-0" />
+                  </a>
+                  <button
+                    onClick={() => downloadCalendarInvite({
+                      id: selected.id,
+                      projectName: selected.projectName,
+                      date: selected.confirmedDate ?? selected.preferredDate,
+                      time: selected.confirmedTime ?? selected.preferredTime,
+                      summary: `Site Visit — ${selected.projectName}`,
+                      description: `Your site visit at ${selected.projectName}`,
+                    })}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-semibold text-foreground border border-border bg-muted/40 hover:bg-muted/60 transition-colors">
+                    <Download size={14} /> Add to Calendar
+                  </button>
+                </>
               )}
             </div>
 

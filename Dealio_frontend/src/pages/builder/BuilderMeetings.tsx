@@ -9,33 +9,16 @@ import {
   ChevronRight, Search, X, ArrowLeft, Download,
 } from 'lucide-react';
 
+import { downloadCalendarInvite as _downloadICS } from '@/lib/calendarUtils';
 function downloadCalendarInvite(m: ApiMeeting) {
-  const date = m.confirmedDate ?? m.preferredDate;
-  const time = m.confirmedTime ?? m.preferredTime;
-  const match = time.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
-  if (!match) return;
-  let h = parseInt(match[1], 10);
-  const min = parseInt(match[2], 10);
-  const period = match[3].toUpperCase();
-  if (period === 'PM' && h !== 12) h += 12;
-  if (period === 'AM' && h === 12) h = 0;
-  const start = new Date(`${date}T${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:00`);
-  const end   = new Date(start.getTime() + 60 * 60 * 1000);
-  const fmt   = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-  const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Dealio//EN',
-    'BEGIN:VEVENT',
-    `DTSTART:${fmt(start)}`, `DTEND:${fmt(end)}`,
-    `SUMMARY:${m.meetingType ?? 'Site Visit'} — ${m.projectName}`,
-    `DESCRIPTION:Meeting with ${m.customerName} (${m.customerPhone})`,
-    `LOCATION:${m.projectName}`,
-    'END:VEVENT', 'END:VCALENDAR',
-  ].join('\r\n');
-  const blob = new Blob([lines], { type: 'text/calendar' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = `meeting-${m.id}.ics`; a.click();
-  URL.revokeObjectURL(url);
+  _downloadICS({
+    id: m.id,
+    projectName: m.projectName,
+    date: m.confirmedDate ?? m.preferredDate,
+    time: m.confirmedTime ?? m.preferredTime,
+    summary: `${m.meetingType ?? 'Site Visit'} — ${m.projectName}`,
+    description: `Meeting with ${m.customerName} (${m.customerPhone})`,
+  });
 }
 import { toast } from 'sonner';
 import DatePickerField from '@/components/shared/DatePickerField';
@@ -478,11 +461,11 @@ const BuilderMeetings = () => {
                     </div>
                   )}
 
-                  {/* Calendar invite for confirmed / rescheduled */}
+                  {/* Add to Calendar — confirmed / rescheduled */}
                   {(selected.status === 'Confirmed' || selected.status === 'Rescheduled') && (
                     <button onClick={() => downloadCalendarInvite(selected)}
                       className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold text-foreground border border-border bg-muted/40 hover:bg-muted/60 transition-colors">
-                      <Download size={14} /> Download Calendar Invite (.ics)
+                      <Download size={14} /> Add to Calendar
                     </button>
                   )}
 
