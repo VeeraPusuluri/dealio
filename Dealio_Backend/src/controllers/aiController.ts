@@ -4,7 +4,7 @@ import prisma from '../utils/prisma';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-function buildSystemPrompt(role: string, userName?: string, projects?: { name: string; city: string; priceMin: number | null; priceMax: number | null; status: string }[]): string {
+function buildSystemPrompt(role: string, userName?: string, projects?: { name: string; city: string; priceFrom: number | null; priceTo: number | null; status: string }[]): string {
   const fmt = (n: number | null) => {
     if (!n) return '?';
     if (n >= 10_000_000) return `${(n / 10_000_000).toFixed(1)}Cr`;
@@ -14,7 +14,7 @@ function buildSystemPrompt(role: string, userName?: string, projects?: { name: s
 
   const projectLines = projects?.length
     ? projects.slice(0, 12).map(p =>
-        `• ${p.name} (${p.city}) — ₹${fmt(p.priceMin)}–₹${fmt(p.priceMax)}, ${p.status}`
+        `• ${p.name} (${p.city}) — ₹${fmt(p.priceFrom)}–₹${fmt(p.priceTo)}, ${p.status}`
       ).join('\n')
     : 'No projects loaded.';
 
@@ -80,14 +80,15 @@ export const aiController = {
     }
 
     // Fetch live project summaries for context
-    let projects: { name: string; city: string; priceMin: number | null; priceMax: number | null; status: string }[] = [];
+    let projects: { name: string; city: string; priceFrom: number | null; priceTo: number | null; status: string }[] = [];
     try {
-      projects = await prisma.project.findMany({
-        select: { name: true, city: true, priceMin: true, priceMax: true, status: true },
+      const rows = await prisma.project.findMany({
+        select: { name: true, city: true, priceFrom: true, priceTo: true, status: true },
         take: 15,
         orderBy: { createdAt: 'desc' },
         where: { city: { not: null } },
       });
+      projects = rows.filter((p): p is typeof p & { city: string } => p.city !== null);
     } catch { /* DB unavailable — continue without project list */ }
 
     const systemPrompt = buildSystemPrompt(
