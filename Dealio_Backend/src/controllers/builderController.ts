@@ -813,27 +813,33 @@ export const builderController = {
       return;
     }
 
-    // When builder confirms → ensure a Deal exists so the lead appears in Leads & Meetings
-    if (status === 'Confirmed' && meeting.projectId) {
+    // Sync deal stage to mirror the meeting lifecycle
+    if (meeting.projectId && (status === 'Confirmed' || status === 'Completed')) {
       try {
+        const dealStatus = status === 'Confirmed' ? 'Meeting Confirmed' : 'Meeting Done';
+        const cpRecord = meeting.cpId
+          ? await prisma.channelPartner.findUnique({ where: { id: meeting.cpId }, select: { id: true } })
+          : null;
         const existing = await prisma.deal.findFirst({
           where: { builderId: Number(builderId), customerId: meeting.customerId, projectId: meeting.projectId },
           select: { id: true },
         });
         if (existing) {
-          await prisma.deal.update({ where: { id: existing.id }, data: { status: 'Meeting Confirmed' } });
-        } else {
+          await prisma.deal.update({ where: { id: existing.id }, data: { status: dealStatus } });
+        } else if (status === 'Confirmed') {
+          // Only create a new deal on first Confirm, not on Completed (deal should already exist)
           await prisma.deal.create({
             data: {
               builderId: Number(builderId),
               customerId: meeting.customerId,
               projectId: meeting.projectId,
-              status: 'Meeting Confirmed',
+              cpId: cpRecord?.id ?? null,
+              status: dealStatus,
             },
           });
         }
       } catch {
-        // Deal sync is best-effort — don't fail the meeting update because of it
+        // Deal sync is best-effort
       }
     }
 
@@ -986,8 +992,9 @@ export const builderController = {
     const deals = await prisma.deal.findMany({
       where: { builderId: Number(builderId) },
       include: {
-        customer: { select: { fullName: true, phone: true } },
-        project:  { select: { name: true } }
+        customer: { select: { fullName: true, phone: true, email: true } },
+        project:  { select: { name: true } },
+        cp:       { select: { user: { select: { fullName: true } } } },
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -1000,8 +1007,11 @@ export const builderController = {
       customerId: d.customerId,
       customerName: d.customer?.fullName ?? 'Unknown',
       customerPhone: d.customer?.phone ?? '',
+      customerEmail: d.customer?.email ?? null,
       projectId: d.projectId,
-      projectName: d.project?.name ?? 'Unknown Project'
+      projectName: d.project?.name ?? 'Unknown Project',
+      cpId: d.cpId,
+      cpName: d.cp?.user?.fullName ?? null,
     }));
     res.json({ ok: true, data: mapped });
   },

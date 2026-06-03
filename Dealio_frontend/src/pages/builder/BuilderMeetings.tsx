@@ -492,9 +492,15 @@ const BuilderMeetings = () => {
                         </div>
                       )}
                       <div>
-                        <label className="text-[10px] font-medium text-slate-400 mb-1.5 block">Notes (optional)</label>
-                        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-                          placeholder="Add a note for the customer…" className={`${ic} resize-none`} />
+                        <label className="text-[10px] font-medium text-slate-400 mb-1.5 block">
+                          {actionType === 'complete' ? 'Visit Notes' : 'Notes (optional)'}
+                        </label>
+                        <textarea value={notes} onChange={e => setNotes(e.target.value)}
+                          rows={actionType === 'complete' ? 3 : 2}
+                          placeholder={actionType === 'complete'
+                            ? 'e.g. Interested in Tower A, 15th floor, 3BHK. Wants quote by Friday.'
+                            : 'Add a note for the customer…'}
+                          className={`${ic} resize-none`} />
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => setActionType(null)}
@@ -541,10 +547,22 @@ const BuilderMeetings = () => {
                             <MessageSquare size={15} /> Flag Follow-up
                           </button>
                         )}
-                        {(selected.status === 'Cancelled' || selected.status === 'Completed' || selected.status === 'Follow-up Required') && (
-                          <p className="text-center py-3 text-[12px] text-muted-foreground">
-                            No further actions available.
-                          </p>
+                        {selected.status === 'Completed' && (
+                          <div className="rounded-xl p-3.5 border border-emerald-100 bg-emerald-50 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                              <p className="text-[12px] font-bold text-emerald-800">Visit Completed</p>
+                            </div>
+                            {selected.builderNotes && (
+                              <p className="text-[11px] text-emerald-700 leading-relaxed pl-5">{selected.builderNotes}</p>
+                            )}
+                            <p className="text-[11px] text-emerald-600 pl-5">
+                              Lead moved to <span className="font-semibold">Meeting Done</span> stage.
+                            </p>
+                          </div>
+                        )}
+                        {(selected.status === 'Cancelled' || selected.status === 'Follow-up Required') && (
+                          <p className="text-center py-2 text-[12px] text-muted-foreground">No further actions available.</p>
                         )}
                       </div>
                     </div>

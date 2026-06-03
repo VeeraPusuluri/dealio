@@ -784,6 +784,46 @@ export default function CustomerMeeting() {
                 </div>
               )}
 
+              {/* Post-visit panel — shown when visit is completed */}
+              {['Completed','COMPLETED'].includes(selected.status) && (
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                      <CheckCircle2 size={15} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-bold text-emerald-800">Site Visit Completed</p>
+                      {(selected.confirmedDate || selected.preferredDate) && (
+                        <p className="text-[11px] text-emerald-600 mt-0.5">
+                          {fmtDate(selected.confirmedDate ?? selected.preferredDate)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {selected.builderNotes && (
+                    <div className="pl-10">
+                      <p className="text-[10px] font-semibold text-emerald-700 mb-1">Builder's Notes</p>
+                      <p className="text-[12px] text-emerald-800 leading-relaxed">{selected.builderNotes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {['Completed','COMPLETED'].includes(selected.status) && (
+                <a
+                  href={`/customer/projects`}
+                  className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:border-ring hover:bg-muted/30 transition-all group">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: '#0A7E8C15', color: '#0A7E8C' }}>
+                    <Building2 size={16} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold text-foreground group-hover:opacity-80">Shortlist a Unit</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Browse & save units from {selected.projectName}</p>
+                  </div>
+                  <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+                </a>
+              )}
+
               {['Confirmed','CONFIRMED','Rescheduled','RESCHEDULED'].includes(selected.status) && (
                 <>
                   <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selected.projectName)}`}
@@ -827,11 +867,17 @@ export default function CustomerMeeting() {
                   </button>
                 </>
               ) : ['Completed','COMPLETED'].includes(selected.status) ? (
-                <button onClick={() => { setRatingId(selected.id); setRating(0); setSelected(null); }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold text-white hover:opacity-90"
-                  style={{ background: 'linear-gradient(135deg,#F59E0B,#D97706)' }}>
-                  <Star size={14} /> Rate Your Experience
-                </button>
+                <div className="space-y-2">
+                  <button onClick={() => { setRatingId(selected.id); setRating(0); setSelected(null); }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold text-white hover:opacity-90"
+                    style={{ background: 'linear-gradient(135deg,#F59E0B,#D97706)' }}>
+                    <Star size={14} /> Rate Your Experience
+                  </button>
+                  <a href="/customer/journey"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold border border-border text-foreground hover:bg-muted transition-colors">
+                    <CheckCircle2 size={14} /> View My Journey
+                  </a>
+                </div>
               ) : (
                 <button onClick={() => setSelected(null)}
                   className="w-full py-2.5 rounded-xl text-[13px] border border-border text-muted-foreground hover:bg-muted transition-colors">

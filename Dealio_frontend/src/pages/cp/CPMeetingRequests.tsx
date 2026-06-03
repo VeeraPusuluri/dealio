@@ -469,12 +469,16 @@ const CPMeetingRequests = () => {
 
               {/* CP Notes */}
               <div className="bg-card rounded-xl border border-border p-4 space-y-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">My Notes</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                  {selected.status === 'Completed' ? 'Visit Notes' : 'My Notes'}
+                </p>
                 <textarea
                   value={noteInput}
                   onChange={e => setNoteInput(e.target.value)}
                   rows={3}
-                  placeholder="Add your notes about this meeting…"
+                  placeholder={selected.status === 'Completed'
+                    ? 'e.g. Interested in Tower A, 15th floor, 3BHK. Budget ₹1.2Cr. Wants payment plan.'
+                    : 'Add your notes about this meeting…'}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-muted/40 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring resize-none transition-all placeholder:text-muted-foreground"
                 />
                 <button onClick={handleSaveNote} disabled={savingNote}
@@ -483,6 +487,51 @@ const CPMeetingRequests = () => {
                   {savingNote ? <><Loader2 size={13} className="animate-spin" /> Saving…</> : 'Save Note'}
                 </button>
               </div>
+
+              {/* Post-visit action panel */}
+              {selected.status === 'Completed' && (
+                <div className="bg-card rounded-xl border border-border p-4 space-y-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Next Actions</p>
+
+                  {/* Outcome chips */}
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] text-muted-foreground">Lead outcome</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {([
+                        { label: 'Interested',      color: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' },
+                        { label: 'Needs Follow-up', color: 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' },
+                        { label: 'Not Interested',  color: 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' },
+                      ] as const).map(({ label, color }) => (
+                        <button
+                          key={label}
+                          onClick={() => setNoteInput(prev => prev ? prev : `Outcome: ${label}. `)}
+                          className={`px-3 py-1.5 rounded-full border text-[12px] font-semibold transition-colors ${color}`}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      onClick={() => {
+                        const project = realProjects.find(p => p.name === selected.projectName);
+                        const msg = `Hi ${selected.customerName}, thank you for visiting ${selected.projectName}! Here's our quote for the unit you were interested in. Please let me know if you'd like to proceed. — ${user?.name ?? 'Your CP'}`;
+                        window.open(`https://wa.me/${selected.customerPhone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`, '_blank');
+                      }}
+                      className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-semibold text-white hover:opacity-90 transition-opacity"
+                      style={{ background: 'linear-gradient(135deg,#25D366,#128C7E)' }}>
+                      <MessageSquare size={13} /> Send Quote
+                    </button>
+                    <button
+                      onClick={() => { setShowRequestForm(true); setTab('meetings'); }}
+                      className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-semibold border border-border text-foreground hover:bg-muted transition-colors">
+                      <Calendar size={13} /> Follow-up
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </>

@@ -31,8 +31,16 @@ function buildJourney(deals: CustomerDeal[], meetings: ApiMeeting[]): JourneySte
   const steps: JourneyStep[] = [];
   const sortedMeetings = [...meetings].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   sortedMeetings.forEach(m => {
-    const done = m.status === 'COMPLETED';
-    steps.push({ label: done ? `Site Visit Completed — ${m.projectName || 'Project'}` : `Site Visit Scheduled — ${m.projectName || 'Project'}`, date: toDateLabel(done ? (m.confirmedDate || m.preferredDate) : m.createdAt), status: done ? 'completed' : 'in-progress' });
+    const done = ['Completed', 'COMPLETED'].includes(m.status);
+    const cancelled = ['Cancelled', 'CANCELLED'].includes(m.status);
+    if (cancelled) return; // don't show cancelled visits in timeline
+    steps.push({
+      label: done
+        ? `Site Visit Completed — ${m.projectName || 'Project'}`
+        : `Site Visit Scheduled — ${m.projectName || 'Project'}`,
+      date: toDateLabel(done ? (m.confirmedDate || m.preferredDate) : m.createdAt),
+      status: done ? 'completed' : 'in-progress',
+    });
   });
   if (deals.length === 0) {
     if (steps.length === 0) return [];

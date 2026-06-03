@@ -12,7 +12,7 @@ import { useFollowUpStore } from '@/stores/useFollowUpStore';
 import CallLogModal from '@/components/shared/CallLogModal';
 import { outcomeColors } from '@/components/shared/CallLogModal';
 import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
-import { Phone, FileText, Search, Download, ChevronRight, Loader2, Building2, X, Mail, MapPin, Clock, User, Calendar, IndianRupee, Tag, MessageSquare, ArrowLeft } from 'lucide-react';
+import { Phone, FileText, Search, Download, ChevronRight, Loader2, Building2, X, Mail, MapPin, Clock, User, Calendar, IndianRupee, Tag, MessageSquare, ArrowLeft, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const stages: LeadStage[] = ['New Lead', 'Profile Created', 'Meeting Requested', 'Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Booked', 'Closed'];
@@ -70,9 +70,12 @@ interface ApiDeal {
   status: string;
   dealValue: number | null;
   createdAt: string;
+  updatedAt?: string;
   customerName: string;
   customerPhone: string;
   projectName: string;
+  cpName?: string | null;
+  cpId?: number | null;
 }
 
 const VALID_STAGES = ['New Lead', 'Profile Created', 'Meeting Requested', 'Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Booked', 'Closed'];
@@ -85,12 +88,12 @@ function dealToLead(d: ApiDeal) {
     projectName: d.projectName,
     stage,
     budget: d.dealValue ?? 0,
-    cpName: 'Direct',
-    source: 'Direct Enquiry',
+    cpName: d.cpName ?? 'Direct',
+    source: d.cpName ? 'CP Referral' : 'Direct Enquiry',
     unitType: '—',
     daysInStage: Math.max(0, Math.floor((Date.now() - new Date(d.createdAt).getTime()) / 86_400_000)),
     createdAt: d.createdAt,
-    followUps: 0, documents: 0, lastContact: d.createdAt,
+    followUps: 0, documents: 0, lastContact: d.updatedAt ?? d.createdAt,
   };
 }
 
@@ -522,8 +525,19 @@ const BuilderLeads = () => {
                 </div>
               </div>
 
-              {/* Notes */}
-              {drawerLead.notes && (
+              {/* Visit Notes — shown when site visit has been completed */}
+              {drawerLead.stage === 'Meeting Done' && drawerLead.notes && (
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle size={13} className="text-emerald-600 shrink-0" />
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">Visit Notes</p>
+                  </div>
+                  <p className="text-[13px] text-emerald-900 leading-relaxed pl-5">{drawerLead.notes}</p>
+                </div>
+              )}
+
+              {/* General notes */}
+              {drawerLead.notes && drawerLead.stage !== 'Meeting Done' && (
                 <div className="bg-card rounded-xl border border-border p-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2">Notes</p>
                   <div className="flex items-start gap-2.5">
