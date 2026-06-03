@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuthStore } from "@/stores/useAuthStore";
+import "@/stores/useThemeStore"; // initialises dark-mode class on import
 
 import LoginPage from "./pages/Login";
 import SignupPage from "./pages/Signup";
@@ -50,6 +51,7 @@ import CPContacts from "./pages/cp/CPContacts";
 import CPSettings from "./pages/cp/CPSettings";
 
 import CustomerHome from "./pages/customer/CustomerHome";
+import CustomerContact from "./pages/customer/CustomerContact";
 import CustomerProjectDetail from "./pages/customer/CustomerProjectDetail";
 import CustomerSettings from "./pages/customer/CustomerSettings";
 import CustomerProperty from "./pages/customer/CustomerProperty";
@@ -103,11 +105,32 @@ import NRILoanStatus from "./pages/nri/NRILoanStatus";
 
 const queryClient = new QueryClient();
 
+const ROLE_HOME: Record<string, string> = {
+  builder: '/builder', cp: '/cp', customer: '/customer',
+  bank: '/bank', admin: '/admin', nri: '/nri',
+};
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const loading = useAuthStore((s) => s.loading);
+  const user            = useAuthStore((s) => s.user);
+  const loading         = useAuthStore((s) => s.loading);
+  const { pathname }    = useLocation();
+
   if (loading) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading…</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  // Redirect to the user's own dashboard if they're accessing a role-specific
+  // path that doesn't match their role (e.g. admin landing on /customer).
+  const role = user?.role ?? '';
+  const ownBase = ROLE_HOME[role];
+  if (ownBase) {
+    const pathRole = pathname.split('/')[1]; // e.g. "customer" from "/customer/..."
+    const routeRoles = Object.keys(ROLE_HOME);
+    if (routeRoles.includes(pathRole) && pathRole !== role) {
+      return <Navigate to={ownBase} replace />;
+    }
+  }
+
   return <>{children}</>;
 };
 
@@ -127,7 +150,7 @@ const App = () => (
           <Route path="/builder" element={<ProtectedRoute><BuilderOverview /></ProtectedRoute>} />
           <Route path="/builder/projects" element={<ProtectedRoute><BuilderProjects /></ProtectedRoute>} />
           <Route path="/builder/projects/new" element={<ProtectedRoute><AddProjectWizard /></ProtectedRoute>} />
-          <Route path="/builder/projects/:id/edit" element={<ProtectedRoute><EditProjectWizard /></ProtectedRoute>} />
+          <Route path="/builder/projects/:id/edit" element={<ProtectedRoute><AddProjectWizard /></ProtectedRoute>} />
           <Route path="/builder/projects/:id" element={<ProtectedRoute><BuilderProjectDetail /></ProtectedRoute>} />
           <Route path="/builder/units" element={<ProtectedRoute><BuilderUnits /></ProtectedRoute>} />
           <Route path="/builder/leads" element={<ProtectedRoute><BuilderLeads /></ProtectedRoute>} />
@@ -180,6 +203,7 @@ const App = () => (
           <Route path="/customer/documents" element={<ProtectedRoute><CustomerDocuments /></ProtectedRoute>} />
           <Route path="/customer/emi" element={<ProtectedRoute><CustomerEMI /></ProtectedRoute>} />
           <Route path="/customer/meeting" element={<ProtectedRoute><CustomerMeeting /></ProtectedRoute>} />
+          <Route path="/customer/contact" element={<ProtectedRoute><CustomerContact /></ProtectedRoute>} />
           <Route path="/customer/investments" element={<ProtectedRoute><CustomerInvestments /></ProtectedRoute>} />
           <Route path="/customer/topup" element={<ProtectedRoute><CustomerTopup /></ProtectedRoute>} />
           <Route path="/customer/possession" element={<ProtectedRoute><CustomerPossession /></ProtectedRoute>} />

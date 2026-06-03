@@ -4,9 +4,11 @@ import { cpApi } from '@/lib/api';
 import { useAuthStore, roleLabels, roleColors } from '@/stores/useAuthStore';
 import {
   User, Phone, FileText, Save, CheckCircle2, Loader2,
-  Upload, Shield, AlertCircle, Eye, X,
+  Upload, Shield, AlertCircle, Eye, X, Moon, Sun,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useThemeStore } from '@/stores/useThemeStore';
+import ProfilePicUploader from '@/components/shared/ProfilePicUploader';
 
 type DocStatus = 'none' | 'uploaded' | 'verified';
 
@@ -98,6 +100,7 @@ function DocUploadCard({
 const CPSettings = () => {
   const authUser = useAuthStore((s) => s.user);
   const { toast } = useToast();
+  const { isDark, toggle: toggleTheme } = useThemeStore();
 
   const color = authUser ? roleColors[authUser.role] || '#F59E0B' : '#F59E0B';
   const initials = (authUser?.name || 'U').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -230,11 +233,8 @@ const CPSettings = () => {
         <div className="rounded-2xl border border-border overflow-hidden bg-card">
           <div className="h-16" style={{ background: `linear-gradient(135deg, ${color}22, ${color}08)` }} />
           <div className="px-5 pb-5 -mt-7 flex items-end gap-4">
-            <div
-              className="w-14 h-14 rounded-xl border-4 border-card flex items-center justify-center text-white text-lg font-bold flex-shrink-0"
-              style={{ background: `linear-gradient(135deg, ${color}, ${color}bb)`, boxShadow: `0 4px 14px ${color}40` }}
-            >
-              {initials}
+            <div className="border-4 border-card rounded-2xl flex-shrink-0" style={{ boxShadow: `0 4px 14px ${color}40` }}>
+              <ProfilePicUploader size={56} showLabel={false} />
             </div>
             <div className="pb-0.5 flex-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -286,6 +286,30 @@ const CPSettings = () => {
             {/* ── Profile ── */}
             {activeTab === 'profile' && (
               <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
+                {/* Profile picture */}
+                <div className="flex items-center gap-5 p-3.5 rounded-xl border border-border bg-muted/20">
+                  <ProfilePicUploader size={64} showLabel />
+                  <div>
+                    <p className="text-[13px] font-semibold text-card-foreground">Profile Picture</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Take a selfie or upload from your device</p>
+                  </div>
+                </div>
+
+                {/* Dark mode toggle */}
+                <div className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-muted/20">
+                  <div className="flex items-center gap-3">
+                    {isDark ? <Moon size={15} style={{ color }} /> : <Sun size={15} style={{ color }} />}
+                    <div>
+                      <p className="text-[13px] font-semibold text-card-foreground">Dark Mode</p>
+                      <p className="text-[11px] text-muted-foreground">{isDark ? 'Dark theme is on' : 'Light theme is on'}</p>
+                    </div>
+                  </div>
+                  <button onClick={toggleTheme}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isDark ? 'bg-teal-600' : 'bg-muted border border-border'}`}>
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${isDark ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
                 <div className="flex items-center gap-2 pb-3 border-b border-border">
                   <User size={14} style={{ color }} />
                   <h3 className="text-[13px] font-semibold text-card-foreground">Profile Information</h3>

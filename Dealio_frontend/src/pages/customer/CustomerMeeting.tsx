@@ -11,6 +11,8 @@ import {
   Navigation, Phone, Plus, UserCheck, User,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import DatePickerField from '@/components/shared/DatePickerField';
+import { getAvailableSlotsForDate, ALL_SLOTS } from '@/lib/builderAvailability';
 
 interface ApiMeeting {
   id: number; builderId: number; projectId: number; projectName: string;
@@ -30,7 +32,8 @@ const MEETING_TYPES: { type: MeetingType; Icon: React.ElementType; desc: string 
   { type: 'Interior Consult', Icon: Sparkles,  desc: 'Plan interiors & fitouts' },
 ];
 
-const TIME_SLOTS = ['10:00 AM', '11:00 AM', '12:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
+// Fallback slots shown when no builder availability is configured
+const DEFAULT_TIME_SLOTS = ['10:00 AM', '11:00 AM', '12:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
 
 const STATUS_META: Record<string, { label: string; dot: string; pill: string; text: string }> = {
   Pending:   { label: 'Pending Confirmation', dot: 'bg-amber-400',   pill: 'bg-amber-50 border-amber-200',    text: 'text-amber-700' },
@@ -39,8 +42,13 @@ const STATUS_META: Record<string, { label: string; dot: string; pill: string; te
   CONFIRMED: { label: 'Confirmed',            dot: 'bg-blue-500',    pill: 'bg-blue-50 border-blue-200',      text: 'text-blue-700' },
   Completed: { label: 'Completed',            dot: 'bg-emerald-500', pill: 'bg-emerald-50 border-emerald-200',text: 'text-emerald-700' },
   COMPLETED: { label: 'Completed',            dot: 'bg-emerald-500', pill: 'bg-emerald-50 border-emerald-200',text: 'text-emerald-700' },
-  Cancelled: { label: 'Cancelled',            dot: 'bg-red-400',     pill: 'bg-red-50 border-red-200',        text: 'text-red-600' },
-  CANCELLED: { label: 'Cancelled',            dot: 'bg-red-400',     pill: 'bg-red-50 border-red-200',        text: 'text-red-600' },
+  Cancelled:            { label: 'Request Declined',   dot: 'bg-red-400',    pill: 'bg-red-50 border-red-200',          text: 'text-red-600'    },
+  CANCELLED:            { label: 'Request Declined',   dot: 'bg-red-400',    pill: 'bg-red-50 border-red-200',          text: 'text-red-600'    },
+  Rejected:             { label: 'Request Declined',   dot: 'bg-red-400',    pill: 'bg-red-50 border-red-200',          text: 'text-red-600'    },
+  REJECTED:             { label: 'Request Declined',   dot: 'bg-red-400',    pill: 'bg-red-50 border-red-200',          text: 'text-red-600'    },
+  Rescheduled:          { label: 'Rescheduled',        dot: 'bg-orange-400', pill: 'bg-orange-50 border-orange-200',    text: 'text-orange-700' },
+  RESCHEDULED:          { label: 'Rescheduled',        dot: 'bg-orange-400', pill: 'bg-orange-50 border-orange-200',    text: 'text-orange-700' },
+  'Follow-up Required': { label: 'Follow-up Required', dot: 'bg-violet-500', pill: 'bg-violet-50 border-violet-200',   text: 'text-violet-700' },
 };
 
 function fmtDate(s?: string | null) {
@@ -65,10 +73,13 @@ export default function CustomerMeeting() {
   const [meetings, setMeetings] = useState<ApiMeeting[]>([]);
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  // 'meetings' tab by default so customer always lands on their list first
+  const [activeTab, setActiveTab] = useState<'meetings' | 'book'>('meetings');
 
   // Booking form
   const [selectedCP, setSelectedCP]             = useState<CPProfile | null>(null);
   const [cities, setCities]                     = useState<string[]>([]);
+  const [loadingCities, setLoadingCities]       = useState(true);
   const [selectedCity, setSelectedCity]         = useState('');
   const [projects, setProjects]                 = useState<ProjectSummary[]>([]);
   const [loadingProjects, setLoadingProjects]   = useState(false);
@@ -99,13 +110,17 @@ export default function CustomerMeeting() {
   useEffect(() => {
     fetchMeetings();
     const fallback = ['Hyderabad', 'Bengaluru', 'Mumbai', 'Pune', 'Delhi NCR', 'Chennai'];
+    setLoadingCities(true);
     customerApi.getCities()
       .then(d => setCities((d as string[])?.length ? d as string[] : fallback))
-      .catch(() => setCities(fallback));
+      .catch(() => setCities(fallback))
+      .finally(() => setLoadingCities(false));
     customerApi.getAvailableCPs()
       .then(d => setCPs((d as CPProfile[]) || []))
       .catch(() => {});
     if (location.state?.projectId && location.state?.builderId) {
+      // Navigated from a project page → jump to booking tab with project pre-filled
+      setActiveTab('book');
       setShowForm(true);
       setSelectedCity(location.state.city ?? '');
       setSelectedProject({
@@ -175,9 +190,18 @@ export default function CustomerMeeting() {
         message: `${user?.name ?? 'A customer'} requested a ${meetingType} for ${selectedProject.name} on ${selectedDate} at ${selectedTime}.`,
         link: '/builder/meetings',
       });
+      // Also notify the CP if one is associated with this booking
+      if (selectedCP?.id) {
+        pushNotifTo('cp', String(selectedCP.id), {
+          type: 'info', title: '📅 Meeting Request Created',
+          message: `${user?.name ?? 'Your customer'} booked a ${meetingType} for ${selectedProject.name} on ${selectedDate} at ${selectedTime}.`,
+          link: '/cp/meetings',
+        });
+      }
       window.dispatchEvent(new CustomEvent('dealio:new-meeting'));
       toast.success('Meeting request sent! The builder will confirm shortly.');
       closeForm();
+      setActiveTab('meetings'); // switch to My Meetings so user sees their new request
       fetchMeetings();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to book meeting');
@@ -190,8 +214,9 @@ export default function CustomerMeeting() {
   };
 
   const today = new Date().toISOString().split('T')[0];
-  const upcoming  = meetings.filter(m => ['Pending','PENDING','Confirmed','CONFIRMED'].includes(m.status));
-  const completed = meetings.filter(m => ['Completed','COMPLETED'].includes(m.status));
+  const upcoming   = meetings.filter(m => ['Pending','PENDING','Confirmed','CONFIRMED','Rescheduled','RESCHEDULED'].includes(m.status));
+  const completed  = meetings.filter(m => ['Completed','COMPLETED'].includes(m.status));
+  const cancelled  = meetings.filter(m => ['Cancelled','CANCELLED','Rejected','REJECTED'].includes(m.status));
 
   // Steps completed flags
   const step1Done = !!selectedCity;
@@ -205,24 +230,44 @@ export default function CustomerMeeting() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-[17px] font-bold text-foreground">Schedule a Visit</h1>
-            <p className="text-[12px] text-muted-foreground mt-0.5">Book site visits and manage your property meetings</p>
+            <h1 className="text-[17px] font-bold text-foreground">Meetings</h1>
+            <p className="text-[12px] text-muted-foreground mt-0.5">Track your site visits and book new appointments</p>
           </div>
-          <button
-            onClick={() => { if (showForm) closeForm(); else setShowForm(true); }}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-all"
-            style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}>
-            {showForm ? <X size={14} /> : <Plus size={14} />}
-            {showForm ? 'Cancel' : 'Book a Visit'}
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 border-b border-border">
+          <button onClick={() => setActiveTab('meetings')}
+            className={`flex items-center gap-2 px-5 py-2.5 text-[13px] font-semibold border-b-2 -mb-px transition-all ${
+              activeTab === 'meetings'
+                ? 'border-teal-600 text-teal-700'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}>
+            <Calendar size={14} />
+            My Meetings
+            {meetings.length > 0 && (
+              <span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-teal-600 text-white">
+                {meetings.length}
+              </span>
+            )}
+          </button>
+          <button onClick={() => { setActiveTab('book'); setShowForm(true); }}
+            className={`flex items-center gap-2 px-5 py-2.5 text-[13px] font-semibold border-b-2 -mb-px transition-all ${
+              activeTab === 'book'
+                ? 'border-teal-600 text-teal-700'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}>
+            <Plus size={14} /> Book a Visit
           </button>
         </div>
 
-        {/* Stats strip */}
-        {meetings.length > 0 && (
-          <div className="grid grid-cols-3 gap-3">
+        {/* Stats strip — shown on My Meetings tab */}
+        {activeTab === 'meetings' && meetings.length > 0 && (
+          <div className="grid grid-cols-4 gap-3">
             {[
               { label: 'Upcoming',  value: upcoming.length,  dot: 'bg-blue-500' },
               { label: 'Completed', value: completed.length, dot: 'bg-emerald-500' },
+              { label: 'Rejected',  value: cancelled.length, dot: 'bg-red-400' },
               { label: 'Total',     value: meetings.length,  dot: 'bg-slate-400' },
             ].map(s => (
               <div key={s.label} className="rounded-2xl border border-border bg-card p-4">
@@ -235,6 +280,10 @@ export default function CustomerMeeting() {
             ))}
           </div>
         )}
+
+        {/* ══ BOOK A VISIT TAB ══════════════════════════════════════════════ */}
+        {activeTab === 'book' && (
+        <div className="space-y-4">
 
         {/* ── Channel Partners ── */}
         {cps.length > 0 && (
@@ -356,6 +405,11 @@ export default function CustomerMeeting() {
                 <label className="text-[12px] font-semibold text-foreground block mb-2.5">
                   <span className="text-teal-600 mr-1.5">1.</span> Select City
                 </label>
+                {loadingCities ? (
+                  <div className="flex items-center gap-2 text-[12px] text-muted-foreground py-3">
+                    <Loader2 size={14} className="animate-spin" /> Loading cities…
+                  </div>
+                ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {cities.map(city => (
                     <button key={city} onClick={() => handleCityChange(city)}
@@ -369,6 +423,7 @@ export default function CustomerMeeting() {
                     </button>
                   ))}
                 </div>
+                )}
               </div>
 
               {/* Step 2: Project */}
@@ -456,19 +511,34 @@ export default function CustomerMeeting() {
                     <label className="text-[12px] font-semibold text-foreground block mb-2.5">
                       <span className="text-teal-600 mr-1.5">4.</span> Preferred Date
                     </label>
-                    <input type="date" value={selectedDate} min={today}
-                      onChange={e => { setSelectedDate(e.target.value); setSelectedTime(''); }}
-                      className={inp} />
+                    <DatePickerField
+                      value={selectedDate}
+                      onChange={v => { setSelectedDate(v); setSelectedTime(''); }}
+                      minDate={today}
+                    />
                   </div>
 
-                  {/* Time slots */}
-                  {selectedDate && (
+                  {/* Time slots — filtered by builder's availability */}
+                  {selectedDate && (() => {
+                    const availableSlots = selectedProject
+                      ? getAvailableSlotsForDate(String(selectedProject.builderId), selectedDate)
+                      : [];
+                    const displaySlots = availableSlots.length > 0
+                      ? ALL_SLOTS.filter(s => availableSlots.includes(s))
+                      : DEFAULT_TIME_SLOTS;
+                    return (
                     <div>
                       <label className="text-[12px] font-semibold text-foreground block mb-2.5">
                         <span className="text-teal-600 mr-1.5">5.</span> Preferred Time
+                        {availableSlots.length > 0 && (
+                          <span className="ml-2 text-[10px] text-teal-600 font-normal">Builder available slots</span>
+                        )}
                       </label>
+                      {displaySlots.length === 0 ? (
+                        <p className="text-[12px] text-muted-foreground py-2">No available slots on this day — please choose another date.</p>
+                      ) : (
                       <div className="flex flex-wrap gap-2">
-                        {TIME_SLOTS.map(slot => (
+                        {displaySlots.map(slot => (
                           <button key={slot} onClick={() => setSelectedTime(slot)}
                             className={`px-3.5 py-2 rounded-xl text-[12px] font-medium border transition-all flex items-center gap-1.5 ${
                               selectedTime === slot
@@ -480,8 +550,10 @@ export default function CustomerMeeting() {
                           </button>
                         ))}
                       </div>
+                      )}
                     </div>
-                  )}
+                  );
+                  })()}
 
                   {/* Notes */}
                   {selectedTime && (
@@ -540,7 +612,11 @@ export default function CustomerMeeting() {
           </div>
         )}
 
-        {/* ── My Meetings ── */}
+        </div>
+        )}
+
+        {/* ══ MY MEETINGS TAB ═══════════════════════════════════════════════ */}
+        {activeTab === 'meetings' && (
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h2 className="text-[13px] font-bold text-foreground">My Meetings</h2>
@@ -563,7 +639,7 @@ export default function CustomerMeeting() {
               <p className="text-[12px] text-muted-foreground mt-1.5 max-w-xs">
                 Book a site visit above to start your property journey. The builder will confirm your slot.
               </p>
-              <button onClick={() => setShowForm(true)}
+              <button onClick={() => { setActiveTab('book'); setShowForm(true); }}
                 className="mt-4 flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold text-white hover:opacity-90"
                 style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
                 <Plus size={13} /> Book Your First Visit
@@ -594,7 +670,21 @@ export default function CustomerMeeting() {
                   </div>
                   {completed.map((m, i) => (
                     <MeetingRow key={m.id} meeting={m}
-                      isLast={i === completed.length - 1}
+                      isLast={i === completed.length - 1 && cancelled.length === 0}
+                      onClick={() => setSelected(m)} />
+                  ))}
+                </>
+              )}
+              {cancelled.length > 0 && (
+                <>
+                  <div className="px-5 py-2.5 bg-red-50/60 border-b border-border">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-red-500">
+                      Rejected / Cancelled · {cancelled.length}
+                    </p>
+                  </div>
+                  {cancelled.map((m, i) => (
+                    <MeetingRow key={m.id} meeting={m}
+                      isLast={i === cancelled.length - 1}
                       onClick={() => setSelected(m)} />
                   ))}
                 </>
@@ -602,6 +692,8 @@ export default function CustomerMeeting() {
             </div>
           )}
         </div>
+        )}
+
       </div>
 
       {/* ── Meeting Detail Drawer ── */}
@@ -707,8 +799,23 @@ export default function CustomerMeeting() {
               )}
             </div>
 
-            <div className="border-t border-border px-5 py-4 bg-card flex-shrink-0">
-              {['Completed','COMPLETED'].includes(selected.status) ? (
+            <div className="border-t border-border px-5 py-4 bg-card flex-shrink-0 space-y-2">
+              {['Cancelled','CANCELLED','Rejected','REJECTED'].includes(selected.status) ? (
+                <>
+                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-red-50 border border-red-200">
+                    <X size={13} className="text-red-500 shrink-0 mt-0.5" />
+                    <p className="text-[12px] text-red-700 leading-relaxed">
+                      Your meeting request was declined by the builder. You can book a new slot on a different date.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { setSelected(null); setActiveTab('book'); setShowForm(true); }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold text-white hover:opacity-90"
+                    style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
+                    <Plus size={14} /> Book a New Slot
+                  </button>
+                </>
+              ) : ['Completed','COMPLETED'].includes(selected.status) ? (
                 <button onClick={() => { setRatingId(selected.id); setRating(0); setSelected(null); }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold text-white hover:opacity-90"
                   style={{ background: 'linear-gradient(135deg,#F59E0B,#D97706)' }}>

@@ -47,11 +47,24 @@ router.post('/verify-phone/send-otp', requireAuth, cpController.sendPhoneOtp);
 router.post('/:cpUserId/verify-phone', requireAuth, cpController.verifyPhone);
 
 // Leads (deals referred by this CP)
-router.get('/:cpUserId/leads', requireAuth, cpController.getCPLeads);
+router.get('/:cpUserId/leads',  requireAuth, cpController.getCPLeads);
+router.post('/:cpUserId/leads', requireAuth, cpController.createCPLead);
 
 // Meetings
 router.get('/:cpUserId/meetings', requireAuth, cpController.getCPMeetings);
 router.patch('/:cpUserId/meetings/:meetingId/notes', requireAuth, cpController.addMeetingNote);
+
+// Due today (follow-ups + call-log callbacks)
+router.get('/:cpUserId/due-today', requireAuth, cpController.getDueToday);
+
+// Follow-ups
+router.get('/:cpUserId/follow-ups',           requireAuth, cpController.getFollowUps);
+router.post('/:cpUserId/follow-ups',           requireAuth, cpController.createFollowUp);
+router.patch('/:cpUserId/follow-ups/:id/done', requireAuth, cpController.markFollowUpDone);
+
+// Call logs
+router.get('/:cpUserId/call-logs',  requireAuth, cpController.getCallLogs);
+router.post('/:cpUserId/call-logs', requireAuth, cpController.createCallLog);
 
 // Document upload
 router.post('/:cpUserId/documents', requireAuth, uploadDoc.single('file'), cpController.uploadDocument);

@@ -11,6 +11,8 @@ interface Props {
   address: string;
   city: string;
   readOnly?: boolean;
+  showMapLabel?: boolean;
+  showNearby?: boolean;
 }
 
 interface Coords { lat: number; lng: number; }
@@ -43,25 +45,52 @@ const CATEGORY_META: Record<NearbyPlace['category'], { label: string; icon: type
 const CATEGORY_HEX: Record<NearbyPlace['category'], string> = {
   metro:       '#7c3aed',
   hospital:    '#dc2626',
-  school:      '#2563eb',
+  school:      '#b45309',
   airport:     '#0284c7',
-  mall:        '#9333ea',
+  mall:        '#6d28d9',
   supermarket: '#d97706',
+};
+
+// Pastel background + matching text per category (matches screenshot style)
+const CATEGORY_PILL: Record<NearbyPlace['category'], { bg: string; border: string; text: string; dot: string }> = {
+  metro:       { bg: '#fde8d8', border: '#f9b48a', text: '#c2410c', dot: '#f97316' },
+  hospital:    { bg: '#fee2e2', border: '#fca5a5', text: '#b91c1c', dot: '#ef4444' },
+  school:      { bg: '#fef3e2', border: '#fcd34d', text: '#92400e', dot: '#d97706' },
+  airport:     { bg: '#dbeafe', border: '#93c5fd', text: '#1d4ed8', dot: '#3b82f6' },
+  mall:        { bg: '#ede9fe', border: '#c4b5fd', text: '#5b21b6', dot: '#8b5cf6' },
+  supermarket: { bg: '#d1fae5', border: '#6ee7b7', text: '#065f46', dot: '#10b981' },
+};
+
+// SVG icon path per category (12×12 viewBox, matches screenshot style)
+const CATEGORY_SVG: Record<NearbyPlace['category'], string> = {
+  metro:       `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="4" width="10" height="6" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M3 4V3a3 3 0 016 0v1" stroke="currentColor" stroke-width="1.2"/><circle cx="4" cy="7.5" r="0.8" fill="currentColor"/><circle cx="8" cy="7.5" r="0.8" fill="currentColor"/></svg>`,
+  hospital:    `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1.5" y="1.5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M6 3.5v5M3.5 6h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`,
+  school:      `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5L11 4.5v1L6 3 1 5.5v-1L6 1.5z" fill="currentColor" opacity="0.5"/><rect x="2.5" y="5.5" width="7" height="5" rx="0.8" stroke="currentColor" stroke-width="1.2"/><rect x="4.5" y="7.5" width="3" height="3" rx="0.5" stroke="currentColor" stroke-width="1"/></svg>`,
+  airport:     `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5v9M2 8.5l4-1.5 4 1.5M3.5 10.5h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M1.5 5L6 3.5 10.5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`,
+  mall:        `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1.5" y="4.5" width="9" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M4 4.5V3.5a2 2 0 014 0v1" stroke="currentColor" stroke-width="1.2"/><rect x="4.5" y="6.5" width="3" height="4" rx="0.5" stroke="currentColor" stroke-width="1"/></svg>`,
+  supermarket: `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 2h1.5l1.5 6h5l1.5-4H4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5.5" cy="9.5" r="0.8" fill="currentColor"/><circle cx="8.5" cy="9.5" r="0.8" fill="currentColor"/></svg>`,
 };
 
 // ── Leaflet custom icons ───────────────────────────────────────────────────────
 
-// Pill label — matches the Google Maps floating chip style in the screenshot
-function makePillIcon(L: LeafletModule, color: string, name: string, distKm: number): LeafletType.DivIcon {
-  const label = name.length > 20 ? name.slice(0, 18) + '…' : name;
+// Pill label — matches the screenshot: pastel bg, bold name, lighter distance, small icon, pin dot below
+function makePillIcon(L: LeafletModule, _color: string, name: string, distKm: number, category?: NearbyPlace['category']): LeafletType.DivIcon {
+  const label  = name.length > 22 ? name.slice(0, 20) + '…' : name;
+  const dist   = distKm < 1 ? `${Math.round(distKm * 1000)} m` : `${distKm.toFixed(1)} km`;
+  const style  = category ? CATEGORY_PILL[category] : { bg: '#f3f4f6', border: '#d1d5db', text: '#374151', dot: '#6b7280' };
+  const icon   = category ? CATEGORY_SVG[category] : '';
   return L.divIcon({
-    html: `<div style="display:inline-flex;align-items:center;gap:5px;background:white;border-radius:20px;padding:4px 10px 4px 7px;box-shadow:0 2px 10px rgba(0,0,0,0.18);white-space:nowrap;border:1px solid rgba(0,0,0,0.06);pointer-events:auto;">
-      <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:block;box-shadow:0 0 0 2.5px ${color}28;"></span>
-      <span style="font-size:11.5px;font-weight:600;color:#111827;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.2;">${label}</span>
-      <span style="font-size:10px;color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.2;">${distKm.toFixed(1)} km</span>
-    </div>`,
-    iconAnchor:  [8, 13],
-    popupAnchor: [80, -10],
+    html: `
+      <div style="display:inline-flex;flex-direction:column;align-items:center;pointer-events:auto;">
+        <div style="display:inline-flex;align-items:center;gap:5px;background:${style.bg};border:1.5px solid ${style.border};border-radius:20px;padding:5px 11px 5px 8px;box-shadow:0 2px 12px rgba(0,0,0,0.13),0 1px 3px rgba(0,0,0,0.08);white-space:nowrap;">
+          <span style="color:${style.text};display:flex;align-items:center;flex-shrink:0;">${icon}</span>
+          <span style="font-size:12px;font-weight:700;color:${style.text};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:-0.01em;">${label}</span>
+          <span style="font-size:10.5px;font-weight:400;color:${style.text};opacity:0.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin-left:2px;">${dist}</span>
+        </div>
+        <div style="width:6px;height:6px;border-radius:50%;background:${style.dot};margin-top:3px;box-shadow:0 0 0 2px ${style.bg};"></div>
+      </div>`,
+    iconAnchor:  [0, 36],
+    popupAnchor: [60, -36],
     className:   '',
   });
 }
@@ -244,7 +273,7 @@ async function fetchLocalNews(locality: string, signal: AbortSignal): Promise<Ne
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = false }: Props) => {
+const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = false, showMapLabel = true, showNearby = true }: Props) => {
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const [resolving, setResolving]     = useState(false);
   const [resolveError, setResolveError] = useState(false);
@@ -379,7 +408,7 @@ const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = fa
 
     placesToShow.forEach(p => {
       L.marker([p.lat, p.lng], {
-        icon: makePillIcon(L, CATEGORY_HEX[p.category], p.name, p.distanceKm),
+        icon: makePillIcon(L, CATEGORY_HEX[p.category], p.name, p.distanceKm, p.category),
       })
         .bindPopup(
           `<b style="font-size:12px">${p.name}</b><br/>` +
@@ -483,7 +512,7 @@ const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = fa
       {/* ── Map preview ───────────────────────────────────────────────────── */}
       {showPreview && (
         <div className="col-span-2">
-          <label className={lbl}>Map Preview</label>
+          {showMapLabel && <label className={lbl}>Map Preview</label>}
           <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
 
             {/* Resolving short link */}
@@ -662,7 +691,7 @@ const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = fa
       )}
 
       {/* ── Nearby attractions list ───────────────────────────────────────── */}
-      {coords && (
+      {showNearby && coords && (
         <div className="col-span-2">
           <div className="flex items-center justify-between mb-3">
             <label className={`${lbl} mb-0`}>Nearby Attractions</label>

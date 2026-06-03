@@ -233,138 +233,199 @@ const BuilderLeads = () => {
     a.click();
   };
 
+  // Stat counts
+  const totalLeads = leads.length;
+  const hotLeads   = leads.filter(l => calculateLeadScore(l).total >= 70).length;
+  const warmLeads  = leads.filter(l => { const s = calculateLeadScore(l).total; return s >= 40 && s < 70; }).length;
+  const coldLeads  = leads.filter(l => calculateLeadScore(l).total < 40).length;
+  const bookedLeads = leads.filter(l => l.stage === 'Booked' || l.stage === 'Closed').length;
+
+  const sel = 'px-3 py-1.5 rounded-xl bg-card border border-border text-[12px] text-foreground outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all';
+
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Back">
-            <ArrowLeft size={16} />
+      <div className="flex flex-col gap-4 h-[calc(100vh-7rem)]">
+
+        {/* ── Top bar ── */}
+        <div className="flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft size={16} />
+            </button>
+            <div>
+              <h2 className="text-[17px] font-bold text-foreground leading-tight">Leads & Pipeline</h2>
+              <p className="text-[11px] text-muted-foreground">{totalLeads} lead{totalLeads !== 1 ? 's' : ''} across {stages.length} stages</p>
+            </div>
+          </div>
+          <button onClick={loadLeads} disabled={loading}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors">
+            <Loader2 size={12} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
-          <h2 className="text-[17px] font-bold text-foreground">Leads & Meetings</h2>
         </div>
 
-        <div className="space-y-3">
-          <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by customer, project, or CP name..." className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-card border border-border text-[13px] outline-none text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20 transition-all" />
-          </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="px-3 py-1.5 rounded-xl bg-card border border-border text-[12px] text-foreground outline-none">
-              <option>All</option>{projects.map(p => <option key={p}>{p}</option>)}
-            </select>
-            <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} className="px-3 py-1.5 rounded-xl bg-card border border-border text-[12px] text-foreground outline-none">
-              <option>All</option>{sources.map(s => <option key={s}>{s}</option>)}
-            </select>
-            <select value={scoreFilter} onChange={e => setScoreFilter(e.target.value)} className="px-3 py-1.5 rounded-xl bg-card border border-border text-[12px] text-foreground outline-none">
-              <option>All</option><option>Hot</option><option>Warm</option><option>Cold</option>
-            </select>
-            <select value={sortBy} onChange={e => setSortBy(e.target.value as 'date' | 'score' | 'value')} className="px-3 py-1.5 rounded-xl bg-card border border-border text-[12px] text-foreground outline-none">
-              <option value="date">Sort: Date</option><option value="score">Sort: Score</option><option value="value">Sort: Value</option>
-            </select>
-          </div>
-        </div>
-
-        {selected.size > 0 && (
-          <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30">
-            <span className="text-[13px] font-medium text-foreground">{selected.size} selected</span>
-            <button onClick={handleExport} className="px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white flex items-center gap-1" style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}><Download size={12} /> Export CSV</button>
-            <button onClick={() => setSelected(new Set())} className="text-[12px] text-muted-foreground hover:text-foreground">Clear</button>
+        {/* ── Stat strip ── */}
+        {!loading && leads.length > 0 && (
+          <div className="grid grid-cols-5 gap-2.5 flex-shrink-0">
+            {[
+              { label: 'Total', value: totalLeads, dot: '#0A7E8C', bg: 'bg-card' },
+              { label: '🔴 Hot', value: hotLeads, dot: '#EF4444', bg: 'bg-red-50' },
+              { label: '🟡 Warm', value: warmLeads, dot: '#F59E0B', bg: 'bg-amber-50' },
+              { label: '🔵 Cold', value: coldLeads, dot: '#3B82F6', bg: 'bg-blue-50' },
+              { label: 'Booked / Closed', value: bookedLeads, dot: '#10B981', bg: 'bg-emerald-50' },
+            ].map(({ label, value, dot, bg }) => (
+              <div key={label} className={`rounded-2xl border border-border ${bg} px-4 py-3 flex items-center gap-3`}>
+                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: dot }} />
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground">{label}</p>
+                  <p className="text-[20px] font-bold text-foreground leading-tight">{value}</p>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
+        {/* ── Search + filters ── */}
+        <div className="flex gap-2 flex-wrap flex-shrink-0">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search customer, project or CP…"
+              className="w-full pl-8 pr-4 py-2 rounded-xl bg-card border border-border text-[12px] outline-none text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20 transition-all" />
+          </div>
+          <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className={sel}>
+            <option>All</option>{projects.map(p => <option key={p}>{p}</option>)}
+          </select>
+          <select value={scoreFilter} onChange={e => setScoreFilter(e.target.value)} className={sel}>
+            <option value="All">All Scores</option><option>Hot</option><option>Warm</option><option>Cold</option>
+          </select>
+          <select value={sortBy} onChange={e => setSortBy(e.target.value as 'date' | 'score' | 'value')} className={sel}>
+            <option value="date">↕ Date</option><option value="score">↕ Score</option><option value="value">↕ Value</option>
+          </select>
+          {selected.size > 0 && (
+            <>
+              <button onClick={handleExport}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-semibold text-white"
+                style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}>
+                <Download size={12} /> Export {selected.size}
+              </button>
+              <button onClick={() => setSelected(new Set())} className="px-2 text-[12px] text-muted-foreground hover:text-foreground">✕</button>
+            </>
+          )}
+        </div>
+
+        {/* ── Content ── */}
         {loading ? (
-          <div className="flex justify-center py-16">
+          <div className="flex-1 flex justify-center items-center">
             <Loader2 size={28} className="animate-spin text-muted-foreground" />
           </div>
         ) : leads.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-12 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-              <Building2 size={28} className="text-muted-foreground" />
+          <div className="flex-1 flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-muted/20 text-center p-12">
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-4">
+              <Building2 size={26} className="text-muted-foreground" />
             </div>
-            <p className="font-semibold text-foreground mb-1">No leads yet</p>
-            <p className="text-[13px] text-muted-foreground">Leads will appear here once customers book meetings or deals are created.</p>
+            <p className="text-[14px] font-bold text-foreground mb-1">No leads yet</p>
+            <p className="text-[13px] text-muted-foreground max-w-xs">Leads will appear here once customers book meetings or channel partners submit enquiries.</p>
           </div>
-        ) : null}
-
-        {!loading && leads.length > 0 && <div className="flex gap-3 overflow-x-auto pb-4">
-          {stages.map((stage) => {
-            const stageLeads = sortedLeads.filter((l) => l.stage === stage);
-            return (
-              <div key={stage} className="min-w-[250px] flex-shrink-0">
-                <div className="flex items-center gap-2 mb-3 px-1">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: leadStageColors[stage] }} />
-                  <h3 className="text-[12px] font-semibold text-foreground">{stage}</h3>
-                  <span className="text-[11px] text-muted-foreground bg-muted rounded-full px-2 py-0.5">{stageLeads.length}</span>
-                </div>
-                <div className="space-y-2">
-                  {stageLeads.map((lead) => {
-                    const score = calculateLeadScore(lead);
-                    const lastCall = callLogs.filter((c) => c.leadId === lead.id).pop();
-                    const milestone = stageToMilestone[lead.stage] || 'Enquiry';
-                    const numericId = lead.numericId;
-                    const nextStages = NEXT_STAGES[lead.stage] ?? [];
-
-                    return (
-                      <div
-                        key={lead.id}
-                        className="bg-card rounded-xl border border-border p-3 relative cursor-pointer hover:shadow-sm transition-all duration-150"
-                        onClick={() => setDrawerLead(lead)}
-                      >
-                        <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleSelect(lead.id)}
-                          onClick={e => e.stopPropagation()} className="absolute top-2 right-2" />
-                        <div className="flex items-center justify-between pr-6">
-                          <p className="font-semibold text-[13px] text-foreground">{lead.customerName}</p>
-                          <LeadScoreBadge score={score} />
-                        </div>
-                        <p className="text-[11px] text-muted-foreground mt-1">{lead.projectName} · {lead.unitType}</p>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-[12px] font-semibold" style={{ color: '#0A7E8C' }}>{formatCurrency(lead.budget)}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${lead.daysInStage < 3 ? 'bg-emerald-50 text-emerald-700' : lead.daysInStage <= 7 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600'}`}>
-                            {lead.daysInStage}d
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground mt-1.5">CP: {lead.cpName}</p>
-                        {lastCall && <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium mt-1 inline-block ${outcomeColors[lastCall.outcome] || 'bg-muted text-muted-foreground'}`}>{lastCall.outcome}</span>}
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
-                          <MilestoneChip milestone={milestone} />
-                          <div className="flex gap-1">
-                            <button
-                              onClick={e => { e.stopPropagation(); setCallLogTarget({ id: lead.id, name: lead.customerName, project: lead.projectName }); }}
-                              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Log Call"
-                            >
-                              <Phone size={12} />
-                            </button>
-                            {lead.stage === 'Closed' && (
-                              <button onClick={e => { e.stopPropagation(); setDocModal({ type: 'allotment', data: { customer: lead.customerName, project: lead.projectName, unit: lead.unitType, totalPrice: formatCurrency(lead.budget), unitType: lead.unitType } }); }}
-                                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Generate Allotment">
-                                <FileText size={12} />
-                              </button>
-                            )}
-                            {lead.stage === 'Booked' && (
-                              <button onClick={e => { e.stopPropagation(); setDocModal({ type: 'booking', data: { customer: lead.customerName, project: lead.projectName, unit: lead.unitType, bookingAmount: formatCurrency(lead.budget * 0.1), totalPrice: formatCurrency(lead.budget), builder: 'Builder', cp: lead.cpName } }); }}
-                                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Generate Receipt">
-                                <FileText size={12} />
-                              </button>
-                            )}
-                            {numericId > 0 && nextStages.length > 0 && (
-                              <button
-                                onClick={e => { e.stopPropagation(); setStageModal({ id: lead.id, numericId, name: lead.customerName, currentStage: lead.stage }); }}
-                                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Change Status"
-                              >
-                                <ChevronRight size={12} />
-                              </button>
+        ) : (
+          /* ── Kanban ── */
+          <div className="flex gap-3 overflow-x-auto flex-1 min-h-0 pb-2">
+            {stages.map(stage => {
+              const stageLeads = sortedLeads.filter(l => l.stage === stage);
+              const stageColor = leadStageColors[stage] || '#94a3b8';
+              return (
+                <div key={stage} className="flex flex-col min-w-[236px] max-w-[236px] flex-shrink-0">
+                  {/* Column header */}
+                  <div className="flex items-center gap-2 mb-2.5 px-0.5">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stageColor }} />
+                    <h3 className="text-[11px] font-bold text-foreground flex-1 truncate uppercase tracking-[0.06em]">{stage}</h3>
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{stageLeads.length}</span>
+                  </div>
+                  {/* Cards */}
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-0.5 min-h-0">
+                    {stageLeads.length === 0 && (
+                      <div className="h-12 rounded-xl border border-dashed border-border flex items-center justify-center">
+                        <span className="text-[11px] text-muted-foreground">—</span>
+                      </div>
+                    )}
+                    {stageLeads.map(lead => {
+                      const score = calculateLeadScore(lead);
+                      const lastCall = callLogs.filter(c => c.leadId === lead.id).pop();
+                      const milestone = stageToMilestone[lead.stage] || 'Enquiry';
+                      const numericId = lead.numericId;
+                      const nextStages = NEXT_STAGES[lead.stage] ?? [];
+                      const initials = lead.customerName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                      return (
+                        <div key={lead.id}
+                          className="bg-card rounded-xl border border-border p-3 cursor-pointer hover:border-ring/50 hover:shadow-md transition-all duration-150 relative group"
+                          onClick={() => setDrawerLead(lead)}>
+                          {/* Selection checkbox */}
+                          <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleSelect(lead.id)}
+                            onClick={e => e.stopPropagation()}
+                            className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          {/* Customer row */}
+                          <div className="flex items-center gap-2.5 mb-2">
+                            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white"
+                              style={{ backgroundColor: stageColor }}>
+                              {initials}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[12px] font-bold text-foreground truncate">{lead.customerName}</p>
+                              <p className="text-[10px] text-muted-foreground truncate">{lead.projectName}</p>
+                            </div>
+                            <LeadScoreBadge score={score} />
+                          </div>
+                          {/* Budget + days */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-[12px] font-bold" style={{ color: '#0A7E8C' }}>
+                              {lead.budget > 0 ? formatCurrency(lead.budget) : '—'}
+                            </span>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
+                              lead.daysInStage < 3 ? 'bg-emerald-100 text-emerald-700' :
+                              lead.daysInStage <= 7 ? 'bg-amber-100 text-amber-700' :
+                              'bg-red-100 text-red-600'}`}>
+                              {lead.daysInStage}d
+                            </span>
+                          </div>
+                          {/* CP + last call */}
+                          <div className="flex items-center justify-between mt-1.5">
+                            <p className="text-[9px] text-muted-foreground truncate max-w-[100px]">CP: {lead.cpName}</p>
+                            {lastCall && (
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${outcomeColors[lastCall.outcome] || 'bg-muted text-muted-foreground'}`}>
+                                {lastCall.outcome}
+                              </span>
                             )}
                           </div>
+                          {/* Footer */}
+                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+                            <MilestoneChip milestone={milestone} />
+                            <div className="flex gap-0.5">
+                              <button onClick={e => { e.stopPropagation(); setCallLogTarget({ id: lead.id, name: lead.customerName, project: lead.projectName }); }}
+                                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Log Call">
+                                <Phone size={11} />
+                              </button>
+                              {(lead.stage === 'Closed' || lead.stage === 'Booked') && (
+                                <button onClick={e => { e.stopPropagation(); setDocModal({ type: lead.stage === 'Closed' ? 'allotment' : 'booking', data: { customer: lead.customerName, project: lead.projectName, unit: lead.unitType, totalPrice: formatCurrency(lead.budget), unitType: lead.unitType, bookingAmount: formatCurrency(lead.budget * 0.1), builder: 'Builder', cp: lead.cpName } }); }}
+                                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Generate Document">
+                                  <FileText size={11} />
+                                </button>
+                              )}
+                              {numericId > 0 && nextStages.length > 0 && (
+                                <button onClick={e => { e.stopPropagation(); setStageModal({ id: lead.id, numericId, name: lead.customerName, currentStage: lead.stage }); }}
+                                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Move Stage">
+                                  <ChevronRight size={11} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>}
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Lead Detail Drawer ─────────────────────────────────────────────── */}

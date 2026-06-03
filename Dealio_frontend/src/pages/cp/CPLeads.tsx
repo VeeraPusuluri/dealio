@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { builderApi, cpApi, portalApi } from '@/lib/api';
+import { pushNotifTo } from '@/lib/crossNotify';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { toast } from 'sonner';
 import {
@@ -109,12 +110,25 @@ const CPLeads = () => {
     if (!addProject || !addPhone.trim()) return;
     setAddSubmitting(true);
     try {
-      await builderApi.createLeadFromShare(addProject.id, {
-        cpUserId:      user?.id ?? null,
-        customerName:  addName.trim() || addPhone.trim(),
+      const customerName = addName.trim() || addPhone.trim();
+
+      // POST /cp/:cpUserId/leads — dedicated endpoint, always creates as 'New Lead'
+      await cpApi.createLead(user!.id, {
+        projectId:     addProject.id,
+        customerName,
         customerPhone: addPhone.trim(),
+        customerEmail: addEmail.trim() || undefined,
       });
-      toast.success(`Lead added for ${addName || addPhone} — visible to builder too`);
+
+      // Notify builder via localStorage bridge
+      pushNotifTo('builder', String(addProject.builderId), {
+        type:    'info',
+        title:   '🆕 New Lead Added by CP',
+        message: `${user?.name ?? 'A CP'} added ${customerName} as a new lead for ${addProject.name}.`,
+        link:    '/builder/leads',
+      });
+
+      toast.success(`Lead added — "${customerName}" is now in New Lead`);
       setAddOpen(false);
       setAddProject(null); setAddName(''); setAddPhone(''); setAddEmail('');
       await fetchLeads();

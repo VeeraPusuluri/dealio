@@ -16,6 +16,8 @@ export interface FollowUp {
 export interface CallLog {
   id: string;
   leadId: string;
+  customerName?: string;
+  projectName?: string;
   outcome: string;
   duration: string;
   notes: string;
@@ -35,26 +37,9 @@ interface FollowUpState {
   getFollowUpsDue: (date: string) => FollowUp[];
 }
 
-const today = new Date().toISOString().split('T')[0];
-const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-
-const initialFollowUps: FollowUp[] = [
-  { id: 'FU001', leadId: 'L004', customerName: 'Meera Krishnan', projectName: 'Prestige Skyline', stage: 'New Lead', reason: 'New lead — first follow-up', dueDate: today, dueTime: '11:00', done: false, createdAt: '2025-01-18' },
-  { id: 'FU002', leadId: 'L008', customerName: 'Priya Menon', projectName: 'My Home Avatar', stage: 'New Lead', reason: 'New lead — first follow-up', dueDate: today, dueTime: '14:00', done: false, createdAt: '2025-01-19' },
-  { id: 'FU003', leadId: 'L001', customerName: 'Vijay Anand', projectName: 'Prestige Skyline', stage: 'Meeting Done', reason: 'Meeting completed 2d ago — needs push', dueDate: today, done: false, createdAt: '2025-01-15' },
-  { id: 'FU004', leadId: 'L005', customerName: 'Ramesh Goud', projectName: 'Incor Carmel Heights', stage: 'Meeting Requested', reason: 'Builder hasn\'t confirmed meeting', dueDate: tomorrow, done: false, createdAt: '2025-01-12' },
-  { id: 'FU005', leadId: 'L003', customerName: 'Arjun Reddy', projectName: 'My Home Avatar', stage: 'Booked', reason: 'Congratulations message', dueDate: tomorrow, done: false, createdAt: '2025-01-19' },
-];
-
-const initialCallLogs: CallLog[] = [
-  { id: 'CL001', leadId: 'L001', outcome: 'Interested — confirmed', duration: '3–10 min', notes: 'Wants Tower A higher floors, east facing', createdAt: '2025-01-14T10:30:00', createdBy: 'Ravi Kumar' },
-  { id: 'CL002', leadId: 'L002', outcome: 'Interested — needs time', duration: '1–3 min', notes: 'Comparing with 2 other projects', createdAt: '2025-01-10T15:00:00', createdBy: 'Priya Sharma' },
-  { id: 'CL003', leadId: 'L004', outcome: 'Not answering', duration: '<1 min', notes: '', nextFollowUp: today, createdAt: '2025-01-18T16:00:00', createdBy: 'Mohammed Salim' },
-];
-
 export const useFollowUpStore = create<FollowUpState>((set, get) => ({
-  followUps: initialFollowUps,
-  callLogs: initialCallLogs,
+  followUps: [],
+  callLogs: [],
   addFollowUp: (fu) => set((s) => ({ followUps: [...s.followUps, fu] })),
   markDone: (id) => set((s) => ({ followUps: s.followUps.map((f) => f.id === id ? { ...f, done: true } : f) })),
   addCallLog: (log) => set((s) => ({ callLogs: [...s.callLogs, log] })),

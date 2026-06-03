@@ -5,6 +5,7 @@ import { projects } from '@/data/projects';
 import { Lead } from '@/data/leads';
 import { toast } from 'sonner';
 import { X } from 'lucide-react';
+import DatePickerField from '@/components/shared/DatePickerField';
 
 interface AddLeadPanelProps {
   isOpen: boolean;
@@ -236,7 +237,9 @@ const AddLeadPanel = ({ isOpen, onClose }: AddLeadPanelProps) => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-sm font-medium text-foreground mb-1 block">Follow-up Date</label>
-                <input type="date" value={form.followUpDate} onChange={e => setForm({...form, followUpDate: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" />
+                <DatePickerField value={form.followUpDate}
+                  onChange={v => setForm({...form, followUpDate: v})}
+                  minDate={new Date().toISOString().split('T')[0]} />
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground mb-1 block">Follow-up Time</label>

@@ -6,6 +6,7 @@ import { builderApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { ArrowLeft, Building2, Home, MapPin, Landmark, Trees, Upload, Loader2 } from 'lucide-react';
 import GoogleMapsLocationField from '@/components/shared/GoogleMapsLocationField';
+import DatePickerField from '@/components/shared/DatePickerField';
 
 const projectTypes = [
   { value: 'Apartment',  icon: Building2, label: 'Apartment' },
@@ -460,9 +461,9 @@ const EditProjectWizard = () => {
             </div>
             <div>
               <label className={lbl}>RERA Expiry <span className="text-red-400">*</span></label>
-              <input type="date" value={reraExpiry}
-                onChange={e => { setReraExpiry(e.target.value); setErrors(p => ({ ...p, reraExpiry: '' })); }}
-                className={ic(errors.reraExpiry)} data-error={!!errors.reraExpiry} />
+              <DatePickerField value={reraExpiry}
+                onChange={v => { setReraExpiry(v); setErrors(p => ({ ...p, reraExpiry: '' })); }}
+                error={errors.reraExpiry} />
               <FieldError msg={errors.reraExpiry} />
             </div>
           </div>
@@ -567,9 +568,11 @@ const EditProjectWizard = () => {
             </div>
             <div>
               <label className={lbl}>Possession Date <span className="text-red-400">*</span></label>
-              <input type="date" value={possessionDate}
-                onChange={e => { setPossessionDate(e.target.value); setErrors(p => ({ ...p, possessionDate: '' })); }}
-                className={ic(errors.possessionDate)} data-error={!!errors.possessionDate} />
+              <DatePickerField value={possessionDate}
+                onChange={v => { setPossessionDate(v); setErrors(p => ({ ...p, possessionDate: '' })); }}
+                error={errors.possessionDate}
+                minDate={new Date().toISOString().split('T')[0]}
+                toYear={new Date().getFullYear() + 10} />
               <FieldError msg={errors.possessionDate} />
             </div>
             <div className="flex flex-col gap-3 justify-end pb-0.5">

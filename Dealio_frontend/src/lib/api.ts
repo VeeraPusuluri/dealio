@@ -55,10 +55,10 @@ export const authApi = {
       body: JSON.stringify({ countryCode, phone }),
     }),
 
-  loginVerifyOtp: (countryCode: string, phone: string, otp: string) =>
+  loginVerifyOtp: (countryCode: string, phone: string, otp: string, role?: string) =>
     authReq('/auth/login/phone/verify-otp', {
       method: 'POST',
-      body: JSON.stringify({ countryCode, phone, otp }),
+      body: JSON.stringify({ countryCode, phone, otp, ...(role ? { role } : {}) }),
     }),
 
   signupSendOtp: (countryCode: string, phone: string, fullName: string, role: string) =>
@@ -167,7 +167,7 @@ export const builderApi = {
   getBuilderNotifications: () =>
     builderReq('/builder/notifications'),
 
-  createLeadFromShare: (projectId: number | string, data: { cpUserId?: string | number | null; customerName: string; customerPhone: string }) =>
+  createLeadFromShare: (projectId: number | string, data: { cpUserId?: string | number | null; customerName: string; customerPhone: string; stage?: string }) =>
     builderReq(`/builder/projects/${projectId}/leads/from-share`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -184,6 +184,33 @@ export const builderApi = {
 
   getDocuments: (builderId: number | string, projectId: number | string) =>
     builderReq(`/builder/${builderId}/projects/${projectId}/documents`),
+
+  getBroadcasts: (builderId: number | string) =>
+    builderReq(`/builder/${builderId}/broadcasts`),
+
+  sendBroadcast: (builderId: number | string, data: {
+    message: string;
+    audience: string;
+    audienceFilter?: string;
+    projectId?: number | null;
+    projectName?: string | null;
+  }) =>
+    builderReq(`/builder/${builderId}/broadcasts`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Project Updates
+  getProjectUpdates: (builderId: number | string, projectId: number | string) =>
+    builderReq(`/builder/${builderId}/projects/${projectId}/updates`),
+  createProjectUpdate: (builderId: number | string, projectId: number | string, data: { title: string; content: string; type: string; visibleTo: string }) =>
+    builderReq(`/builder/${builderId}/projects/${projectId}/updates`, { method: 'POST', body: JSON.stringify(data) }),
+  editProjectUpdate: (builderId: number | string, projectId: number | string, updateId: number, data: Partial<{ title: string; content: string; type: string; visibleTo: string }>) =>
+    builderReq(`/builder/${builderId}/projects/${projectId}/updates/${updateId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteProjectUpdate: (builderId: number | string, projectId: number | string, updateId: number) =>
+    builderReq(`/builder/${builderId}/projects/${projectId}/updates/${updateId}`, { method: 'DELETE' }),
+  getPublicProjectUpdates: (projectId: number | string, role = 'CP') =>
+    builderReq(`/builder/projects/${projectId}/updates?role=${role}`),
 
   getProjectPdfUrl: async (builderId: number | string, projectId: number | string): Promise<string> => {
     const token = getToken();
@@ -312,6 +339,12 @@ export const cpApi = {
   getLeads: (cpUserId: string | number) =>
     cpReq(`/cp/${cpUserId}/leads`),
 
+  createLead: (cpUserId: string | number, data: {
+    projectId: number; customerName: string; customerPhone: string;
+    customerEmail?: string; stage?: string;
+  }) =>
+    cpReq(`/cp/${cpUserId}/leads`, { method: 'POST', body: JSON.stringify({ ...data, stage: data.stage ?? 'NEW_LEAD' }) }),
+
   getMeetings: (cpUserId: string | number) =>
     cpReq(`/cp/${cpUserId}/meetings`),
 
@@ -326,6 +359,29 @@ export const cpApi = {
 
   verifyPhone: (cpUserId: string | number, phone: string, otp: string) =>
     cpReq(`/cp/${cpUserId}/verify-phone`, { method: 'POST', body: JSON.stringify({ phone, otp }) }),
+
+  getDueToday: (cpUserId: string | number) =>
+    cpReq(`/cp/${cpUserId}/due-today`),
+
+  getFollowUps: (cpUserId: string | number) =>
+    cpReq(`/cp/${cpUserId}/follow-ups`),
+
+  createFollowUp: (cpUserId: string | number, data: {
+    dealId: number; dueDate: string; dueTime?: string; reason: string;
+  }) =>
+    cpReq(`/cp/${cpUserId}/follow-ups`, { method: 'POST', body: JSON.stringify(data) }),
+
+  markFollowUpDone: (cpUserId: string | number, followUpId: number | string) =>
+    cpReq(`/cp/${cpUserId}/follow-ups/${followUpId}/done`, { method: 'PATCH' }),
+
+  getCallLogs: (cpUserId: string | number) =>
+    cpReq(`/cp/${cpUserId}/call-logs`),
+
+  createCallLog: (cpUserId: string | number, data: {
+    dealId: number; outcome: string; duration: string; notes?: string;
+    nextFollowUp?: string; nextFollowUpTime?: string;
+  }) =>
+    cpReq(`/cp/${cpUserId}/call-logs`, { method: 'POST', body: JSON.stringify(data) }),
 
   uploadDocument: async (cpUserId: string | number, file: File, docType: 'aadhaar' | 'pan' | 'rera') => {
     const token = getToken();
@@ -427,4 +483,76 @@ export const portalApi = {
     employmentType?: string; tenureMonths: number;
   }) =>
     builderReq('/portal/customer/applications', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+const adminReq = (path: string, options?: RequestInit) => request(BUILDER_BASE, `/admin${path}`, options);
+
+export const adminApi = {
+  getStats: () =>
+    adminReq('/stats'),
+
+  getUsers: (params?: { role?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.role)   qs.set('role',   params.role);
+    if (params?.search) qs.set('search', params.search);
+    return adminReq(`/users${qs.toString() ? `?${qs}` : ''}`);
+  },
+
+  suspendUser: (userId: number, suspended: boolean) =>
+    adminReq(`/users/${userId}/suspend`, { method: 'PATCH', body: JSON.stringify({ suspended }) }),
+
+  getBuilders: (search?: string) =>
+    adminReq(`/builders${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+
+  getProjects: (params?: { status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    return adminReq(`/projects${qs.toString() ? `?${qs}` : ''}`);
+  },
+
+  toggleProjectFeatured: (projectId: number) =>
+    adminReq(`/projects/${projectId}/featured`, { method: 'PATCH' }),
+
+  getCPs: (params?: { tier?: string; docStatus?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.tier)      qs.set('tier',      params.tier);
+    if (params?.docStatus) qs.set('docStatus', params.docStatus);
+    if (params?.search)    qs.set('search',    params.search);
+    return adminReq(`/cps${qs.toString() ? `?${qs}` : ''}`);
+  },
+
+  verifyDocument: (cpId: number, docType: 'aadhaar' | 'pan' | 'rera', approved: boolean, rejectionNote?: string) =>
+    adminReq(`/cps/${cpId}/verify-doc`, {
+      method: 'PATCH',
+      body: JSON.stringify({ docType, approved, rejectionNote }),
+    }),
+
+  updateCPTier: (cpId: number, tier: string) =>
+    adminReq(`/cps/${cpId}/tier`, { method: 'PATCH', body: JSON.stringify({ tier }) }),
+
+  getRevenueStats: (range?: string) =>
+    adminReq(`/revenue${range ? `?range=${encodeURIComponent(range)}` : ''}`),
+
+  getDeals: (params?: { status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    return adminReq(`/deals${qs.toString() ? `?${qs}` : ''}`);
+  },
+
+  updateDealMilestone: (dealId: number, status: string) =>
+    adminReq(`/deals/${dealId}/milestone`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+
+  getCommissions: () =>
+    adminReq('/commissions'),
+
+  submitContact: (data: { name: string; phone: string; email?: string; city?: string; interest?: string; message?: string }) =>
+    request(BUILDER_BASE, '/admin/contact', { method: 'POST', body: JSON.stringify(data) }),
+
+  getContactRequests: () =>
+    adminReq('/contact'),
+
+  updateContactStatus: (id: number, status: 'new' | 'in_progress' | 'resolved') =>
+    adminReq(`/contact/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 };

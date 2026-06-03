@@ -311,6 +311,268 @@ export const cpController = {
     res.json({ ok: true, data: leads });
   },
 
+  // CP manually creates a new lead — always starts as 'New Lead'
+  createCPLead: async (req: Request, res: Response) => {
+    const cpUserId = Number(req.params.cpUserId);
+    const { projectId, customerName, customerPhone, customerEmail } = req.body;
+
+    if (!projectId || !customerPhone) {
+      return res.status(400).json({ ok: false, message: 'projectId and customerPhone are required' });
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id: Number(projectId) },
+      include: { builder: { select: { id: true, userId: true } } },
+    });
+    if (!project) return res.status(404).json({ ok: false, message: 'Project not found' });
+
+    let cp = await prisma.channelPartner.findUnique({ where: { userId: cpUserId } });
+    if (!cp) cp = await prisma.channelPartner.create({ data: { userId: cpUserId } });
+
+    let customer = await prisma.user.findUnique({ where: { phone: customerPhone } });
+    if (!customer) {
+      customer = await prisma.user.create({
+        data: { phone: customerPhone, fullName: customerName?.trim() || customerPhone, role: 'CUSTOMER',
+          ...(customerEmail ? { email: customerEmail.trim() } : {}) },
+      });
+    }
+
+    const existingDeal = await prisma.deal.findFirst({
+      where: { projectId: project.id, customerId: customer.id, builderId: project.builderId },
+    });
+
+    let deal;
+    if (existingDeal) {
+      deal = await prisma.deal.update({
+        where: { id: existingDeal.id },
+        data: { status: 'New Lead', cpId: cp.id },
+      });
+    } else {
+      deal = await prisma.deal.create({
+        data: {
+          projectId:  project.id,
+          builderId:  project.builderId,
+          customerId: customer.id,
+          cpId:       cp.id,
+          status:     'New Lead',
+        },
+      });
+    }
+
+    // Notify the builder
+    if (project.builder?.userId) {
+      const cpUser = await prisma.user.findUnique({ where: { id: cpUserId }, select: { fullName: true } });
+      const title   = '🆕 New Lead Added by CP';
+      const message = `${cpUser?.fullName ?? 'A CP'} added ${customer.fullName ?? customerPhone} as a new lead for "${project.name}".`;
+      await prisma.notification.create({
+        data: { userId: project.builder.userId, title, message, type: 'info', link: '/builder/leads' },
+      });
+      channelManager.publish(`user:${project.builder.userId}`, {
+        type: 'new_lead', title, message, city: '', timestamp: new Date().toISOString(),
+      });
+    }
+
+    res.json({ ok: true, data: { id: deal.id, status: deal.status } });
+  },
+
+  // ── Follow-ups ────────────────────────────────────────────────────────
+
+  getDueToday: async (req: Request, res: Response) => {
+    const cpUserId = Number(req.params.cpUserId);
+    const cp = await prisma.channelPartner.findUnique({ where: { userId: cpUserId } });
+    if (!cp) return res.json({ ok: true, data: { followUps: [], callLogs: [] } });
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    const [followUps, callLogs] = await Promise.all([
+      prisma.cPFollowUp.findMany({
+        where: { cpId: cp.id, dueDate: today, done: false },
+        include: {
+          deal: {
+            include: {
+              customer: { select: { fullName: true } },
+              project:  { select: { name: true } },
+            },
+          },
+        },
+        orderBy: { dueTime: 'asc' },
+      }),
+      prisma.cPCallLog.findMany({
+        where: { cpId: cp.id, nextFollowUp: today },
+        include: {
+          deal: {
+            include: {
+              customer: { select: { fullName: true } },
+              project:  { select: { name: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
+
+    res.json({
+      ok: true,
+      data: {
+        followUps: followUps.map(f => ({
+          id:           String(f.id),
+          dealId:       String(f.dealId),
+          customerName: f.deal.customer?.fullName ?? 'Unknown',
+          projectName:  f.deal.project?.name ?? 'Unknown',
+          reason:       f.reason,
+          dueDate:      f.dueDate,
+          dueTime:      f.dueTime,
+          done:         f.done,
+        })),
+        callLogs: callLogs.map(c => ({
+          id:           String(c.id),
+          dealId:       String(c.dealId),
+          customerName: c.deal.customer?.fullName ?? 'Unknown',
+          projectName:  c.deal.project?.name ?? 'Unknown',
+          outcome:      c.outcome,
+          nextFollowUp: c.nextFollowUp,
+          notes:        c.notes,
+          createdBy:    c.createdBy,
+        })),
+      },
+    });
+  },
+
+  getFollowUps: async (req: Request, res: Response) => {
+    const cpUserId = Number(req.params.cpUserId);
+    const cp = await prisma.channelPartner.findUnique({ where: { userId: cpUserId } });
+    if (!cp) return res.json({ ok: true, data: [] });
+
+    const followUps = await prisma.cPFollowUp.findMany({
+      where: { cpId: cp.id },
+      include: {
+        deal: {
+          include: {
+            customer: { select: { fullName: true } },
+            project:  { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { dueDate: 'asc' },
+    });
+
+    res.json({
+      ok: true,
+      data: followUps.map(f => ({
+        id:           String(f.id),
+        dealId:       String(f.dealId),
+        customerName: f.deal.customer?.fullName ?? 'Unknown',
+        projectName:  f.deal.project?.name ?? 'Unknown',
+        reason:       f.reason,
+        dueDate:      f.dueDate,
+        dueTime:      f.dueTime,
+        done:         f.done,
+        createdAt:    f.createdAt.toISOString(),
+      })),
+    });
+  },
+
+  createFollowUp: async (req: Request, res: Response) => {
+    const cpUserId = Number(req.params.cpUserId);
+    const { dealId, dueDate, dueTime, reason } = req.body;
+
+    if (!dealId || !dueDate || !reason) {
+      return res.status(400).json({ ok: false, message: 'dealId, dueDate, and reason are required' });
+    }
+
+    let cp = await prisma.channelPartner.findUnique({ where: { userId: cpUserId } });
+    if (!cp) cp = await prisma.channelPartner.create({ data: { userId: cpUserId } });
+
+    const followUp = await prisma.cPFollowUp.create({
+      data: {
+        cpId:    cp.id,
+        dealId:  Number(dealId),
+        dueDate: String(dueDate),
+        dueTime: dueTime ?? null,
+        reason:  String(reason),
+      },
+    });
+
+    res.json({ ok: true, data: { ...followUp, id: String(followUp.id) } });
+  },
+
+  markFollowUpDone: async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    try {
+      const followUp = await prisma.cPFollowUp.update({ where: { id }, data: { done: true } });
+      res.json({ ok: true, data: { ...followUp, id: String(followUp.id) } });
+    } catch {
+      res.status(404).json({ ok: false, message: 'Follow-up not found' });
+    }
+  },
+
+  // ── Call logs ─────────────────────────────────────────────────────────
+
+  getCallLogs: async (req: Request, res: Response) => {
+    const cpUserId = Number(req.params.cpUserId);
+    const cp = await prisma.channelPartner.findUnique({ where: { userId: cpUserId } });
+    if (!cp) return res.json({ ok: true, data: [] });
+
+    const callLogs = await prisma.cPCallLog.findMany({
+      where: { cpId: cp.id },
+      include: {
+        deal: {
+          include: {
+            customer: { select: { fullName: true } },
+            project:  { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      ok: true,
+      data: callLogs.map(c => ({
+        id:              String(c.id),
+        dealId:          String(c.dealId),
+        customerName:    c.deal.customer?.fullName ?? 'Unknown',
+        projectName:     c.deal.project?.name ?? 'Unknown',
+        outcome:         c.outcome,
+        duration:        c.duration,
+        notes:           c.notes,
+        nextFollowUp:    c.nextFollowUp,
+        nextFollowUpTime: c.nextFollowUpTime,
+        createdAt:       c.createdAt.toISOString(),
+        createdBy:       c.createdBy,
+      })),
+    });
+  },
+
+  createCallLog: async (req: Request, res: Response) => {
+    const cpUserId = Number(req.params.cpUserId);
+    const { dealId, outcome, duration, notes, nextFollowUp, nextFollowUpTime } = req.body;
+
+    if (!dealId || !outcome || !duration) {
+      return res.status(400).json({ ok: false, message: 'dealId, outcome, and duration are required' });
+    }
+
+    let cp = await prisma.channelPartner.findUnique({ where: { userId: cpUserId } });
+    if (!cp) cp = await prisma.channelPartner.create({ data: { userId: cpUserId } });
+
+    const cpUser = await prisma.user.findUnique({ where: { id: cpUserId }, select: { fullName: true } });
+
+    const callLog = await prisma.cPCallLog.create({
+      data: {
+        cpId:            cp.id,
+        dealId:          Number(dealId),
+        outcome:         String(outcome),
+        duration:        String(duration),
+        notes:           notes ?? '',
+        nextFollowUp:    nextFollowUp ?? null,
+        nextFollowUpTime: nextFollowUpTime ?? null,
+        createdBy:       cpUser?.fullName ?? 'CP',
+      },
+    });
+
+    res.json({ ok: true, data: { ...callLog, id: String(callLog.id) } });
+  },
+
   // ── Share links ────────────────────────────────────────────────────────
 
   getOrCreateShareLink: async (req: Request, res: Response) => {

@@ -1,14 +1,22 @@
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useLoanThreadStore, loanThreadStatusColors } from '@/stores/useLoanThreadStore';
 import { formatCurrency } from '@/lib/format';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 const AdminDeals = () => {
+  const navigate = useNavigate();
   const { threads: loanThreads } = useLoanThreadStore();
 
   return (
     <DashboardLayout>
       <div className="space-y-4">
-        <h2 className="text-lg font-bold text-foreground">Deal Oversight</h2>
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/admin')} className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Back to Overview">
+            <ArrowLeft size={15} className="text-muted-foreground" />
+          </button>
+          <h2 className="text-lg font-bold text-foreground">Deal Oversight</h2>
+        </div>
 
         <div className="bg-card rounded-lg card-shadow border border-border overflow-hidden">
           <table className="w-full text-sm">

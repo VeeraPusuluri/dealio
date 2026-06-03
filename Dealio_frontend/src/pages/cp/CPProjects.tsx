@@ -10,7 +10,7 @@ import {
   X, Home, TrendingUp,
   MessageSquare, FileText, Layers, Download,
   Copy, IndianRupee, Calculator, Star, Clock, Shield,
-  Image as ImageIcon, Video, Bookmark,
+  Image as ImageIcon, Video, Bookmark, Eye,
   Map as MapIcon, Newspaper, LayoutGrid, Link2, ExternalLink,
   Users, Search, Check, Filter, ArrowUpDown,
   ChevronDown, Flame, Percent, Phone,
@@ -911,6 +911,10 @@ function ProjectDetailDrawer({
   const [activeTab, setActiveTab]     = useState<DrawerTab>('overview');
   const [dealValue, setDealValue]     = useState('');
   const [copyingLink, setCopyingLink] = useState(false);
+  const [projectUpdates, setProjectUpdates] = useState<Array<{
+    id: number; title: string; content: string; type: string; visibleTo: string; createdAt: string;
+  }> | null>(null);
+  const [updatesLoading, setUpdatesLoading] = useState(false);
 
   const handleCopyLink = async () => {
     if (!cpId) { toast.error('Login required to generate a share link'); return; }
@@ -940,7 +944,7 @@ function ProjectDetailDrawer({
 
   const floorPlans = docs.filter(d => d.docType === 'FLOOR_PLAN');
   const otherDocs  = docs.filter(d => d.docType !== 'FLOOR_PLAN');
-  const newsFeed   = deriveNewsFeed(project);
+  const derivedFeed = deriveNewsFeed(project);
 
   useEffect(() => {
     builderApi.getDocuments(project.builderId, project.id)
@@ -948,6 +952,16 @@ function ProjectDetailDrawer({
       .catch(() => setDocs([]))
       .finally(() => setDocsLoading(false));
   }, [project.id, project.builderId]);
+
+  // Fetch real project updates when the Updates tab opens
+  useEffect(() => {
+    if (activeTab !== 'news' || projectUpdates !== null) return;
+    setUpdatesLoading(true);
+    builderApi.getPublicProjectUpdates(project.id, 'CP')
+      .then(data => setProjectUpdates((data as typeof projectUpdates) ?? []))
+      .catch(() => setProjectUpdates([]))
+      .finally(() => setUpdatesLoading(false));
+  }, [activeTab, project.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -1289,57 +1303,61 @@ function ProjectDetailDrawer({
                     className="border-0 block" referrerPolicy="no-referrer-when-downgrade" />
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3">
-                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([project.address, project.locality, project.city].filter(Boolean).join(', '))}`}
-                  target="_blank" rel="noreferrer"
-                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors">
-                  <ExternalLink size={14} /> Google Maps
-                </a>
-                <a href={`https://maps.apple.com/?q=${encodeURIComponent([project.address, project.locality, project.city].filter(Boolean).join(', '))}`}
-                  target="_blank" rel="noreferrer"
-                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-800 text-white text-sm font-bold hover:bg-slate-700 transition-colors">
-                  <MapIcon size={14} /> Apple Maps
-                </a>
-              </div>
-              <button
-                onClick={() => {
-                  const addr = [project.address, project.locality, project.city].filter(Boolean).join(', ');
-                  const msg = `📍 *${project.name}* is located at:\n${addr}\n\nhttps://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
-                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-                }}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-sm hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: '#25D366' }}>
-                <MessageSquare size={15} /> Share Location on WhatsApp
-              </button>
+              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([project.address, project.locality, project.city].filter(Boolean).join(', '))}`}
+                target="_blank" rel="noreferrer"
+                className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors">
+                <ExternalLink size={10} /> Open in Maps
+              </a>
             </div>
           )}
 
           {/* Updates */}
           {activeTab === 'news' && (
             <div className="px-6 py-5">
-              {newsFeed.length === 0 ? (
-                <div className="text-center py-16">
-                  <Newspaper size={40} className="mx-auto mb-3 text-slate-200" />
-                  <p className="font-semibold text-slate-500 mb-1">No updates yet</p>
-                  <p className="text-xs text-slate-400">Project news and milestones will appear here</p>
+              {updatesLoading ? (
+                <div className="flex justify-center py-16">
+                  <div className="w-6 h-6 rounded-full border-2 border-[#E87722] border-t-transparent animate-spin" />
                 </div>
-              ) : (
-                <div className="space-y-0">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Project Updates & Milestones</p>
-                  <div className="relative">
-                    <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-100" />
-                    {newsFeed.map((item, i) => (
-                      <div key={i} className="flex gap-4 mb-5 relative">
-                        <div className="w-8 h-8 rounded-full bg-white border-2 border-slate-100 flex items-center justify-center shrink-0 z-10 text-base">{item.icon}</div>
-                        <div className="flex-1 bg-white border border-slate-100 rounded-xl p-3.5 shadow-sm">
-                          <p className="text-sm font-semibold text-slate-800 leading-snug">{item.headline}</p>
-                          <p className="text-[10px] font-medium mt-1" style={{ color: item.color }}>{item.date}</p>
-                        </div>
-                      </div>
-                    ))}
+              ) : (() => {
+                // Use real updates if available, append derived feed items
+                const realItems = (projectUpdates ?? []).map(u => ({
+                  icon: u.type === 'milestone' ? '🏆' : u.type === 'construction' ? '🏗️' : u.type === 'legal' ? '⚖️' : u.type === 'price' ? '💰' : '📢',
+                  headline: u.title,
+                  sub: u.content,
+                  date: new Date(u.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+                  color: u.type === 'milestone' ? '#D97706' : u.type === 'price' ? '#DC2626' : '#E87722',
+                  isReal: true,
+                }));
+                const derived = derivedFeed.map(item => ({ ...item, sub: '', isReal: false }));
+                const combined = [...realItems, ...derived];
+
+                return combined.length === 0 ? (
+                  <div className="text-center py-16">
+                    <Newspaper size={40} className="mx-auto mb-3 text-slate-200" />
+                    <p className="font-semibold text-slate-500 mb-1">No updates yet</p>
+                    <p className="text-xs text-slate-400">The builder hasn't posted any updates for this project yet</p>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="space-y-0">
+                    {realItems.length > 0 && (
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">From Builder</p>
+                    )}
+                    <div className="relative">
+                      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-100" />
+                      {combined.map((item, i) => (
+                        <div key={i} className="flex gap-4 mb-5 relative">
+                          <div className="w-8 h-8 rounded-full bg-white border-2 border-slate-100 flex items-center justify-center shrink-0 z-10 text-base">{item.icon}</div>
+                          <div className={`flex-1 border rounded-xl p-3.5 shadow-sm ${item.isReal ? 'bg-white border-[#E87722]/20' : 'bg-white border-slate-100'}`}>
+                            <p className="text-sm font-semibold text-slate-800 leading-snug">{item.headline}</p>
+                            {item.sub && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{item.sub}</p>}
+                            <p className="text-[10px] font-medium mt-1.5" style={{ color: item.color }}>{item.date}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -1347,10 +1365,10 @@ function ProjectDetailDrawer({
         {/* ── Footer actions ── */}
         <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-4 space-y-2.5">
           <button onClick={handleCopyLink} disabled={copyingLink}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white disabled:opacity-60 transition-opacity hover:opacity-90"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-60 transition-all hover:opacity-90 self-start"
             style={{ background: 'linear-gradient(135deg,#3C5A45,#2B4232)' }}>
-            {copyingLink ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />}
-            {copyingLink ? 'Generating…' : 'Copy Unique Link'}
+            {copyingLink ? <Loader2 size={11} className="animate-spin" /> : <Link2 size={11} />}
+            {copyingLink ? 'Generating…' : 'Copy Link'}
           </button>
           <div className="flex gap-2.5">
             <button onClick={onShare}
@@ -1515,6 +1533,11 @@ function ProjectCard({
           className="flex items-center gap-0.5 text-green-600 font-semibold hover:text-green-700 transition-colors">
           <Share2 size={9} /> Share via WA
         </button>
+        <a href={`/customer/projects/${project.id}`} target="_blank" rel="noreferrer"
+          onClick={e => e.stopPropagation()}
+          className="flex items-center gap-0.5 text-blue-500 font-semibold hover:text-blue-700 transition-colors">
+          <Eye size={9} /> Customer View
+        </a>
         <button onClick={e => { e.stopPropagation(); onFlyer(project); }}
           className="flex items-center gap-0.5 text-orange-500 font-semibold hover:text-orange-600 transition-colors">
           <ImageIcon size={9} /> Flyer

@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { useFollowUpStore } from '@/stores/useFollowUpStore';
 import { toast } from 'sonner';
+import DatePickerField from '@/components/shared/DatePickerField';
 
 interface CallLogModalProps {
   open: boolean;
@@ -90,8 +91,10 @@ const CallLogModal = ({ open, onClose, leadId, customerName, projectName }: Call
           </div>
           <div>
             <label className="text-sm font-medium text-foreground">Next Follow-up</label>
-            <input type="date" value={nextFollowUp} onChange={(e) => setNextFollowUp(e.target.value)}
-              className="w-full mt-1.5 p-2.5 text-sm rounded-lg border border-border bg-background text-foreground" />
+            <div className="mt-1.5">
+              <DatePickerField value={nextFollowUp} onChange={setNextFollowUp}
+                minDate={new Date().toISOString().split('T')[0]} />
+            </div>
           </div>
           <Button onClick={handleSubmit} disabled={!outcome || !duration} className="w-full">Log Call</Button>
         </div>

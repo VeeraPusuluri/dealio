@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { projects } from '@/data/projects';
 import { toast } from 'sonner';
+import DatePickerField from '@/components/shared/DatePickerField';
 import {
   Building2, User, CreditCard, FileText, MessageSquare, ChevronRight, X,
   Upload, Plus, Clock, CheckCircle2, AlertCircle, Send, ArrowLeft
@@ -191,7 +192,9 @@ const LoanPortal = () => {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-foreground mb-1 block">Date of Birth <span className="text-destructive">*</span></label>
-                    <input type="date" value={newThread.customerDob} onChange={e => setNewThread({...newThread, customerDob: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" />
+                    <DatePickerField value={newThread.customerDob}
+                      onChange={v => setNewThread({...newThread, customerDob: v})}
+                      toYear={new Date().getFullYear()} fromYear={1940} />
                   </div>
                   <div>
                     <label className="text-sm font-medium text-foreground mb-1 block">PAN Number <span className="text-destructive">*</span></label>

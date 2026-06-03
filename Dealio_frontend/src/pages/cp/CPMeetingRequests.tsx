@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { cpApi, builderApi } from '@/lib/api';
+import { cpApi, builderApi, portalApi } from '@/lib/api';
+import { pushNotifTo } from '@/lib/crossNotify';
+import { getAvailableSlotsForDate, ALL_SLOTS } from '@/lib/builderAvailability';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -157,13 +159,28 @@ const CPMeetingRequests = () => {
 
   const handleSubmitRequest = async () => {
     const project = realProjects.find(p => p.id === selectedProjectId);
-    if (!project || !form.customerName || !form.customerPhone) { toast.error('Please fill all required fields'); return; }
+    if (!project || !form.customerName || !form.customerPhone || !form.preferredDate || !form.preferredTime) {
+      toast.error('Please fill all required fields');
+      return;
+    }
     try {
-      await builderApi.createLeadFromShare(project.id, {
-        cpUserId: cpUserId || null,
+      await portalApi.bookMeeting({
+        builderId: project.builderId,
+        projectId: project.id,
         customerName: form.customerName,
         customerPhone: form.customerPhone,
+        preferredDate: form.preferredDate,
+        preferredTime: form.preferredTime,
+        notes: form.notes || undefined,
+        cpUserId: cpUserId || null,
       });
+      // Notify the builder
+      pushNotifTo('builder', String(project.builderId), {
+        type: 'info', title: '📅 New Meeting Request (via CP)',
+        message: `CP ${user?.name ?? ''} scheduled a site visit for ${form.customerName} at ${project.name} on ${form.preferredDate} at ${form.preferredTime}.`,
+        link: '/builder/meetings',
+      });
+      window.dispatchEvent(new CustomEvent('dealio:new-meeting'));
       toast.success('Meeting request sent to builder');
       closeForm();
       setTimeout(loadMeetings, 500);
@@ -544,7 +561,37 @@ const CPMeetingRequests = () => {
                 fromYear={new Date().getFullYear()}
                 toYear={new Date().getFullYear() + 2}
               />
-              <Input placeholder="Preferred Time (e.g. 10:00 AM)" value={form.preferredTime} onChange={e => setForm({ ...form, preferredTime: e.target.value })} />
+              {/* Time slots — builder availability aware */}
+              {(() => {
+                const project = realProjects.find(p => p.id === selectedProjectId);
+                const avSlots = project && form.preferredDate
+                  ? getAvailableSlotsForDate(String(project.builderId), form.preferredDate)
+                  : [];
+                const displaySlots = avSlots.length > 0
+                  ? ALL_SLOTS.filter(s => avSlots.includes(s))
+                  : ALL_SLOTS;
+                return displaySlots.length > 0 ? (
+                  <div>
+                    <p className="text-[11px] text-muted-foreground mb-1.5">
+                      {avSlots.length > 0 ? 'Builder available slots:' : 'Select preferred time:'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {displaySlots.map(slot => (
+                        <button key={slot} type="button"
+                          onClick={() => setForm({ ...form, preferredTime: slot })}
+                          className={`text-[11px] px-2.5 py-1 rounded-lg border font-medium transition-colors ${
+                            form.preferredTime === slot
+                              ? 'bg-teal-600 text-white border-teal-600'
+                              : 'border-border text-muted-foreground hover:border-teal-400'
+                          }`}>{slot}</button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <Input placeholder="Preferred Time (e.g. 10:00 AM)" value={form.preferredTime}
+                    onChange={e => setForm({ ...form, preferredTime: e.target.value })} />
+                );
+              })()}
               <Input placeholder="Notes (optional)" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(2)}>Back</Button>

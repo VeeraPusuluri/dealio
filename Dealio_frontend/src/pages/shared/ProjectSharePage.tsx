@@ -140,6 +140,7 @@ const ProjectSharePage = () => {
 
       // Create the lead on the backend
       if (projectId.current) {
+        // Customer self-registers via share link → 'Profile Created' (no stage override)
         builderApi.createLeadFromShare(projectId.current, {
           cpUserId: cpUserId.current,
           customerName: data.user.fullName ?? name.trim(),

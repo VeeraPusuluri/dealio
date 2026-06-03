@@ -7,7 +7,7 @@ import { formatCurrency } from '@/lib/format';
 import {
   Building2, MapPin, ArrowLeft, FileText, Loader2,
   Pencil, Upload, ExternalLink, Download, Eye, EyeOff,
-  CheckCircle2, Star, Clock, Shield,
+  CheckCircle2, Star, Clock, Shield, Plus, Trash2, Edit2, X, Users,
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
@@ -75,7 +75,38 @@ const STATUS_META: Record<string, { bg: string; text: string; dot: string; label
   INACTIVE:           { bg: '#f1f5f9', text: '#94a3b8', dot: '#94a3b8', label: 'Inactive' },
 };
 
-const tabs = ['Overview', 'Units', 'Documents', 'Brochure'] as const;
+const tabs = ['Overview', 'Units', 'Documents', 'Updates', 'Brochure'] as const;
+
+interface ProjectUpdate {
+  id: number; projectId: number; title: string; content: string;
+  type: string; visibleTo: string; createdAt: string;
+}
+
+const UPDATE_TYPES = [
+  { value: 'announcement', label: 'Announcement', emoji: '📢' },
+  { value: 'milestone',    label: 'Milestone',    emoji: '🏆' },
+  { value: 'construction', label: 'Construction', emoji: '🏗️' },
+  { value: 'legal',        label: 'Legal',        emoji: '⚖️' },
+  { value: 'price',        label: 'Price Update', emoji: '💰' },
+];
+
+const VISIBLE_OPTIONS = [
+  { value: 'ALL',          label: 'Everyone (CP + Customer)' },
+  { value: 'CP',           label: 'Channel Partners only' },
+  { value: 'CUSTOMER',     label: 'Customers only' },
+  { value: 'CP,CUSTOMER',  label: 'CP & Customers' },
+  { value: 'BUILDER',      label: 'Internal only' },
+];
+
+function updateEmoji(type: string) {
+  return UPDATE_TYPES.find(t => t.value === type)?.emoji ?? '📋';
+}
+function updateTypeLabel(type: string) {
+  return UPDATE_TYPES.find(t => t.value === type)?.label ?? type;
+}
+function visibleLabel(v: string) {
+  return VISIBLE_OPTIONS.find(o => o.value === v)?.label ?? v;
+}
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   if (!value && value !== 0) return null;
@@ -117,6 +148,17 @@ const BuilderProjectDetail = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Project Updates state ─────────────────────────────────────────────────
+  const [updates, setUpdates] = useState<ProjectUpdate[]>([]);
+  const [updatesLoading, setUpdatesLoading] = useState(false);
+  const [showUpdateForm, setShowUpdateForm] = useState(false);
+  const [editingUpdate, setEditingUpdate] = useState<ProjectUpdate | null>(null);
+  const [uTitle, setUTitle] = useState('');
+  const [uContent, setUContent] = useState('');
+  const [uType, setUType] = useState('announcement');
+  const [uVisibleTo, setUVisibleTo] = useState('ALL');
+  const [uSubmitting, setUSubmitting] = useState(false);
   const [builderId, setBuilderId] = useState<string | null>(null);
 
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -182,6 +224,55 @@ const BuilderProjectDetail = () => {
       .catch(() => setDocuments([]))
       .finally(() => setDocsLoading(false));
   }, [activeTab, builderId, id]);
+
+  useEffect(() => {
+    if (activeTab !== 'Updates' || !builderId || !id) return;
+    setUpdatesLoading(true);
+    builderApi.getProjectUpdates(builderId, id)
+      .then(data => setUpdates((data as ProjectUpdate[]) || []))
+      .catch(() => setUpdates([]))
+      .finally(() => setUpdatesLoading(false));
+  }, [activeTab, builderId, id]);
+
+  const openUpdateForm = (u?: ProjectUpdate) => {
+    setEditingUpdate(u ?? null);
+    setUTitle(u?.title ?? '');
+    setUContent(u?.content ?? '');
+    setUType(u?.type ?? 'announcement');
+    setUVisibleTo(u?.visibleTo ?? 'ALL');
+    setShowUpdateForm(true);
+  };
+
+  const handleSaveUpdate = async () => {
+    if (!uTitle.trim() || !uContent.trim() || !builderId || !id) return;
+    setUSubmitting(true);
+    try {
+      if (editingUpdate) {
+        const updated = await builderApi.editProjectUpdate(builderId, id, editingUpdate.id, {
+          title: uTitle, content: uContent, type: uType, visibleTo: uVisibleTo,
+        }) as ProjectUpdate;
+        setUpdates(prev => prev.map(u => u.id === editingUpdate.id ? updated : u));
+        toast.success('Update saved');
+      } else {
+        const created = await builderApi.createProjectUpdate(builderId, id, {
+          title: uTitle, content: uContent, type: uType, visibleTo: uVisibleTo,
+        }) as ProjectUpdate;
+        setUpdates(prev => [created, ...prev]);
+        toast.success('Update posted');
+      }
+      setShowUpdateForm(false);
+    } catch { toast.error('Failed to save update'); }
+    finally { setUSubmitting(false); }
+  };
+
+  const handleDeleteUpdate = async (updateId: number) => {
+    if (!builderId || !id) return;
+    try {
+      await builderApi.deleteProjectUpdate(builderId, id, updateId);
+      setUpdates(prev => prev.filter(u => u.id !== updateId));
+      toast.success('Update deleted');
+    } catch { toast.error('Failed to delete'); }
+  };
 
   useEffect(() => {
     if (activeTab !== 'Brochure' || !builderId || !id) return;
@@ -316,6 +407,10 @@ const BuilderProjectDetail = () => {
               <ArrowLeft size={14} /> All projects
             </button>
             <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => navigate('/builder/cp-performance')}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, border: `1px solid ${T.line}`, background: T.bg, color: T.ink2, cursor: 'pointer' }}>
+                CP Performance
+              </button>
               <button onClick={() => navigate(`/builder/projects/${id}/edit`)}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, border: `1px solid ${T.line}`, background: T.bg, color: T.ink2, cursor: 'pointer' }}>
                 <Pencil size={11} /> Edit project
@@ -753,6 +848,133 @@ const BuilderProjectDetail = () => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ══ UPDATES TAB ═══════════════════════════════════════════════════════ */}
+        {activeTab === 'Updates' && (
+          <div style={{ maxWidth: 900, margin: '40px auto 0', padding: '0 28px 80px' }}>
+
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <div>
+                <div style={{ ...sk, marginBottom: 4 }}>Project Updates</div>
+                <p style={{ fontSize: 13.5, color: T.muted, margin: 0 }}>
+                  Post updates visible to CPs, customers, or internal team.
+                </p>
+              </div>
+              <button onClick={() => openUpdateForm()}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 20px', borderRadius: 10, background: T.ink, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                <Plus size={14} /> Post Update
+              </button>
+            </div>
+
+            {/* Create / Edit form */}
+            {showUpdateForm && (
+              <div style={{ background: T.bg, border: `1px solid ${T.line}`, borderRadius: 16, padding: '24px', marginBottom: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <p style={{ fontWeight: 700, fontSize: 14, color: T.ink, margin: 0 }}>
+                    {editingUpdate ? 'Edit Update' : 'New Project Update'}
+                  </p>
+                  <button onClick={() => setShowUpdateForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted }}>
+                    <X size={16} />
+                  </button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                  <div>
+                    <label style={{ ...sk, display: 'block', marginBottom: 6 }}>Update Type</label>
+                    <select value={uType} onChange={e => setUType(e.target.value)}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: `1px solid ${T.line}`, fontSize: 13, color: T.ink, background: T.bg }}>
+                      {UPDATE_TYPES.map(t => <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ ...sk, display: 'block', marginBottom: 6 }}>Visible To</label>
+                    <select value={uVisibleTo} onChange={e => setUVisibleTo(e.target.value)}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: `1px solid ${T.line}`, fontSize: 13, color: T.ink, background: T.bg }}>
+                      {VISIBLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ ...sk, display: 'block', marginBottom: 6 }}>Title</label>
+                  <input value={uTitle} onChange={e => setUTitle(e.target.value)}
+                    placeholder="e.g. Slab casting completed for Tower A"
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: `1px solid ${T.line}`, fontSize: 13, color: T.ink, background: T.bg, boxSizing: 'border-box' as const }} />
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ ...sk, display: 'block', marginBottom: 6 }}>Content</label>
+                  <textarea value={uContent} onChange={e => setUContent(e.target.value)} rows={3}
+                    placeholder="Describe the update in detail…"
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: `1px solid ${T.line}`, fontSize: 13, color: T.ink, background: T.bg, resize: 'vertical' as const, boxSizing: 'border-box' as const }} />
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button onClick={() => setShowUpdateForm(false)}
+                    style={{ padding: '9px 20px', borderRadius: 10, border: `1px solid ${T.line}`, background: T.bg, color: T.muted, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+                    Cancel
+                  </button>
+                  <button onClick={handleSaveUpdate} disabled={uSubmitting || !uTitle.trim() || !uContent.trim()}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 22px', borderRadius: 10, background: T.aInk, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, opacity: (uSubmitting || !uTitle.trim() || !uContent.trim()) ? 0.5 : 1 }}>
+                    {uSubmitting ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : null}
+                    {editingUpdate ? 'Save Changes' : 'Post Update'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Updates table */}
+            {updatesLoading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
+                <Loader2 size={26} style={{ color: T.aInk, animation: 'spin 1s linear infinite' }} />
+              </div>
+            ) : updates.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 0', color: T.muted }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+                <p style={{ fontWeight: 600, fontSize: 14, color: T.ink2, marginBottom: 6 }}>No updates posted yet</p>
+                <p style={{ fontSize: 13, color: T.muted }}>Post your first update to keep CPs and customers informed.</p>
+              </div>
+            ) : (
+              <div style={{ border: `1px solid ${T.line}`, borderRadius: 16, overflow: 'hidden' }}>
+                {/* Table header */}
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', padding: '11px 20px', background: T.ink, gap: 12 }}>
+                  {['Title', 'Type', 'Visible To', 'Posted', ''].map((h, i) => (
+                    <div key={i} style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.45)', textAlign: i === 4 ? 'right' as const : 'left' as const }}>
+                      {h}
+                    </div>
+                  ))}
+                </div>
+                {/* Rows */}
+                {updates.map((u, i) => (
+                  <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', padding: '14px 20px', gap: 12, borderTop: i > 0 ? `1px solid ${T.line}` : 'none', alignItems: 'center', background: T.bg }}>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: T.ink, margin: '0 0 3px' }}>{u.title}</p>
+                      <p style={{ fontSize: 11.5, color: T.muted, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{u.content}</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ fontSize: 14 }}>{updateEmoji(u.type)}</span>
+                      <span style={{ fontSize: 11.5, color: T.ink2, fontWeight: 500 }}>{updateTypeLabel(u.type)}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Users size={11} style={{ color: T.accent, flexShrink: 0 }} />
+                      <span style={{ fontSize: 11.5, color: T.ink2 }}>{visibleLabel(u.visibleTo)}</span>
+                    </div>
+                    <span style={{ fontSize: 11.5, color: T.muted }}>
+                      {new Date(u.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <button onClick={() => openUpdateForm(u)}
+                        style={{ padding: '5px 10px', borderRadius: 7, border: `1px solid ${T.line}`, background: T.bg, cursor: 'pointer', color: T.muted, display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, fontWeight: 500 }}>
+                        <Edit2 size={11} /> Edit
+                      </button>
+                      <button onClick={() => handleDeleteUpdate(u.id)}
+                        style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #FCA5A5', background: '#FEF2F2', cursor: 'pointer', color: '#DC2626', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, fontWeight: 500 }}>
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

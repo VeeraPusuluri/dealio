@@ -2,6 +2,7 @@ import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { FileText, Calendar, IndianRupee, CheckCircle, Clock, AlertTriangle, Plus, Send } from 'lucide-react';
 import { toast } from 'sonner';
+import DatePickerField from '@/components/shared/DatePickerField';
 
 interface DemandLetter {
   id: string; booking: string; project: string; customer: string; amount: number;
@@ -52,7 +53,7 @@ const BuilderDemandLetters = () => {
             <h3 className="font-semibold text-slate-700">New Demand Letter</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div><label className="text-xs text-slate-500 font-medium">Amount (₹)</label><input type="number" value={newAmount} onChange={e => setNewAmount(Number(e.target.value))} className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-300 transition-all" /></div>
-              <div><label className="text-xs text-slate-500 font-medium">Due Date</label><input type="date" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-300 transition-all" /></div>
+              <div><label className="text-xs text-slate-500 font-medium">Due Date</label><div className="mt-1"><DatePickerField value={newDueDate} onChange={setNewDueDate} /></div></div>
               <div><label className="text-xs text-slate-500 font-medium">Description</label><input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="e.g. 3rd installment — Plinth" className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-300 transition-all" /></div>
             </div>
             <button onClick={handleCreate} className="px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold flex items-center gap-2 hover:bg-emerald-700 transition-colors shadow-sm"><Send size={14} /> Send Demand</button>

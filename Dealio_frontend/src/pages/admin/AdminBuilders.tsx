@@ -1,116 +1,148 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { adminApi } from '@/lib/api';
 import { toast } from 'sonner';
-import { X, Building2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Building2, Search, Loader2, X, ArrowLeft } from 'lucide-react';
 
-const cityOptions = ['Hyderabad', 'Bengaluru', 'Mumbai', 'Pune', 'Delhi NCR', 'Chennai'];
-const builderTypes = ['Private Developer', 'Government', 'Joint Venture', 'NBCC'];
+interface ApiBuilder {
+  id: number;
+  companyName: string | null;
+  about: string | null;
+  website: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  yearEstablished: number | null;
+  deliveredProjects: number | null;
+  user: { id: number; fullName: string | null; phone: string; email: string | null; createdAt: string };
+  _count: { projects: number; deals: number };
+}
 
 const AdminBuilders = () => {
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    companyName: '', brandName: '', builderType: 'Private Developer',
-    address: '', state: '', city: 'Hyderabad', pincode: '',
-    contactName: '', designation: '', mobile: '', email: '',
-    pan: '', gstin: '', reraId: '', reraState: '', reraDate: '',
-    projectsCompleted: 0, unitsDelivered: 0,
-    accountName: '', accountNumber: '', ifsc: '', bankName: '',
-    platformCut: 10, status: 'Active',
-  });
+  const navigate = useNavigate();
+  const [builders, setBuilders] = useState<ApiBuilder[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [search, setSearch]     = useState('');
+  const [selected, setSelected] = useState<ApiBuilder | null>(null);
 
-  const existingBuilders = [
-    { id: 'B001', name: 'Prestige Group', city: 'Hyderabad', projects: 12, status: 'Active', rera: 'REG-AP-2020-001' },
-    { id: 'B002', name: 'Sobha Ltd', city: 'Bengaluru', projects: 8, status: 'Active', rera: 'REG-KA-2019-045' },
-    { id: 'B003', name: 'My Home Group', city: 'Hyderabad', projects: 6, status: 'Active', rera: 'REG-TS-2021-112' },
-    { id: 'B004', name: 'Aparna Constructions', city: 'Hyderabad', projects: 15, status: 'Active', rera: 'REG-TS-2018-078' },
-    { id: 'B005', name: 'Incor Infrastructure', city: 'Hyderabad', projects: 4, status: 'Pending Verification', rera: 'REG-TS-2022-034' },
-    { id: 'B006', name: 'Mahindra Lifespaces', city: 'Mumbai', projects: 20, status: 'Active', rera: 'REG-MH-2017-056' },
-  ];
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await adminApi.getBuilders(search || undefined) as ApiBuilder[];
+      setBuilders(Array.isArray(data) ? data : []);
+    } catch { toast.error('Failed to load builders'); }
+    finally  { setLoading(false); }
+  }, [search]);
 
-  const handleSubmit = () => {
-    toast.success('Builder profile created! Welcome email sent.');
-    setShowForm(false);
-  };
+  useEffect(() => { load(); }, [load]);
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground">Builder Management</h2>
-          <button onClick={() => setShowForm(true)} className="px-4 py-2 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground">+ Add Builder</button>
+      <div className="space-y-5">
+        <div className="la-banner px-5 py-4 flex items-center gap-3">
+          <button onClick={() => navigate('/admin')} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors flex-shrink-0" title="Back to Overview">
+            <ArrowLeft size={15} className="text-slate-500" />
+          </button>
+          <Building2 size={16} className="text-teal-600" />
+          <div className="flex-1">
+            <h2 className="text-[15px] font-bold text-slate-800">Builder Management</h2>
+            <p className="text-xs text-slate-400 mt-0.5">{builders.length} registered builders</p>
+          </div>
         </div>
 
-        <div className="bg-card rounded-lg card-shadow border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead><tr className="bg-muted">
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Builder</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">City</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Projects</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">RERA ID</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
-            </tr></thead>
-            <tbody>
-              {existingBuilders.map(b => (
-                <tr key={b.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="px-4 py-3 font-medium text-card-foreground">{b.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{b.city}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{b.projects}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{b.rera}</td>
-                  <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${b.status === 'Active' ? 'bg-secondary/10 text-secondary' : 'bg-accent/10 text-accent'}`}>{b.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="relative">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by company name or user name…"
+            className="w-full max-w-sm pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-[12px] bg-white focus:outline-none focus:ring-2 focus:ring-teal-100" />
         </div>
 
-        {/* Add Builder Form Modal */}
-        {showForm && (
-          <>
-            <div className="fixed inset-0 z-40 modal-backdrop" onClick={() => setShowForm(false)} />
-            <div className="fixed right-0 top-0 bottom-0 z-50 w-[540px] bg-card border-l border-border overflow-y-auto">
-              <div className="sticky top-0 bg-card border-b border-border p-4 flex items-center justify-between z-10">
-                <h3 className="font-bold text-card-foreground">Add New Builder</h3>
-                <button onClick={() => setShowForm(false)} className="p-1 hover:bg-muted rounded"><X size={18} /></button>
-              </div>
-              <div className="p-5 space-y-5">
-                <div className="grid grid-cols-2 gap-4">
-                  <div><label className="text-sm font-medium text-foreground mb-1 block">Company Name <span className="text-destructive">*</span></label><input value={form.companyName} onChange={e => setForm({...form, companyName: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" /></div>
-                  <div><label className="text-sm font-medium text-foreground mb-1 block">Brand Name <span className="text-destructive">*</span></label><input value={form.brandName} onChange={e => setForm({...form, brandName: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" /></div>
-                  <div><label className="text-sm font-medium text-foreground mb-1 block">Builder Type <span className="text-destructive">*</span></label><select value={form.builderType} onChange={e => setForm({...form, builderType: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm">{builderTypes.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-                  <div><label className="text-sm font-medium text-foreground mb-1 block">City <span className="text-destructive">*</span></label><select value={form.city} onChange={e => setForm({...form, city: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm">{cityOptions.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-                  <div className="col-span-2"><label className="text-sm font-medium text-foreground mb-1 block">Registered Office Address <span className="text-destructive">*</span></label><textarea value={form.address} onChange={e => setForm({...form, address: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm h-16 resize-none" /></div>
-                  <div><label className="text-sm font-medium text-foreground mb-1 block">Contact Person <span className="text-destructive">*</span></label><input value={form.contactName} onChange={e => setForm({...form, contactName: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" /></div>
-                  <div><label className="text-sm font-medium text-foreground mb-1 block">Mobile <span className="text-destructive">*</span></label><input value={form.mobile} onChange={e => setForm({...form, mobile: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" /></div>
-                  <div><label className="text-sm font-medium text-foreground mb-1 block">Email <span className="text-destructive">*</span></label><input value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" /></div>
-                  <div><label className="text-sm font-medium text-foreground mb-1 block">Company PAN <span className="text-destructive">*</span></label><input value={form.pan} onChange={e => setForm({...form, pan: e.target.value.toUpperCase()})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" maxLength={10} /></div>
-                  <div><label className="text-sm font-medium text-foreground mb-1 block">GSTIN <span className="text-destructive">*</span></label><input value={form.gstin} onChange={e => setForm({...form, gstin: e.target.value.toUpperCase()})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" /></div>
-                  <div><label className="text-sm font-medium text-foreground mb-1 block">RERA Developer ID <span className="text-destructive">*</span></label><input value={form.reraId} onChange={e => setForm({...form, reraId: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" /></div>
-                  <div><label className="text-sm font-medium text-foreground mb-1 block">Projects Completed</label><input type="number" value={form.projectsCompleted || ''} onChange={e => setForm({...form, projectsCompleted: parseInt(e.target.value) || 0})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" /></div>
-                  <div><label className="text-sm font-medium text-foreground mb-1 block">Platform Commission Cut %</label><input type="number" value={form.platformCut} onChange={e => setForm({...form, platformCut: parseInt(e.target.value) || 0})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" /></div>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Bank Details</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-sm font-medium text-foreground mb-1 block">Account Name</label><input value={form.accountName} onChange={e => setForm({...form, accountName: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" /></div>
-                    <div><label className="text-sm font-medium text-foreground mb-1 block">Account Number</label><input value={form.accountNumber} onChange={e => setForm({...form, accountNumber: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" /></div>
-                    <div><label className="text-sm font-medium text-foreground mb-1 block">IFSC</label><input value={form.ifsc} onChange={e => setForm({...form, ifsc: e.target.value.toUpperCase()})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" /></div>
-                    <div><label className="text-sm font-medium text-foreground mb-1 block">Bank Name</label><input value={form.bankName} onChange={e => setForm({...form, bankName: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm" /></div>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Uploads</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    {['Company Registration', 'PAN Card', 'RERA Certificate', 'GST Certificate', 'Logo'].map(doc => (
-                      <div key={doc} className="border-2 border-dashed border-input rounded-lg p-3 text-center text-xs text-muted-foreground cursor-pointer hover:border-secondary/40">{doc}</div>
-                    ))}
-                  </div>
-                </div>
-                <button onClick={handleSubmit} className="w-full py-2.5 rounded-lg font-semibold text-sm bg-secondary text-secondary-foreground">Create Builder Profile</button>
-              </div>
+        <div className="la-card overflow-hidden">
+          {loading ? (
+            <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate-400 text-[10px] uppercase border-b border-slate-100 bg-slate-50/60">
+                    <th className="px-4 py-3 font-semibold">Company</th>
+                    <th className="px-4 py-3 font-semibold">Contact</th>
+                    <th className="px-4 py-3 font-semibold">Phone</th>
+                    <th className="px-4 py-3 font-semibold">Projects</th>
+                    <th className="px-4 py-3 font-semibold">Deals</th>
+                    <th className="px-4 py-3 font-semibold">Est.</th>
+                    <th className="px-4 py-3 font-semibold">Joined</th>
+                    <th className="px-4 py-3 font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {builders.map(b => (
+                    <tr key={b.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/40 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="text-[12px] font-semibold text-slate-800">{b.companyName ?? '—'}</p>
+                        <p className="text-[10px] text-slate-400">{b.website ?? ''}</p>
+                      </td>
+                      <td className="px-4 py-3 text-[12px] text-slate-600">{b.user.fullName ?? '—'}</td>
+                      <td className="px-4 py-3 text-[12px] text-slate-600 font-mono">{b.contactPhone ?? b.user.phone}</td>
+                      <td className="px-4 py-3 text-[12px] font-semibold text-teal-700">{b._count.projects}</td>
+                      <td className="px-4 py-3 text-[12px] text-slate-600">{b._count.deals}</td>
+                      <td className="px-4 py-3 text-[12px] text-slate-500">{b.yearEstablished ?? '—'}</td>
+                      <td className="px-4 py-3 text-[11px] text-slate-400">
+                        {new Date(b.user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button onClick={() => setSelected(b)}
+                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-teal-600 bg-teal-50 hover:bg-teal-100 transition-colors">
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {builders.length === 0 && !loading && (
+                <p className="text-center text-[12px] text-slate-400 py-10">No builders found.</p>
+              )}
             </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
+
+      {selected && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setSelected(null)} />
+          <div className="relative w-full max-w-md bg-white h-full overflow-y-auto shadow-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[14px] font-bold text-slate-800">{selected.companyName ?? 'Builder'}</h3>
+              <button onClick={() => setSelected(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><X size={18} /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Company',    value: selected.companyName ?? '—' },
+                { label: 'Contact',    value: selected.user.fullName ?? '—' },
+                { label: 'Phone',      value: selected.contactPhone ?? selected.user.phone },
+                { label: 'Email',      value: selected.contactEmail ?? selected.user.email ?? '—' },
+                { label: 'Website',    value: selected.website ?? '—' },
+                { label: 'Est. Year',  value: selected.yearEstablished ? String(selected.yearEstablished) : '—' },
+                { label: 'Projects',   value: String(selected._count.projects) },
+                { label: 'Deals',      value: String(selected._count.deals) },
+                { label: 'Delivered',  value: selected.deliveredProjects ? String(selected.deliveredProjects) : '—' },
+                { label: 'Joined',     value: new Date(selected.user.createdAt).toLocaleDateString('en-IN') },
+              ].map(({ label, value }) => (
+                <div key={label} className="bg-slate-50 rounded-xl px-3 py-2.5">
+                  <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wide">{label}</p>
+                  <p className="text-[12px] font-semibold text-slate-800 mt-0.5 break-all">{value}</p>
+                </div>
+              ))}
+            </div>
+            {selected.about && (
+              <div className="bg-slate-50 rounded-xl p-3">
+                <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wide mb-1">About</p>
+                <p className="text-[12px] text-slate-700 leading-relaxed">{selected.about}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };

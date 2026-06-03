@@ -64,6 +64,7 @@ interface AuthState {
   isAuthenticated: boolean;
   loading: boolean;
   accessToken: string | null;
+  setUser: (user: User) => void;
   setAuthFromResponse: (response: AuthApiResponse, roleOverride?: string) => void;
   logout: () => Promise<void>;
   login: (role: UserRole) => Promise<void>;
@@ -79,6 +80,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   loading: true,
   accessToken: null,
+
+  setUser: (user: User) => {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    set({ user });
+  },
 
   setAuthFromResponse: (response: AuthApiResponse, roleOverride?: string) => {
     const user: User = {
@@ -121,6 +127,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   if (stored && token) {
     try {
       const user = JSON.parse(stored) as User;
+      // Restore saved avatar from dedicated localStorage key
+      if (!user.avatar) {
+        const savedAvatar = localStorage.getItem(`dealio_avatar_${user.id}`);
+        if (savedAvatar) user.avatar = savedAvatar;
+      }
       useAuthStore.setState({ user, isAuthenticated: true, loading: false, accessToken: token });
     } catch {
       localStorage.removeItem(TOKEN_KEY);

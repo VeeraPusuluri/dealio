@@ -10,11 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dealio-secret-key-12345';
 // Referral code format: CP-FIRSTNAME-USERID  (e.g. CP-JOHN-42)
 async function processReferral(newUserId: number, newUserRole: string, referralCode: string) {
   const parts = referralCode.trim().split('-');
-  const lastPart = parts[parts.length - 1];
-  
-  if (!lastPart) return; // Guard against empty array
-  
-  const referringUserId = parseInt(lastPart);
+  const referringUserId = parseInt(parts[parts.length - 1]);
   if (isNaN(referringUserId) || referringUserId === newUserId) return;
 
   const referringCp = await prisma.channelPartner.findUnique({ where: { userId: referringUserId } });
@@ -36,10 +32,10 @@ async function processReferral(newUserId: number, newUserRole: string, referralC
   const title   = 'New Referral Joined!';
   const message = `${newUserName} joined Dealio using your referral code.`;
   await prisma.notification.create({
-    data: { userId: referringCp.userId, title, message, type: 'new_lead', link: '/cp/referral' },
+    data: { userId: referringCp.userId, title, message, type: 'success', link: '/cp/referral' },
   });
   channelManager.publish(`user:${referringCp.userId}`, {
-    type: 'new_lead', title, message, city: '', timestamp: new Date().toISOString(), link: '/cp/referral',
+    type: 'referral_signup', title, message, city: '', timestamp: new Date().toISOString(), link: '/cp/referral',
   });
 }
 
@@ -76,7 +72,7 @@ export const authController = {
     const { phone, otp, fullName, role, referralCode } = req.body;
     const isNewUser = !(await prisma.user.findUnique({ where: { phone }, select: { id: true } }));
     const result = await authService.verifyOtp(phone, otp, { fullName, role });
-    if (result.success && result.data) {
+    if (result.success) {
       if (isNewUser && referralCode) {
         processReferral(result.data.user.id, role, referralCode).catch(err =>
           console.error('[referral] processReferral error:', err)

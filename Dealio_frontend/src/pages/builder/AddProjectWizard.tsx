@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { builderApi } from '@/lib/api';
@@ -8,7 +8,7 @@ import {
   ArrowLeft, Building2, Home, MapPin, Landmark, Trees,
   Loader2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, ChevronDown,
   ImageIcon, X, CheckCircle2, FileText, Layers, Video,
-  IndianRupee, Percent, Sparkles, Shield,
+  IndianRupee, Percent, Sparkles, Shield, Eye,
 } from 'lucide-react';
 import GoogleMapsLocationField from '@/components/shared/GoogleMapsLocationField';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -31,6 +31,7 @@ const amenityOptions = [
   'Rainwater Harvesting', '24hr Security', 'CCTV', 'Power Backup', 'Intercom', 'Vastu Compliant',
   'Gated Community', 'Visitor Parking', 'Landscaped Gardens', 'Senior Citizen Area',
 ];
+const facingOptions = ['East', 'West', 'North', 'South'];
 
 const GALLERY_SLOTS = [
   { key: 'hero',      label: 'Hero render · drop image', large: true,  dbCategory: 'Hero Render'      },
@@ -45,6 +46,7 @@ interface UnitConfig {
   bhkType: string; carpetArea: number; superBuiltUp: number;
   floors: string; count: number; basePrice: number; status: string;
 }
+interface ExistingDoc { id: number; docType: string; fileName: string; fileUrl: string; }
 type Errors = Record<string, string>;
 
 const SECTIONS = [
@@ -53,7 +55,8 @@ const SECTIONS = [
   { n: 3, id: 'section-3', label: 'Pricing',    icon: IndianRupee  },
   { n: 4, id: 'section-4', label: 'Units',      icon: Layers       },
   { n: 5, id: 'section-5', label: 'Amenities',  icon: Sparkles     },
-  { n: 6, id: 'section-6', label: 'Gallery',    icon: ImageIcon    },
+  { n: 6, id: 'section-6', label: 'Plans',      icon: Layers       },
+  { n: 7, id: 'section-7', label: 'Gallery',    icon: ImageIcon    },
 ];
 
 // ── Shared style helpers ───────────────────────────────────────────────────────
@@ -98,7 +101,7 @@ const SectionHeading = ({
   </div>
 );
 
-const card = 'bg-card rounded-2xl border border-border p-6 space-y-5';
+const card = 'bg-card rounded-2xl border border-border p-8 space-y-6';
 
 // ── Date picker ────────────────────────────────────────────────────────────────
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -187,9 +190,11 @@ function DatePickerField({
 }
 
 // ── Gallery slot ───────────────────────────────────────────────────────────────
-function GallerySlot({ slotKey, label, large, file, onFile }: {
+function GallerySlot({ slotKey, label, large, file, onFile, existingUrl, onRemoveExisting }: {
   slotKey: SlotKey; label: string; large: boolean;
   file: File | null; onFile: (f: File | null) => void;
+  existingUrl?: string | null;
+  onRemoveExisting?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -202,26 +207,31 @@ function GallerySlot({ slotKey, label, large, file, onFile }: {
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
+  const displayUrl = preview ?? existingUrl ?? null;
+
   return (
     <div
       className={`relative rounded-xl border-2 border-dashed flex flex-col items-center justify-center overflow-hidden transition-all cursor-pointer select-none
-        ${dragging ? 'border-primary bg-primary/5' : preview ? 'border-transparent' : 'border-border bg-muted/30 hover:border-primary/40 hover:bg-muted/50'}
+        ${dragging ? 'border-primary bg-primary/5' : displayUrl ? 'border-transparent' : 'border-border bg-muted/30 hover:border-primary/40 hover:bg-muted/50'}
         ${large ? 'min-h-[360px]' : 'min-h-[172px]'}`}
-      onClick={() => !preview && inputRef.current?.click()}
+      onClick={() => !displayUrl && inputRef.current?.click()}
       onDragOver={e => { e.preventDefault(); setDragging(true); }}
       onDragLeave={() => setDragging(false)}
       onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f?.type.startsWith('image/')) onFile(f); }}
     >
-      {preview ? (
+      {displayUrl ? (
         <>
-          <img src={preview} alt={label} className="absolute inset-0 w-full h-full object-cover" />
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); onFile(null); }}
+          <img src={displayUrl} alt={label} className="absolute inset-0 w-full h-full object-cover" />
+          {/* Remove button */}
+          <button type="button"
+            onClick={e => { e.stopPropagation(); if (preview) onFile(null); else onRemoveExisting?.(); }}
             className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-colors z-10"
-          >
-            <X size={13} />
-          </button>
+          ><X size={13} /></button>
+          {/* Replace button */}
+          <button type="button"
+            onClick={e => { e.stopPropagation(); inputRef.current?.click(); }}
+            className="absolute bottom-2 right-2 text-[10px] font-semibold bg-black/50 hover:bg-black/70 text-white px-2 py-1 rounded-lg transition-colors z-10"
+          >Replace</button>
         </>
       ) : (
         <div className="flex flex-col items-center gap-2 p-4 text-center pointer-events-none">
@@ -255,10 +265,26 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   );
 }
 
+// ── Status / type mappers (needed for edit pre-population) ────────────────────
+const fromBackendStatus = (s: string): string => ({
+  PRE_LAUNCH: 'Pre-Launch', NEW_LAUNCH: 'New Launch', LAUNCHED: 'Launched',
+  ACTIVE: 'Active', UNDER_CONSTRUCTION: 'Under Construction',
+  READY_TO_MOVE: 'Ready to Move', CLOSING_SOON: 'Closing Soon',
+} as Record<string,string>)[s] ?? 'Under Construction';
+
+const fromBackendProjectType = (s: string | null): string => ({
+  APARTMENT: 'Apartment', VILLA: 'Villa', PLOT: 'Plot',
+  COMMERCIAL: 'Commercial', MIXED_USE: 'Mixed Use',
+} as Record<string,string>)[s ?? ''] ?? 'Apartment';
+
 // ── Main component ─────────────────────────────────────────────────────────────
 const AddProjectWizard = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { id: editId } = useParams<{ id?: string }>();
+  const isEdit = !!editId;
+  const [editBuilderId, setEditBuilderId] = useState<string | null>(null);
+  const [loadingProject, setLoadingProject] = useState(isEdit);
 
   // Section 1 — Identity
   const [projectName,    setProjectName]    = useState('');
@@ -346,6 +372,16 @@ const AddProjectWizard = () => {
   const [brochureFile,   setBrochureFile]   = useState<File | null>(null);
   const [reraCertFile,   setReraCertFile]   = useState<File | null>(null);
   const [floorPlanFiles, setFloorPlanFiles] = useState<FileList | null>(null);
+  // Structured floor plans: bhk → facing → File
+  const [floorPlanMap, setFloorPlanMap] = useState<Record<string, Record<string, File | null>>>({});
+  // Tower plans: tower number string → File
+  const [towerPlanMap, setTowerPlanMap] = useState<Record<string, File | null>>({});
+  // Existing server documents (edit mode)
+  const [existingDocs, setExistingDocs] = useState<ExistingDoc[]>([]);
+  const [removedDocIds, setRemovedDocIds] = useState<Set<number>>(new Set());
+  const removeExistingDoc = (id: number) => setRemovedDocIds(prev => new Set([...prev, id]));
+  const [existingHeroUrl, setExistingHeroUrl] = useState<string | null>(null);
+  const [heroRemoved, setHeroRemoved] = useState(false);
 
   // Section 6 — Gallery
   const [galleryImages, setGalleryImages] = useState<Record<SlotKey, File | null>>({
@@ -354,6 +390,20 @@ const AddProjectWizard = () => {
   const filledCount = Object.values(galleryImages).filter(Boolean).length;
   const setSlotFile = (key: SlotKey, file: File | null) =>
     setGalleryImages(prev => ({ ...prev, [key]: file }));
+
+  // Helpers: resolve active existing docs (not removed) by docType substring
+  const activeDocs = existingDocs.filter(d => !removedDocIds.has(d.id));
+  const existingDocByType = (type: string) =>
+    activeDocs.find(d => d.docType.toLowerCase() === type.toLowerCase()) ?? null;
+  const existingDocContaining = (sub: string) =>
+    activeDocs.find(d => d.docType.toLowerCase().includes(sub.toLowerCase())) ?? null;
+  // Gallery slot → dbCategory mapping for existing docs
+  const existingGalleryUrl = (dbCategory: string): string | null => {
+    const slot = GALLERY_SLOTS.find(s => s.dbCategory === dbCategory);
+    if (!slot) return null;
+    if (slot.key === 'hero') return null; // hero comes from project.imageUrl handled separately
+    return activeDocs.find(d => d.docType === dbCategory)?.fileUrl ?? null;
+  };
 
   const [errors,     setErrors]     = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -395,7 +445,7 @@ const AddProjectWizard = () => {
 
   useEffect(() => {
     const raw = localStorage.getItem(DRAFT_KEY);
-    if (!raw) return;
+    if (!raw || isEdit) return; // skip draft restore when editing an existing project
     try {
       const d = JSON.parse(raw) as Record<string, unknown>;
       if (d.projectName)    setProjectName(d.projectName as string);
@@ -448,6 +498,108 @@ const AddProjectWizard = () => {
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Load existing project data in edit mode ───────────────────────────────
+  useEffect(() => {
+    if (!isEdit || !editId || !user?.id) return;
+    (async () => {
+      try {
+        let bid = builderApi.getCachedBuilderId();
+        if (!bid) {
+          const email = user.email || `uid${user.id}@dealio.builder`;
+          const bd = await builderApi.ensureBuilder(user.name, email, user.phone, user.id) as { builderId: number };
+          bid = String(bd.builderId);
+          builderApi.setCachedBuilderId(bid);
+        }
+        type ProjectDetail = {
+          builderId?: number; name?: string; builderName?: string; projectType?: string | null;
+          configurations?: string[]; totalUnits?: number; towers?: number; floorsPerTower?: number;
+          status?: string; reraNumber?: string; reraExpiry?: string; description?: string;
+          address?: string; city?: string; locality?: string; pincode?: string; landmark?: string;
+          googleMapsLink?: string; nearbyHighlights?: string[]; priceMin?: number; priceMax?: number;
+          pricePerSqftMin?: number; pricePerSqftMax?: number; maintenanceCharges?: number;
+          floorRiseCharges?: number; commissionStructure?: string; commissionValue?: number;
+          cpIncentive?: string; possessionDate?: string; closingSoon?: boolean; featured?: boolean;
+          amenities?: string[]; videoUrl?: string; landArea?: string; buildingPermitNumber?: string;
+          reraState?: string; builderAbout?: string; builderYearEstablished?: number;
+          builderDeliveredProjects?: number; builderWebsite?: string; imageUrl?: string;
+          locationAdvantages?: { category: string; name: string; distanceKm: string; driveMinutes: string }[];
+          paymentPlans?: { name: string; description: string }[];
+          specifications?: { structure: string; flooring: string; doors: string; windows: string;
+            electrical: string; plumbing: string; kitchen: string; bathrooms: string; painting: string };
+          clubhouseAreaSqft?: number;
+        };
+        const p = await builderApi.getProject(bid, editId) as ProjectDetail;
+        const effectiveBid = p.builderId ? String(p.builderId) : bid;
+        setEditBuilderId(effectiveBid);
+        if (effectiveBid !== bid) builderApi.setCachedBuilderId(effectiveBid);
+
+        setProjectName(p.name ?? '');
+        setBuilderName(p.builderName ?? '');
+        setProjectType(fromBackendProjectType(p.projectType ?? null));
+        const rawCfgs = p.configurations;
+        const cfgs: string[] = Array.isArray(rawCfgs) ? rawCfgs.map(String) : [];
+        setConfigurations(cfgs);
+        setUnitConfigs(cfgs.map(c => ({ bhkType: c, carpetArea: 0, superBuiltUp: 0, floors: '', count: 0, basePrice: 0, status: 'Available' as const })));
+        setTotalUnits(p.totalUnits ?? 0);
+        setTowers(p.towers ?? 0);
+        setFloorsPerTower(p.floorsPerTower ?? 0);
+        setProjectStatus(fromBackendStatus(p.status ?? ''));
+        setReraNumber(p.reraNumber ?? '');
+        setReraExpiry(p.reraExpiry ?? '');
+        setDescription(p.description ?? '');
+        setAddress(p.address ?? '');
+        setCity(p.city ?? 'Hyderabad');
+        setLocality(p.locality ?? '');
+        setPincode(p.pincode ?? '');
+        setLandmark(p.landmark ?? '');
+        setMapsLink(p.googleMapsLink ?? '');
+        setNearbyHighlights(p.nearbyHighlights ?? []);
+        setPriceFrom(p.priceMin ?? 0);
+        setPriceTo(p.priceMax ?? 0);
+        setPricePerSqftFrom(p.pricePerSqftMin ?? 0);
+        setPricePerSqftTo(p.pricePerSqftMax ?? 0);
+        setMaintenance(p.maintenanceCharges ?? 0);
+        setFloorRise(p.floorRiseCharges ?? 0);
+        const isFlat = !p.commissionStructure || p.commissionStructure.toUpperCase() !== 'SLAB';
+        setCommissionType(isFlat ? 'flat' : 'slab');
+        if (p.commissionValue && p.commissionValue > 0) setFlatPercent(p.commissionValue);
+        setCpIncentive(p.cpIncentive ?? '');
+        setPossessionDate(p.possessionDate ?? '');
+        setClosingSoon(p.closingSoon ?? false);
+        setFeatured(p.featured ?? false);
+        setAmenities(p.amenities ?? []);
+        setVideoUrl(p.videoUrl ?? '');
+        setLandArea(p.landArea ?? '');
+        setBuildingPermitNumber(p.buildingPermitNumber ?? '');
+        setReraState(p.reraState ?? '');
+        setBuilderAbout(p.builderAbout ?? '');
+        if (p.builderYearEstablished) setBuilderYearEstablished(p.builderYearEstablished);
+        if (p.builderDeliveredProjects) setBuilderDeliveredProjects(p.builderDeliveredProjects);
+        setBuilderWebsite(p.builderWebsite ?? '');
+        if (p.locationAdvantages?.length) setLocationAdvantages(p.locationAdvantages);
+        if (p.paymentPlans?.length) setPaymentPlans(p.paymentPlans);
+        if (p.specifications) setSpecifications(p.specifications);
+        if (p.clubhouseAreaSqft) setClubhouseAreaSqft(p.clubhouseAreaSqft);
+        if (p.imageUrl) setExistingHeroUrl(p.imageUrl);
+
+        // Fetch existing documents
+        try {
+          const raw = await builderApi.getDocuments(effectiveBid, editId);
+          const docs = Array.isArray(raw) ? (raw as ExistingDoc[]) : [];
+          setExistingDocs(docs);
+        } catch (docErr) {
+          console.warn('Could not load project documents:', docErr);
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Failed to load project');
+        navigate(`/builder/projects/${editId}`);
+      } finally {
+        setLoadingProject(false);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, editId, user?.id]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const toggleArr = (arr: string[], item: string, set: (a: string[]) => void) =>
@@ -539,47 +691,93 @@ const AddProjectWizard = () => {
         clubhouseAreaSqft: clubhouseAreaSqft || undefined,
       };
 
-      const created = await builderApi.createProject(builderId, payload) as { id?: number; projectId?: number };
-      const projectId = created?.id ?? created?.projectId;
-
-      if (projectId) {
+      if (isEdit && editId) {
+        // ── Update existing project ──────────────────────────────────────────
+        const bid = editBuilderId ?? builderId;
+        await builderApi.updateProject(bid, editId, payload);
         const uploads: Promise<void>[] = [];
         for (const slot of GALLERY_SLOTS) {
           const file = galleryImages[slot.key];
           if (!file) continue;
           if (slot.key === 'hero') {
             uploads.push(
-              builderApi.uploadProjectImage(builderId, projectId, file)
-                .then(coverUrl => builderApi.updateProject(builderId, projectId, { coverUrl }))
-                .catch(() => toast.warning('Hero image upload failed — add it later.')),
+              builderApi.uploadProjectImage(bid, editId, file)
+                .then(coverUrl => builderApi.updateProject(bid, editId, { coverUrl }))
+                .catch(() => toast.warning('Hero image upload failed.')),
             );
           } else {
-            uploads.push(builderApi.uploadDocument(builderId, projectId, file, slot.dbCategory).catch(() => {}));
+            uploads.push(builderApi.uploadDocument(bid, editId, file, slot.dbCategory).catch(() => {}));
           }
         }
-        if (floorPlanFiles?.length) {
+        if (floorPlanFiles?.length)
           for (let i = 0; i < floorPlanFiles.length; i++)
-            uploads.push(builderApi.uploadDocument(builderId, projectId, floorPlanFiles[i], 'Floor Plan').catch(() => {}));
+            uploads.push(builderApi.uploadDocument(bid, editId, floorPlanFiles[i], 'Floor Plan').catch(() => {}));
+        for (const bhk of Object.keys(floorPlanMap))
+          for (const facing of Object.keys(floorPlanMap[bhk])) {
+            const f = floorPlanMap[bhk][facing];
+            if (f) uploads.push(builderApi.uploadDocument(bid, editId, f, `Floor Plan - ${bhk} - ${facing}`).catch(() => {}));
+          }
+        for (const tower of Object.keys(towerPlanMap)) {
+          const f = towerPlanMap[tower];
+          if (f) uploads.push(builderApi.uploadDocument(bid, editId, f, `Tower Plan - ${tower}`).catch(() => {}));
         }
-        if (brochureFile) uploads.push(builderApi.uploadDocument(builderId, projectId, brochureFile,  'Brochure').catch(() => {}));
-        if (reraCertFile) uploads.push(builderApi.uploadDocument(builderId, projectId, reraCertFile,  'RERA Certificate').catch(() => {}));
+        if (brochureFile) uploads.push(builderApi.uploadDocument(bid, editId, brochureFile, 'Brochure').catch(() => {}));
+        if (reraCertFile) uploads.push(builderApi.uploadDocument(bid, editId, reraCertFile, 'RERA Certificate').catch(() => {}));
         await Promise.all(uploads);
-      }
+        toast.success('Project updated successfully!');
+        navigate(`/builder/projects/${editId}`);
+      } else {
+        // ── Create new project ───────────────────────────────────────────────
+        const created = await builderApi.createProject(builderId, payload) as { id?: number; projectId?: number };
+        const projectId = created?.id ?? created?.projectId;
 
-      if (projectId && city) {
-        try {
-          const KEY = 'dealio_project_announcements';
-          const existing = JSON.parse(localStorage.getItem(KEY) || '[]') as unknown[];
-          localStorage.setItem(KEY, JSON.stringify([
-            { projectId, projectName, city, locality: locality || null, createdAt: new Date().toISOString() },
-            ...existing,
-          ].slice(0, 50)));
-        } catch { /* ignore */ }
-      }
+        if (projectId) {
+          const uploads: Promise<void>[] = [];
+          for (const slot of GALLERY_SLOTS) {
+            const file = galleryImages[slot.key];
+            if (!file) continue;
+            if (slot.key === 'hero') {
+              uploads.push(
+                builderApi.uploadProjectImage(builderId, projectId, file)
+                  .then(coverUrl => builderApi.updateProject(builderId, projectId, { coverUrl }))
+                  .catch(() => toast.warning('Hero image upload failed — add it later.')),
+              );
+            } else {
+              uploads.push(builderApi.uploadDocument(builderId, projectId, file, slot.dbCategory).catch(() => {}));
+            }
+          }
+          if (floorPlanFiles?.length)
+            for (let i = 0; i < floorPlanFiles.length; i++)
+              uploads.push(builderApi.uploadDocument(builderId, projectId, floorPlanFiles[i], 'Floor Plan').catch(() => {}));
+          for (const bhk of Object.keys(floorPlanMap))
+            for (const facing of Object.keys(floorPlanMap[bhk])) {
+              const f = floorPlanMap[bhk][facing];
+              if (f) uploads.push(builderApi.uploadDocument(builderId, projectId, f, `Floor Plan - ${bhk} - ${facing}`).catch(() => {}));
+            }
+          for (const tower of Object.keys(towerPlanMap)) {
+            const f = towerPlanMap[tower];
+            if (f) uploads.push(builderApi.uploadDocument(builderId, projectId, f, `Tower Plan - ${tower}`).catch(() => {}));
+          }
+          if (brochureFile) uploads.push(builderApi.uploadDocument(builderId, projectId, brochureFile, 'Brochure').catch(() => {}));
+          if (reraCertFile) uploads.push(builderApi.uploadDocument(builderId, projectId, reraCertFile, 'RERA Certificate').catch(() => {}));
+          await Promise.all(uploads);
+        }
 
-      localStorage.removeItem(DRAFT_KEY);
-      toast.success('Project created successfully!');
-      navigate('/builder/projects');
+        if (projectId && city) {
+          try {
+            const KEY = 'dealio_project_announcements';
+            const existing = JSON.parse(localStorage.getItem(KEY) || '[]') as unknown[];
+            localStorage.setItem(KEY, JSON.stringify([
+              { projectId, projectName, city, locality: locality || null, createdAt: new Date().toISOString() },
+              ...existing,
+            ].slice(0, 50)));
+          } catch { /* ignore */ }
+        }
+
+        localStorage.removeItem(DRAFT_KEY);
+        toast.success('Project created successfully!');
+        navigate('/builder/projects');
+      }
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to create project');
     } finally {
@@ -591,6 +789,14 @@ const AddProjectWizard = () => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  if (loadingProject) return (
+    <DashboardLayout>
+      <div className="flex justify-center items-center py-32">
+        <Loader2 size={28} className="animate-spin text-primary" />
+      </div>
+    </DashboardLayout>
+  );
+
   return (
     <DashboardLayout>
       <div className="min-h-full bg-background -m-6">
@@ -599,13 +805,13 @@ const AddProjectWizard = () => {
         <div className="sticky top-0 z-40 bg-card border-b border-border">
           <div className="max-w-6xl mx-auto px-6 h-14 flex items-center gap-3">
             <button
-              onClick={() => navigate('/builder/projects')}
+              onClick={() => isEdit ? navigate(`/builder/projects/${editId}`) : navigate('/builder/projects')}
               className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors shrink-0"
             >
-              <ArrowLeft size={14} /> Projects
+              <ArrowLeft size={14} /> {isEdit ? 'Back to Project' : 'Projects'}
             </button>
             <div className="w-px h-4 bg-border shrink-0" />
-            <span className="text-[13px] font-semibold text-foreground shrink-0">New Project</span>
+            <span className="text-[13px] font-semibold text-foreground shrink-0">{isEdit ? 'Edit Project' : 'New Project'}</span>
             <div className="w-px h-4 bg-border shrink-0" />
 
             {/* Section pill nav */}
@@ -637,7 +843,7 @@ const AddProjectWizard = () => {
               <button type="button" onClick={handleSubmit} disabled={submitting}
                 className="px-4 py-1.5 text-[12px] font-bold text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5 hover:opacity-90 transition-opacity"
                 style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
-                {submitting ? <><Loader2 size={12} className="animate-spin" />Creating…</> : 'Create Project'}
+                {submitting ? <><Loader2 size={12} className="animate-spin" />{isEdit ? 'Saving…' : 'Creating…'}</> : (isEdit ? 'Save Changes' : 'Create Project')}
               </button>
             </div>
           </div>
@@ -645,50 +851,14 @@ const AddProjectWizard = () => {
 
         {/* ── Body ── */}
         <div className="max-w-6xl mx-auto px-6 py-6">
-          <div className="flex gap-6">
-
-            {/* ── Left sticky nav ── */}
-            <div className="hidden lg:block w-48 flex-shrink-0">
-              <div className="sticky top-20 space-y-0.5">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground px-3 mb-3">Sections</p>
-                {SECTIONS.map(s => (
-                  <button
-                    key={s.id}
-                    onClick={() => scrollTo(s.id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] transition-all text-left ${
-                      activeSection === s.n
-                        ? 'font-medium text-foreground bg-muted'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                    }`}
-                  >
-                    <div className={`w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      activeSection > s.n ? 'bg-emerald-100' : activeSection === s.n ? '' : 'bg-muted'
-                    }`}
-                    style={activeSection === s.n ? { background: '#0A7E8C18' } : undefined}>
-                      {activeSection > s.n
-                        ? <CheckCircle2 size={11} className="text-emerald-600" />
-                        : <s.icon size={11} className={activeSection === s.n ? '' : 'text-muted-foreground opacity-60'}
-                                  style={activeSection === s.n ? { color: '#0A7E8C' } : undefined} />}
-                    </div>
-                    {s.label}
-                  </button>
-                ))}
-
-                <div className="pt-4 px-3">
-                  <button type="button" onClick={saveDraft}
-                    className="w-full py-2 text-[12px] font-semibold text-muted-foreground border border-border rounded-xl hover:bg-muted transition-colors">
-                    Save Draft
-                  </button>
-                </div>
-              </div>
-            </div>
+          <div>
 
             {/* ── Main form ── */}
-            <div className="flex-1 min-w-0 space-y-5 pb-16">
+            <div className="flex-1 min-w-0 space-y-8 pb-20">
 
               {/* Page intro */}
               <div className="pb-1">
-                <h2 className="text-xl font-bold text-foreground">Add New Project</h2>
+                <h2 className="text-xl font-bold text-foreground">{isEdit ? 'Edit Project' : 'Add New Project'}</h2>
                 <p className="text-[13px] text-muted-foreground mt-0.5">
                   Fill in each section — save as draft anytime, submit when ready.
                 </p>
@@ -839,7 +1009,7 @@ const AddProjectWizard = () => {
                         <label className={lbl}>Est. Year</label>
                         <input type="number" min={1900} max={new Date().getFullYear()} value={builderYearEstablished}
                           onChange={e => setBuilderYearEstablished(parseInt(e.target.value) || '')}
-                          className={inp()} placeholder="e.g. 1998" />
+                          className={inp()} placeholder="e.g. 1998" maxLength={4} style={{maxWidth:'6rem'}} />
                       </div>
                       <div className="space-y-1.5">
                         <label className={lbl}>Delivered Projects</label>
@@ -1280,52 +1450,202 @@ const AddProjectWizard = () => {
                 </div>
 
                 {/* Doc uploads */}
-                <div className="grid grid-cols-3 gap-4">
-                  {([
-                    { label: 'Project Brochure', ref: brochureRef,   accept: '.pdf',         multiple: false as const,
-                      icon: FileText, display: brochureFile ? brochureFile.name : null },
-                    { label: 'RERA Certificate', ref: reraCertRef,   accept: '.pdf',         multiple: false as const,
-                      icon: Shield,   display: reraCertFile ? reraCertFile.name : null },
-                    { label: 'Floor Plans',      ref: floorPlansRef, accept: 'image/*,.pdf', multiple: true  as const,
-                      icon: Layers,   display: floorPlanFiles?.length ? `${floorPlanFiles.length} file${floorPlanFiles.length > 1 ? 's' : ''} selected` : null },
-                  ]).map(({ label, ref, accept, multiple, icon: Icon, display }) => (
-                    <div key={label} className="space-y-1.5">
-                      <label className={lbl}>{label}</label>
-                      <div onClick={() => ref.current?.click()}
-                        className="border-2 border-dashed border-border rounded-xl p-5 text-center cursor-pointer hover:border-primary/40 hover:bg-muted/30 flex flex-col items-center gap-2 transition-all bg-card">
-                        <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center">
-                          <Icon size={14} className="text-muted-foreground" />
+                {(() => {
+                  const existingBrochure = existingDocByType('Brochure');
+                  const existingRera = existingDocByType('RERA Certificate');
+                  const existingLegacyFloorPlans = activeDocs.filter(d => d.docType === 'Floor Plan');
+                  return (
+                  <div className="grid grid-cols-3 gap-4">
+                    {([
+                      { label: 'Project Brochure', ref: brochureRef,   accept: '.pdf',         multiple: false as const,
+                        icon: FileText,
+                        newFile: brochureFile,
+                        existingDoc: existingBrochure,
+                        onNew: (e: React.ChangeEvent<HTMLInputElement>) => setBrochureFile(e.target.files?.[0] || null) },
+                      { label: 'RERA Certificate', ref: reraCertRef,   accept: '.pdf',         multiple: false as const,
+                        icon: Shield,
+                        newFile: reraCertFile,
+                        existingDoc: existingRera,
+                        onNew: (e: React.ChangeEvent<HTMLInputElement>) => setReraCertFile(e.target.files?.[0] || null) },
+                      { label: 'Floor Plans (general)', ref: floorPlansRef, accept: 'image/*,.pdf', multiple: true as const,
+                        icon: Layers,
+                        newFile: null,
+                        existingDoc: null,
+                        onNew: (e: React.ChangeEvent<HTMLInputElement>) => setFloorPlanFiles(e.target.files) },
+                    ]).map(({ label, ref, accept, multiple, icon: Icon, newFile, existingDoc, onNew }) => {
+                      const activeNew = newFile || (label === 'Floor Plans (general)' && floorPlanFiles?.length);
+                      const displayName = newFile ? (newFile as File).name
+                        : (label === 'Floor Plans (general)' && floorPlanFiles?.length) ? `${floorPlanFiles.length} file${floorPlanFiles.length > 1 ? 's' : ''} selected`
+                        : existingDoc ? existingDoc.fileName : null;
+                      const isActive = !!activeNew || !!existingDoc;
+                      return (
+                        <div key={label} className="space-y-1.5">
+                          <label className={lbl}>{label}</label>
+                          <div onClick={() => ref.current?.click()}
+                            className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer flex flex-col items-center gap-2 transition-all ${isActive ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:border-primary/40 hover:bg-muted/30'}`}>
+                            <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center">
+                              <Icon size={14} className="text-muted-foreground" />
+                            </div>
+                            {displayName
+                              ? <span className="text-foreground font-semibold truncate max-w-full text-[12px]">{displayName}</span>
+                              : <span className="text-[12px] text-muted-foreground">Drop or click to upload</span>}
+                            {existingDoc && !newFile && (
+                              <a href={existingDoc.fileUrl} target="_blank" rel="noreferrer"
+                                className="text-[10px] text-primary underline"
+                                onClick={e => e.stopPropagation()}>View current</a>
+                            )}
+                            <input ref={ref} type="file" accept={accept} multiple={multiple} className="hidden" onChange={onNew} />
+                          </div>
+                          {existingDoc && !newFile && (
+                            <button type="button" className="text-[10px] text-destructive hover:underline w-full text-center"
+                              onClick={() => removeExistingDoc(existingDoc.id)}>Remove existing</button>
+                          )}
+                          {label === 'Floor Plans (general)' && existingLegacyFloorPlans.length > 0 && !floorPlanFiles?.length && (
+                            <div className="text-[10px] text-muted-foreground mt-1">
+                              {existingLegacyFloorPlans.length} existing floor plan{existingLegacyFloorPlans.length > 1 ? 's' : ''} on file
+                            </div>
+                          )}
                         </div>
-                        {display
-                          ? <span className="text-foreground font-semibold truncate max-w-full text-[12px]">{display}</span>
-                          : <span className="text-[12px] text-muted-foreground">Drop or click to upload</span>}
-                        <input ref={ref} type="file" accept={accept} multiple={multiple} className="hidden"
-                          onChange={e => {
-                            if      (ref === brochureRef)   setBrochureFile(e.target.files?.[0] || null);
-                            else if (ref === reraCertRef)   setReraCertFile(e.target.files?.[0] || null);
-                            else if (ref === floorPlansRef) setFloorPlanFiles(e.target.files);
-                          }} />
-                      </div>
+                      );
+                    })}
+                  </div>
+                  );
+                })()}
+              </div>
+
+              {/* ── 6. Floor Plans & Tower Plans ── */}
+              <div id="section-6" className={card}>
+                <SectionHeading n={6} title="Floor Plans & Tower Plans" icon={Layers}
+                  desc="Upload floor plans per BHK type and facing direction. Upload a tower plan for each tower." />
+
+                {/* Floor Plans per BHK & Facing */}
+                <div className="space-y-6">
+                  <div>
+                    <label className={lbl}>Floor Plans (by BHK Type &amp; Facing)</label>
+                    {configurations.length === 0 && (
+                      <p className="text-[12px] text-muted-foreground mb-2">Add BHK configurations in Section 1 to enable per-type uploads.</p>
+                    )}
+                    <div className="space-y-4">
+                      {configurations.map(bhk => (
+                        <div key={bhk} className="border border-border rounded-xl p-4 bg-muted/20">
+                          <div className="text-[12px] font-bold text-foreground mb-3">{bhk}</div>
+                          <div className="grid grid-cols-4 gap-3">
+                            {facingOptions.map(facing => {
+                              const file = floorPlanMap[bhk]?.[facing] ?? null;
+                              const existingDoc = activeDocs.find(d => d.docType === `Floor Plan - ${bhk} - ${facing}`) ?? null;
+                              const previewUrl = file ? URL.createObjectURL(file) : (existingDoc?.fileUrl ?? null);
+                              const hasContent = !!file || !!existingDoc;
+                              return (
+                                <div key={facing} className="space-y-1.5">
+                                  <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{facing}</div>
+                                  <label className="block cursor-pointer">
+                                    <div className={`border-2 border-dashed rounded-xl p-3 text-center flex flex-col items-center gap-1.5 transition-all hover:border-primary/40 hover:bg-muted/30 ${hasContent ? 'border-primary/50 bg-primary/5' : 'border-border bg-card'}`}>
+                                      {previewUrl && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(previewUrl)
+                                        ? <img src={previewUrl} className="w-full h-16 object-cover rounded-lg" alt={`${bhk} ${facing}`}/>
+                                        : previewUrl
+                                          ? <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center"><Layers size={13} className="text-primary"/></div>
+                                          : <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center"><Layers size={13} className="text-muted-foreground"/></div>
+                                      }
+                                      <span className="text-[10.5px] text-muted-foreground truncate max-w-full">
+                                        {file ? file.name : existingDoc ? existingDoc.fileName : 'Upload'}
+                                      </span>
+                                    </div>
+                                    <input type="file" accept="image/*,.pdf" className="hidden"
+                                      onChange={e => {
+                                        const f = e.target.files?.[0] ?? null;
+                                        setFloorPlanMap(prev => ({
+                                          ...prev,
+                                          [bhk]: { ...(prev[bhk] ?? {}), [facing]: f },
+                                        }));
+                                        e.target.value = '';
+                                      }}/>
+                                  </label>
+                                  {(file || existingDoc) && (
+                                    <button type="button" className="text-[10px] text-destructive hover:underline w-full text-center"
+                                      onClick={() => {
+                                        if (file) setFloorPlanMap(prev => ({ ...prev, [bhk]: { ...(prev[bhk] ?? {}), [facing]: null } }));
+                                        else if (existingDoc) removeExistingDoc(existingDoc.id);
+                                      }}>Remove</button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Tower Plans */}
+                  <div>
+                    <label className={lbl}>Tower Plans (one per tower)</label>
+                    {(towers ?? 0) === 0 && (
+                      <p className="text-[12px] text-muted-foreground mb-2">Set number of towers in Section 1 to enable uploads.</p>
+                    )}
+                    <div className="grid grid-cols-4 gap-3">
+                      {Array.from({ length: Math.max(0, towers) }).map((_, i) => {
+                        const key = String(i + 1);
+                        const file = towerPlanMap[key] ?? null;
+                        const existingDoc = activeDocs.find(d => d.docType === `Tower Plan - ${key}`) ?? null;
+                        const previewUrl = file ? URL.createObjectURL(file) : (existingDoc?.fileUrl ?? null);
+                        const hasContent = !!file || !!existingDoc;
+                        return (
+                          <div key={key} className="space-y-1.5">
+                            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Tower {key}</div>
+                            <label className="block cursor-pointer">
+                              <div className={`border-2 border-dashed rounded-xl p-3 text-center flex flex-col items-center gap-1.5 transition-all hover:border-primary/40 hover:bg-muted/30 ${hasContent ? 'border-primary/50 bg-primary/5' : 'border-border bg-card'}`}>
+                                {previewUrl && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(previewUrl)
+                                  ? <img src={previewUrl} className="w-full h-20 object-cover rounded-lg" alt={`Tower ${key}`}/>
+                                  : previewUrl
+                                    ? <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center"><Layers size={13} className="text-primary"/></div>
+                                    : <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center"><Layers size={13} className="text-muted-foreground"/></div>
+                                }
+                                <span className="text-[10.5px] text-muted-foreground truncate max-w-full">
+                                  {file ? file.name : existingDoc ? existingDoc.fileName : 'Upload plan'}
+                                </span>
+                              </div>
+                              <input type="file" accept="image/*,.pdf" className="hidden"
+                                onChange={e => {
+                                  const f = e.target.files?.[0] ?? null;
+                                  setTowerPlanMap(prev => ({ ...prev, [key]: f }));
+                                  e.target.value = '';
+                                }}/>
+                            </label>
+                            {hasContent && (
+                              <button type="button" className="text-[10px] text-destructive hover:underline w-full text-center"
+                                onClick={() => {
+                                  if (file) setTowerPlanMap(prev => ({ ...prev, [key]: null }));
+                                  else if (existingDoc) removeExistingDoc(existingDoc.id);
+                                }}>Remove</button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* ── 6. Gallery ── */}
-              <div id="section-6" className={card}>
+              {/* ── 7. Gallery ── */}
+              <div id="section-7" className={card}>
                 <SectionHeading n={6} title="Renders & Gallery" icon={ImageIcon}
                   desc={`Drag images into each slot. The hero image feeds the customer banner. ${filledCount}/${GALLERY_SLOTS.length} filled.`} />
 
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gridTemplateRows: '176px 176px', gap: 10 }}>
                   <div style={{ gridRow: '1 / 3' }}>
                     <GallerySlot slotKey="hero" label="Hero render · drop image" large
-                      file={galleryImages.hero} onFile={f => setSlotFile('hero', f)} />
+                      file={galleryImages.hero} onFile={f => setSlotFile('hero', f)}
+                      existingUrl={heroRemoved ? null : existingHeroUrl}
+                      onRemoveExisting={() => setHeroRemoved(true)} />
                   </div>
                   {(['tower', 'lobby', 'clubhouse', 'pool'] as SlotKey[]).map(key => {
                     const slot = GALLERY_SLOTS.find(s => s.key === key)!;
+                    const existingDoc = activeDocs.find(d => d.docType === slot.dbCategory) ?? null;
                     return (
                       <GallerySlot key={key} slotKey={key} label={slot.label} large={false}
-                        file={galleryImages[key]} onFile={f => setSlotFile(key, f)} />
+                        file={galleryImages[key]} onFile={f => setSlotFile(key, f)}
+                        existingUrl={existingDoc?.fileUrl ?? null}
+                        onRemoveExisting={() => existingDoc && removeExistingDoc(existingDoc.id)} />
                     );
                   })}
                 </div>
@@ -1366,6 +1686,52 @@ const AddProjectWizard = () => {
                   Cancel
                 </button>
                 <div className="flex items-center gap-3">
+                  {/* Preview button — opens customer view with current form data */}
+                  <button type="button"
+                    onClick={() => {
+                      const previewData = {
+                        id: Number(editId ?? 0),
+                        builderId: 0,
+                        name:             projectName || 'Preview Project',
+                        city:             city || null,
+                        locality:         locality || null,
+                        address:          address || null,
+                        pincode:          pincode || null,
+                        landmark:         landmark || null,
+                        googleMapsLink:   mapsLink || null,
+                        description:      description || null,
+                        projectType:      projectType || null,
+                        status:           projectStatus,
+                        configurations:   configurations,
+                        totalUnits:       totalUnits || null,
+                        towers:           towers || null,
+                        floorsPerTower:   floorsPerTower || null,
+                        reraNumber:       reraNumber || null,
+                        reraExpiry:       reraExpiry || null,
+                        priceMin:         priceFrom || null,
+                        priceMax:         priceTo   || null,
+                        pricePerSqftMin:  pricePerSqftFrom || null,
+                        pricePerSqftMax:  pricePerSqftTo   || null,
+                        maintenanceCharges: maintenance || null,
+                        floorRiseCharges: floorRise || null,
+                        possessionDate:   possessionDate || null,
+                        amenities:        amenities,
+                        videoUrl:         videoUrl || null,
+                        landArea:         landArea || null,
+                        builderName:      builderName || null,
+                        imageUrl:         galleryImages.hero ? URL.createObjectURL(galleryImages.hero) : null,
+                        featured:         featured,
+                        closingSoon:      closingSoon,
+                        nearbyHighlights: nearbyHighlights,
+                        locationAdvantages: locationAdvantages.filter(l => l.name),
+                      };
+                      // Store preview data in sessionStorage then open customer view
+                      sessionStorage.setItem('dealio_project_preview', JSON.stringify(previewData));
+                      window.open(`/customer/projects/preview?standalone=1`, '_blank');
+                    }}
+                    className="flex items-center gap-2 px-5 py-2.5 text-[13px] font-semibold border border-teal-200 bg-teal-50 text-teal-700 rounded-xl hover:bg-teal-100 transition-colors">
+                    <Eye size={14}/> Preview
+                  </button>
                   <button type="button" onClick={saveDraft}
                     className="px-5 py-2.5 text-[13px] font-semibold border border-border bg-muted/40 hover:bg-muted text-foreground rounded-xl transition-colors">
                     Save Draft
@@ -1373,7 +1739,7 @@ const AddProjectWizard = () => {
                   <button type="button" onClick={handleSubmit} disabled={submitting}
                     className="px-8 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-50 flex items-center gap-2 hover:opacity-90 transition-opacity"
                     style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
-                    {submitting ? <><Loader2 size={14} className="animate-spin" />Creating…</> : 'Create Project'}
+                    {submitting ? <><Loader2 size={14} className="animate-spin" />{isEdit ? 'Saving…' : 'Creating…'}</> : (isEdit ? 'Save Changes' : 'Create Project')}
                   </button>
                 </div>
               </div>

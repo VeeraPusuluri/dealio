@@ -2,6 +2,7 @@ import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { IndianRupee, Shield, QrCode, FileSignature, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import DatePickerField from '@/components/shared/DatePickerField';
 
 const reraPortals: Record<string, string> = {
   'Maharashtra': 'https://maharera.mahaonline.gov.in',
@@ -89,7 +90,7 @@ const BuilderRERA = () => {
             </div>
             <div>
               <label className="text-xs text-slate-500 font-medium">Expiry Date</label>
-              <input type="date" value={reraExpiry} onChange={e => setReraExpiry(e.target.value)} className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-300 transition-all" />
+              <div className="mt-1"><DatePickerField value={reraExpiry} onChange={setReraExpiry} /></div>
             </div>
             <div>
               <label className="text-xs text-slate-500 font-medium">Portal URL</label>

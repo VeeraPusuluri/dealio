@@ -72,4 +72,17 @@ router.patch('/:builderId/leads/:dealId/stage', requireAuth, builderController.u
 router.get('/:builderId/commissions', requireAuth, builderController.getBuilderCommissions);
 router.patch('/:builderId/commissions/:dealId/release', requireAuth, builderController.releaseBuilderCommission);
 
+// Broadcasts
+router.get('/:builderId/broadcasts', requireAuth, builderController.getBroadcasts);
+router.post('/:builderId/broadcasts', requireAuth, builderController.sendBroadcast);
+
+// Project Updates
+router.get('/:builderId/projects/:projectId/updates', requireAuth, builderController.getProjectUpdates);
+router.post('/:builderId/projects/:projectId/updates', requireAuth, builderController.createProjectUpdate);
+router.patch('/:builderId/projects/:projectId/updates/:updateId', requireAuth, builderController.editProjectUpdate);
+router.delete('/:builderId/projects/:projectId/updates/:updateId', requireAuth, builderController.deleteProjectUpdate);
+
+// Public: fetch updates visible to a role (no auth needed — CP/Customer portals call this)
+router.get('/projects/:projectId/updates', builderController.getPublicProjectUpdates);
+
 export default router;

@@ -5,7 +5,6 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { formatCurrency } from '@/lib/format';
 import { cpApi } from '@/lib/api';
 import { useNotificationStore } from '@/stores/useNotificationStore';
-import { useFollowUpStore } from '@/stores/useFollowUpStore';
 import { useCommissionStore } from '@/stores/useCommissionStore';
 
 interface CPLead {
@@ -104,10 +103,9 @@ const CPOverview = () => {
   const navigate = useNavigate();
   const user = useAuthStore(s => s.user);
   const [leads, setLeads] = useState<CPLead[]>([]);
-  const { followUps, callLogs } = useFollowUpStore();
+  const [todayTasks, setTodayTasks] = useState<{ name: string; note: string; type: 'followup' | 'call' }[]>([]);
   const { commissions } = useCommissionStore();
   const { addNotification } = useNotificationStore();
-  const today = new Date().toISOString().split('T')[0];
 
   const [tier, setTier] = useState<string>('Silver');
 
@@ -125,6 +123,18 @@ const CPOverview = () => {
           .forEach(n => addNotification({ type: n.type as 'info' | 'success' | 'error' | 'warning', title: n.title, message: n.message, link: n.link }));
       })
       .catch(() => {});
+    cpApi.getDueToday(user.id)
+      .then((data: any) => {
+        const { followUps = [], callLogs = [] } = data as {
+          followUps: { customerName: string; reason: string }[];
+          callLogs:  { customerName: string; projectName: string }[];
+        };
+        setTodayTasks([
+          ...followUps.map(f => ({ name: f.customerName, note: f.reason,      type: 'followup' as const })),
+          ...callLogs.map(c  => ({ name: c.customerName, note: c.projectName, type: 'call'     as const })),
+        ].slice(0, 5));
+      })
+      .catch(() => {});
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Derived metrics ────────────────────────────────────────────────────────
@@ -137,11 +147,6 @@ const CPOverview = () => {
     .filter(l => ['Negotiation', 'Meeting Done', 'Booked'].includes(l.status))
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 4);
-
-  const todayTasks = [
-    ...followUps.filter(f => f.dueDate === today && !f.done).map(f => ({ name: f.customerName, note: f.reason, type: 'followup' as const })),
-    ...callLogs.filter(c => c.nextFollowUp === today).map(c => ({ name: c.customerName, note: c.projectName, type: 'call' as const })),
-  ].slice(0, 5);
 
   const funnelData = [
     { stage: 'New',          count: leads.filter(l => l.status === 'New Lead').length },

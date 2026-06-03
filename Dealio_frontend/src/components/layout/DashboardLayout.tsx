@@ -329,6 +329,7 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
     });
     const [showDropdown, setShowDropdown] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [openNavSection, setOpenNavSection] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchIndex, setSearchIndex] = useState(0);
@@ -444,15 +445,17 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
         .join('')
         .toUpperCase();
 
+    const isCustomer = role === 'customer';
+
     return (
         <div className="flex h-screen overflow-hidden bg-background">
-            {/* ── Sidebar ── */}
+            {/* ── Sidebar — hidden for customer ── */}
             <aside
-                className={`${collapsed ? 'w-[60px]' : 'w-[220px]'} flex flex-col transition-all duration-200 flex-shrink-0`}
+                className={`${isCustomer ? 'hidden' : ''} ${collapsed ? 'w-[60px]' : 'w-[220px]'} flex flex-col transition-all duration-200 flex-shrink-0`}
                 style={{backgroundColor: sidebarBg}}
             >
                 {/* Logo */}
-                <div className="h-14 flex items-center px-3.5 border-b border-white/[0.07] flex-shrink-0">
+                <div className="h-14 flex items-center px-3.5 border-b border-white/[0.07] flex-shrink-0 cursor-pointer" onClick={() => navigate(`/${user.role}`)}>
                     <div
                         className="w-8 h-8 flex items-center justify-center flex-shrink-0"
                         style={{
@@ -581,8 +584,219 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
 
             {/* ── Main Content ── */}
             <div className="flex-1 flex flex-col min-w-0">
+                {/* ── Customer top nav bar — category tabs with dropdowns ── */}
+                {isCustomer && (
+                    <nav
+                        className="flex-shrink-0 relative z-[60]"
+                        style={{
+                            background: 'linear-gradient(135deg, #0a1628 0%, #0d1f3c 55%, #0a1e2e 100%)',
+                            borderBottom: '1px solid rgba(255,255,255,0.07)',
+                            height: 46,
+                        }}
+                    >
+                        {/* Top shimmer accent */}
+                        <div className="absolute top-0 left-0 right-0 h-px pointer-events-none" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(22,163,74,0.45) 35%, rgba(56,189,248,0.25) 65%, transparent 100%)' }} />
+
+                        <style>{`
+                            .ctnav-tab {
+                                position: relative;
+                                display: flex; align-items: center; gap: 6px;
+                                height: 46px; padding: 0 14px;
+                                border: none; background: transparent; cursor: pointer;
+                                font-size: 12.5px; font-weight: 500; letter-spacing: 0.015em;
+                                color: rgba(255,255,255,0.42);
+                                transition: color 0.15s, background 0.15s;
+                                white-space: nowrap; flex-shrink: 0;
+                            }
+                            .ctnav-tab:hover { color: rgba(255,255,255,0.82); background: rgba(255,255,255,0.04); }
+                            .ctnav-tab.section-active { color: #fff; }
+                            .ctnav-tab.section-active::after {
+                                content: ''; position: absolute; bottom: 0; left: 12px; right: 12px;
+                                height: 2px; border-radius: 2px 2px 0 0;
+                                background: linear-gradient(90deg, #16a34a, #22d3a0);
+                                box-shadow: 0 0 8px rgba(22,163,74,0.6);
+                            }
+                            .ctnav-chevron {
+                                width: 14px; height: 14px;
+                                transition: transform 0.2s cubic-bezier(0.4,0,0.2,1);
+                                opacity: 0.45;
+                            }
+                            .ctnav-tab.open .ctnav-chevron,
+                            .ctnav-tab.section-active .ctnav-chevron { opacity: 0.8; }
+                            .ctnav-tab.open .ctnav-chevron { transform: rotate(180deg); }
+                            .ctnav-sep {
+                                width: 1px; height: 20px; flex-shrink: 0; align-self: center;
+                                background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.1), transparent);
+                            }
+                            .ctnav-dropdown {
+                                position: absolute; top: calc(100% + 8px); left: 0;
+                                min-width: 210px;
+                                background: linear-gradient(160deg, #111f38 0%, #0d1a2e 100%);
+                                border: 1px solid rgba(255,255,255,0.11);
+                                border-radius: 14px;
+                                box-shadow: 0 24px 60px rgba(0,0,0,0.6), 0 8px 20px rgba(0,0,0,0.35), 0 0 0 0.5px rgba(255,255,255,0.04) inset, 0 1px 0 rgba(255,255,255,0.08) inset;
+                                padding: 6px;
+                                z-index: 9999;
+                                backdrop-filter: blur(20px) saturate(1.4);
+                                animation: ctnav-drop 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards;
+                                transform-origin: top left;
+                            }
+                            @keyframes ctnav-drop {
+                                0%   { opacity: 0; transform: translateY(-10px) scaleY(0.88) scaleX(0.95); }
+                                60%  { opacity: 1; }
+                                100% { opacity: 1; transform: translateY(0) scaleY(1) scaleX(1); }
+                            }
+                            .ctnav-item {
+                                animation: ctnav-item-in 0.18s cubic-bezier(0.4,0,0.2,1) both;
+                            }
+                            @keyframes ctnav-item-in {
+                                from { opacity: 0; transform: translateX(-6px); }
+                                to   { opacity: 1; transform: translateX(0); }
+                            }
+                            .ctnav-item {
+                                display: flex; align-items: center; gap: 9px;
+                                width: 100%; padding: 8px 10px; border-radius: 8px;
+                                border: none; background: transparent; cursor: pointer;
+                                font-size: 12.5px; font-weight: 500; text-align: left;
+                                color: rgba(255,255,255,0.5);
+                                transition: background 0.12s, color 0.12s, transform 0.12s;
+                                white-space: nowrap;
+                            }
+                            .ctnav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); transform: translateX(2px); }
+                            .ctnav-item.item-active {
+                                background: linear-gradient(135deg, rgba(22,163,74,0.2), rgba(22,163,74,0.1));
+                                color: #4ade80;
+                                border: 1px solid rgba(22,163,74,0.2);
+                            }
+                            .ctnav-item-icon {
+                                width: 26px; height: 26px; border-radius: 6px; flex-shrink: 0;
+                                display: flex; align-items: center; justify-content: center;
+                                background: rgba(255,255,255,0.05);
+                                transition: background 0.12s;
+                            }
+                            .ctnav-item.item-active .ctnav-item-icon {
+                                background: rgba(22,163,74,0.2);
+                            }
+                            .ctnav-item:hover .ctnav-item-icon { background: rgba(255,255,255,0.09); }
+                        `}</style>
+
+                        <div className="flex items-stretch h-full px-2 relative">
+                            {/* Logo */}
+                            <div
+                                className="flex items-center gap-3 pl-2 pr-5 mr-4 cursor-pointer flex-shrink-0"
+                                style={{ borderRight: '1px solid rgba(255,255,255,0.08)' }}
+                                onClick={() => navigate('/customer')}
+                            >
+                                <div
+                                    className="w-7 h-7 flex items-center justify-center flex-shrink-0"
+                                    style={{
+                                        borderRadius: 7,
+                                        background: 'linear-gradient(145deg, #0B1B2E 0%, #0E2542 60%, #112E50 100%)',
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.3), 0 0 0 1.5px rgba(28,216,238,0.22), inset 0 1px 0 rgba(255,255,255,0.06)',
+                                    }}
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                                        <path fillRule="evenodd" clipRule="evenodd"
+                                            d="M3 2 H9 C16 2 18 6 18 10 C18 14 16 18 9 18 H3 Z M6 5.5 H9 C13.5 5.5 15 7.5 15 10 C15 12.5 13.5 14.5 9 14.5 H6 Z"
+                                            fill="white" fillOpacity="0.94"/>
+                                        <rect x="3" y="7.8"  width="3" height="1.4" rx="0.5" fill="#FF8930" fillOpacity="0.88"/>
+                                        <rect x="3" y="11.4" width="3" height="1.4" rx="0.5" fill="#FF8930" fillOpacity="0.60"/>
+                                        <circle cx="16.2" cy="5.8" r="1.4" fill="#1CD8EE" fillOpacity="0.92"/>
+                                    </svg>
+                                </div>
+                                {/* Redesigned wordmark */}
+                                <div className="flex flex-col leading-none select-none" style={{ gap: 1 }}>
+                                    <span
+                                        className="font-black tracking-tight"
+                                        style={{
+                                            fontSize: 16,
+                                            letterSpacing: '-0.045em',
+                                            background: 'linear-gradient(135deg, #ffffff 0%, #c7f0fb 60%, #3ECDE2 100%)',
+                                            WebkitBackgroundClip: 'text',
+                                            WebkitTextFillColor: 'transparent',
+                                            backgroundClip: 'text',
+                                            lineHeight: 1,
+                                        }}
+                                    >
+                                        dealio
+                                    </span>
+                                    <span
+                                        style={{
+                                            fontSize: 8,
+                                            fontWeight: 600,
+                                            letterSpacing: '0.18em',
+                                            textTransform: 'uppercase',
+                                            color: 'rgba(255,255,255,0.28)',
+                                            lineHeight: 1,
+                                        }}
+                                    >
+                                        property
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Centered tabs */}
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div className="flex items-stretch h-full pointer-events-auto">
+                                    {navSections.filter(s => s.title !== 'System').map((section, si) => {
+                                        const sectionActive = section.items.some(item =>
+                                            item.path === `/${user.role}`
+                                                ? location.pathname === item.path
+                                                : location.pathname.startsWith(item.path)
+                                        );
+                                        const isOpen = openNavSection === section.title;
+                                        const SectionIcon = section.items[0]?.icon;
+
+                                        return (
+                                            <div key={section.title} className="flex items-stretch">
+                                                {si > 0 && <div className="ctnav-sep" />}
+                                                <div className="relative">
+                                                    <button
+                                                        className={`ctnav-tab${sectionActive ? ' section-active' : ''}${isOpen ? ' open' : ''}`}
+                                                        onClick={() => setOpenNavSection(isOpen ? null : section.title)}
+                                                    >
+                                                        {SectionIcon && <SectionIcon size={13} strokeWidth={sectionActive ? 2.5 : 1.8} />}
+                                                        {section.title}
+                                                        <svg className="ctnav-chevron" viewBox="0 0 16 16" fill="none">
+                                                            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                                        </svg>
+                                                    </button>
+
+                                                    {isOpen && (
+                                                        <div className="ctnav-dropdown">
+                                                            {section.items.map((item, idx) => {
+                                                                const isActive = item.path === `/${user.role}`
+                                                                    ? location.pathname === item.path
+                                                                    : location.pathname.startsWith(item.path);
+                                                                return (
+                                                                    <button
+                                                                        key={item.path}
+                                                                        className={`ctnav-item${isActive ? ' item-active' : ''}`}
+                                                                        style={{ animationDelay: `${idx * 35}ms` }}
+                                                                        onClick={() => { navigate(item.path); setOpenNavSection(null); }}
+                                                                    >
+                                                                        <span className="ctnav-item-icon">
+                                                                            <item.icon size={13} strokeWidth={isActive ? 2.5 : 1.8} />
+                                                                        </span>
+                                                                        {item.label}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
+                )}
+                {openNavSection && <div className="fixed inset-0 z-30" onClick={() => setOpenNavSection(null)} />}
+
                 {/* Header */}
-                <header className="h-14 bg-card border-b border-border flex items-center px-5 gap-4 flex-shrink-0">
+                <header className="h-14 bg-card border-b border-border flex items-center px-5 gap-4 flex-shrink-0 relative z-50">
                     <h1 className="text-[15px] font-semibold text-card-foreground tracking-tight">{currentTitle}</h1>
                     <div className="flex-1"/>
 
@@ -656,13 +870,15 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                             {/* Avatar */}
                             <div className="relative flex-shrink-0">
                                 <div
-                                    className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold"
+                                    className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-white text-[12px] font-bold"
                                     style={{
-                                        background: `linear-gradient(135deg, ${color} 0%, ${color}bb 100%)`,
+                                        background: user.avatar ? 'transparent' : `linear-gradient(135deg, ${color} 0%, ${color}bb 100%)`,
                                         boxShadow: `0 0 0 2px ${color}30`,
                                     }}
                                 >
-                                    {initials}
+                                    {user.avatar
+                                        ? <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
+                                        : initials}
                                 </div>
                                 <span
                                     className="absolute -bottom-px -right-px w-2.5 h-2.5 rounded-full border-2 border-card"
@@ -692,13 +908,15 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                                 >
                                     <div className="flex items-center gap-3">
                                         <div
-                                            className="w-11 h-11 rounded-xl flex items-center justify-center text-white text-[15px] font-bold flex-shrink-0"
+                                            className="w-11 h-11 rounded-xl overflow-hidden flex items-center justify-center text-white text-[15px] font-bold flex-shrink-0"
                                             style={{
-                                                background: `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`,
+                                                background: user.avatar ? 'transparent' : `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`,
                                                 boxShadow: `0 4px 16px ${color}50`,
                                             }}
                                         >
-                                            {initials}
+                                            {user.avatar
+                                                ? <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
+                                                : initials}
                                         </div>
                                         <div className="min-w-0">
                                             <p className="text-[13px] font-semibold text-card-foreground truncate">{user.name}</p>

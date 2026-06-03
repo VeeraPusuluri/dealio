@@ -260,7 +260,8 @@ const BuilderProjects = () => {
   /* ── Render ── */
   return (
     <DashboardLayout>
-      <div className="px-8 py-10 max-w-7xl mx-auto">
+      <div className="px-6 py-6 max-w-7xl mx-auto">
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm px-8 py-8">
 
         {/* ── Editorial header ── */}
         <div className="mb-8">
@@ -407,6 +408,7 @@ const BuilderProjects = () => {
           </div>
         )}
 
+        </div>
       </div>
     </DashboardLayout>
   );

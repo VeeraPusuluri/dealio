@@ -38,6 +38,7 @@ function downloadCalendarInvite(m: ApiMeeting) {
   URL.revokeObjectURL(url);
 }
 import { toast } from 'sonner';
+import DatePickerField from '@/components/shared/DatePickerField';
 
 interface ApiMeeting {
   id: number;
@@ -58,6 +59,7 @@ interface ApiMeeting {
   status: string;
   createdAt: string;
   cpName: string | null;
+  cpUserId: number | null;
 }
 
 // ── status config ──────────────────────────────────────────────────────────────
@@ -192,16 +194,32 @@ const BuilderMeetings = () => {
       });
 
       const customerId = String(selected.customerId);
-      if (newStatus === 'Confirmed') {
-        pushNotifTo('customer', customerId, { type: 'success', title: '✅ Meeting Confirmed!', message: `Your site visit for ${selected.projectName} on ${selected.preferredDate} at ${selected.preferredTime} has been confirmed.`, link: '/customer/meeting' });
-      } else if (newStatus === 'Rescheduled') {
-        pushNotifTo('customer', customerId, { type: 'warning', title: '📅 Meeting Rescheduled', message: `Your visit to ${selected.projectName} has been rescheduled. Please check the new date and time.`, link: '/customer/meeting' });
-      } else if (newStatus === 'Completed') {
-        pushNotifTo('customer', customerId, { type: 'info', title: 'Meeting Completed', message: `Your visit to ${selected.projectName} has been marked as completed. We hope it went well!`, link: '/customer/meeting' });
-      } else if (newStatus === 'Cancelled') {
-        pushNotifTo('customer', customerId, { type: 'error', title: 'Meeting Request Declined', message: `Your meeting request for ${selected.projectName} on ${selected.preferredDate} could not be accommodated. Please try a different date.`, link: '/customer/meeting' });
-      } else if (newStatus === 'Follow-up Required') {
-        pushNotifTo('customer', customerId, { type: 'warning', title: 'Follow-up Scheduled', message: `The builder has flagged your visit to ${selected.projectName} for a follow-up. Expect a call soon.`, link: '/customer/meeting' });
+      const date = newDate || selected.preferredDate;
+      const time = newTime || selected.preferredTime;
+
+      // ── Notify customer ──────────────────────────────────────────────────
+      const customerNotifs: Record<string, { type: 'success'|'warning'|'error'|'info'; title: string; message: string }> = {
+        Confirmed:            { type: 'success', title: '✅ Meeting Confirmed!',     message: `Your site visit for ${selected.projectName} on ${date} at ${time} has been confirmed.` },
+        Rescheduled:          { type: 'warning', title: '📅 Meeting Rescheduled',    message: `Your visit to ${selected.projectName} has been rescheduled to ${date} at ${time}.` },
+        Completed:            { type: 'info',    title: 'Meeting Completed',         message: `Your visit to ${selected.projectName} has been marked as completed.` },
+        Cancelled:            { type: 'error',   title: 'Meeting Declined',          message: `Your meeting request for ${selected.projectName} on ${date} could not be accommodated.` },
+        'Follow-up Required': { type: 'warning', title: 'Follow-up Scheduled',      message: `The builder has flagged your visit to ${selected.projectName} for a follow-up.` },
+      };
+      const cn = customerNotifs[newStatus];
+      if (cn) pushNotifTo('customer', customerId, { ...cn, link: '/customer/meeting' });
+
+      // ── Notify CP (if one is linked to this meeting) ─────────────────────
+      if (selected.cpUserId) {
+        const cpId = String(selected.cpUserId);
+        const cpNotifs: Record<string, { type: 'success'|'warning'|'error'|'info'; title: string; message: string }> = {
+          Confirmed:            { type: 'success', title: '✅ Meeting Confirmed',     message: `Builder confirmed ${selected.customerName}'s visit for ${selected.projectName} on ${date} at ${time}.` },
+          Rescheduled:          { type: 'warning', title: '📅 Meeting Rescheduled',  message: `Builder rescheduled ${selected.customerName}'s visit to ${selected.projectName} → ${date} at ${time}.` },
+          Completed:            { type: 'info',    title: 'Meeting Completed',        message: `${selected.customerName}'s visit to ${selected.projectName} is now completed.` },
+          Cancelled:            { type: 'error',   title: 'Meeting Cancelled',        message: `Builder cancelled ${selected.customerName}'s visit to ${selected.projectName}.` },
+          'Follow-up Required': { type: 'warning', title: 'Follow-up Requested',     message: `Builder requested a follow-up for ${selected.customerName}'s visit to ${selected.projectName}.` },
+        };
+        const cpn = cpNotifs[newStatus];
+        if (cpn) pushNotifTo('cp', cpId, { ...cpn, link: '/cp/meetings' });
       }
     } catch { toast.error('Failed to update'); }
     finally {
@@ -486,7 +504,8 @@ const BuilderMeetings = () => {
                             <label className="text-[10px] font-medium text-slate-400 mb-1.5 block">
                               {actionType === 'reschedule' ? 'New Date' : 'Confirmed Date'}
                             </label>
-                            <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className={ic} />
+                            <DatePickerField value={newDate} onChange={setNewDate}
+                              minDate={new Date().toISOString().split('T')[0]} />
                           </div>
                           <div>
                             <label className="text-[10px] font-medium text-slate-400 mb-1.5 block">

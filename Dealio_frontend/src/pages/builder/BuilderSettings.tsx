@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore, roleLabels, roleColors } from '@/stores/useAuthStore';
+import ProfilePicUploader from '@/components/shared/ProfilePicUploader';
 import { builderApi } from '@/lib/api';
 import {
   User, Building2, Mail, Phone, Globe, MapPin,
-  Save, CheckCircle2, Loader2, Calendar, FileText,
+  Save, CheckCircle2, Loader2, Calendar, FileText, Moon, Sun,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useThemeStore } from '@/stores/useThemeStore';
+import { getAvailability, saveAvailability, ALL_SLOTS, DAY_NAMES, BuilderAvailability } from '@/lib/builderAvailability';
 
 const PROFILE_KEY = 'dealio_builder_profile';
 const USER_KEY    = 'dealio_user';
@@ -32,13 +35,38 @@ function emptyProfile(): BuilderProfile {
 }
 
 const TABS = [
-  { id: 'profile', label: 'Profile', icon: User },
-  { id: 'company', label: 'Company', icon: Building2 },
+  { id: 'profile',       label: 'Profile',       icon: User      },
+  { id: 'company',       label: 'Company',        icon: Building2 },
+  { id: 'availability',  label: 'Availability',   icon: Calendar  },
 ];
 
 const BuilderSettings = () => {
   const { user } = useAuthStore();
+  const { isDark, toggle: toggleTheme } = useThemeStore();
   const [activeTab, setActiveTab] = useState('profile');
+
+  // Availability
+  const builderId = builderApi.getCachedBuilderId() ?? String(user?.id ?? '');
+  const [avail, setAvail] = useState<BuilderAvailability>(() => getAvailability(builderId));
+  const toggleDay = (dow: string) => {
+    setAvail(prev => {
+      const next = { ...prev, weeklySlots: { ...prev.weeklySlots } };
+      if (next.weeklySlots[dow]) { delete next.weeklySlots[dow]; }
+      else { next.weeklySlots[dow] = ALL_SLOTS; }
+      return next;
+    });
+  };
+  const toggleSlot = (dow: string, slot: string) => {
+    setAvail(prev => {
+      const current = prev.weeklySlots[dow] ?? [];
+      const next = current.includes(slot) ? current.filter(s => s !== slot) : [...current, slot];
+      return { ...prev, weeklySlots: { ...prev.weeklySlots, [dow]: next } };
+    });
+  };
+  const saveAvail = () => {
+    saveAvailability({ ...avail, builderId });
+    toast.success('Availability saved — customers will see your available slots.');
+  };
 
   const color = user ? roleColors[user.role] || '#0A7E8C' : '#0A7E8C';
   const initials = (user?.name || 'U').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -105,11 +133,8 @@ const BuilderSettings = () => {
         <div className="rounded-2xl border border-border overflow-hidden bg-card">
           <div className="h-16" style={{ background: `linear-gradient(135deg, ${color}22, ${color}08)` }} />
           <div className="px-5 pb-5 -mt-7 flex items-end gap-4">
-            <div
-              className="w-14 h-14 rounded-xl border-4 border-card flex items-center justify-center text-white text-lg font-bold flex-shrink-0"
-              style={{ background: `linear-gradient(135deg, ${color}, ${color}bb)`, boxShadow: `0 4px 14px ${color}40` }}
-            >
-              {initials}
+            <div className="border-4 border-card rounded-2xl flex-shrink-0" style={{ boxShadow: `0 4px 14px ${color}40` }}>
+              <ProfilePicUploader size={56} showLabel={false} />
             </div>
             <div className="pb-0.5 flex-1 min-w-0">
               <h2 className="text-[15px] font-bold text-card-foreground truncate">{user.name}</h2>
@@ -150,6 +175,30 @@ const BuilderSettings = () => {
             {/* ── Profile ── */}
             {activeTab === 'profile' && (
               <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
+                {/* Profile picture */}
+                <div className="flex items-center gap-5 p-3.5 rounded-xl border border-border bg-muted/20">
+                  <ProfilePicUploader size={64} showLabel />
+                  <div>
+                    <p className="text-[13px] font-semibold text-card-foreground">Profile Picture</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Take a selfie or upload from your device</p>
+                  </div>
+                </div>
+
+                {/* Dark mode toggle */}
+                <div className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-muted/20">
+                  <div className="flex items-center gap-3">
+                    {isDark ? <Moon size={15} style={{ color }} /> : <Sun size={15} style={{ color }} />}
+                    <div>
+                      <p className="text-[13px] font-semibold text-card-foreground">Dark Mode</p>
+                      <p className="text-[11px] text-muted-foreground">{isDark ? 'Dark theme is on' : 'Light theme is on'}</p>
+                    </div>
+                  </div>
+                  <button onClick={toggleTheme}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isDark ? 'bg-teal-600' : 'bg-muted border border-border'}`}>
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${isDark ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
                 <div className="flex items-center gap-2 pb-3 border-b border-border">
                   <User size={14} style={{ color }} />
                   <h3 className="text-[13px] font-semibold text-card-foreground">Personal Information</h3>
@@ -277,6 +326,54 @@ const BuilderSettings = () => {
                     {savingCompany ? <><Loader2 size={13} className="animate-spin" />Saving…</>
                       : companySaved ? <><CheckCircle2 size={13} />Saved!</>
                       : <><Save size={13} />Save Company Info</>}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Availability ── */}
+            {activeTab === 'availability' && (
+              <div className="bg-card rounded-2xl border border-border p-5 space-y-5">
+                <div className="flex items-center gap-2 pb-3 border-b border-border">
+                  <Calendar size={14} style={{ color }} />
+                  <h3 className="text-[13px] font-semibold text-card-foreground">Meeting Availability</h3>
+                </div>
+                <p className="text-[12px] text-muted-foreground">Set the days and time slots when customers and CPs can book a meeting with you.</p>
+
+                <div className="space-y-4">
+                  {[0,1,2,3,4,5,6].map(dow => {
+                    const key = String(dow);
+                    const active = !!avail.weeklySlots[key];
+                    const slots  = avail.weeklySlots[key] ?? [];
+                    return (
+                      <div key={dow} className={`rounded-xl border p-3.5 space-y-3 transition-colors ${active ? 'border-teal-200 bg-teal-50/30' : 'border-border bg-muted/10'}`}>
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                          <input type="checkbox" checked={active} onChange={() => toggleDay(key)}
+                            className="w-4 h-4 rounded accent-teal-600" />
+                          <span className={`text-[13px] font-semibold ${active ? 'text-teal-800' : 'text-muted-foreground'}`}>{DAY_NAMES[dow]}</span>
+                        </label>
+                        {active && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {ALL_SLOTS.map(s => (
+                              <button key={s} onClick={() => toggleSlot(key, s)}
+                                className={`text-[11px] px-2.5 py-1 rounded-lg border font-medium transition-colors ${
+                                  slots.includes(s)
+                                    ? 'border-teal-500 bg-teal-600 text-white'
+                                    : 'border-border text-muted-foreground hover:border-teal-300'
+                                }`}>{s}</button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button onClick={saveAvail}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-all"
+                    style={{ background: `linear-gradient(135deg, ${color}, ${color}bb)` }}>
+                    <Save size={13} /> Save Availability
                   </button>
                 </div>
               </div>

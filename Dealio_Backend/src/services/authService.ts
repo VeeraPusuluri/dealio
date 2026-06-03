@@ -23,6 +23,10 @@ export const authService = {
         where: { phone }
       });
 
+      if (user && user.role.startsWith('SUSPENDED_')) {
+        return { success: false, suspended: true };
+      }
+
       if (!user) {
         user = await prisma.user.create({
           data: {

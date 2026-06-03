@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { initialLoans } from '@/data/loans';
-import { Calculator, Building2, AlertCircle } from 'lucide-react';
+import { Calculator, Building2, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const bankProducts = [
   { name: 'HDFC Bank', rate: 8.50, maxTenure: 30, processingFee: 0.5, scheme: 'Special NRI rates available' },
@@ -14,9 +13,9 @@ const bankProducts = [
 const inp = 'w-full mt-1.5 px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary focus:bg-white transition-all';
 
 const CustomerLoanEngine = () => {
-  const [income, setIncome] = useState(150000);
+  const [income, setIncome] = useState(0);
   const [existingEmi, setExistingEmi] = useState(0);
-  const [propertyValue, setPropertyValue] = useState(10000000);
+  const [propertyValue, setPropertyValue] = useState(0);
   const [tenure, setTenure] = useState(20);
   const [rate, setRate] = useState(8.5);
   const [showDigilocker, setShowDigilocker] = useState(false);
@@ -52,9 +51,9 @@ const CustomerLoanEngine = () => {
             <Calculator size={16} className="text-secondary" /> Check Eligibility
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><label className="text-xs text-gray-400">Gross Monthly Income (₹)</label><input type="number" value={income} onChange={e => setIncome(Number(e.target.value))} className={inp} /></div>
-            <div><label className="text-xs text-gray-400">Existing EMI (₹)</label><input type="number" value={existingEmi} onChange={e => setExistingEmi(Number(e.target.value))} className={inp} /></div>
-            <div><label className="text-xs text-gray-400">Property Value (₹)</label><input type="number" value={propertyValue} onChange={e => setPropertyValue(Number(e.target.value))} className={inp} /></div>
+            <div><label className="text-xs text-gray-400">Gross Monthly Income (₹)</label><input type="number" value={income || ''} onChange={e => setIncome(Number(e.target.value))} placeholder="e.g. 1,50,000" className={inp} /></div>
+            <div><label className="text-xs text-gray-400">Existing EMI (₹)</label><input type="number" value={existingEmi || ''} onChange={e => setExistingEmi(Number(e.target.value))} placeholder="0 if none" className={inp} /></div>
+            <div><label className="text-xs text-gray-400">Property Value (₹)</label><input type="number" value={propertyValue || ''} onChange={e => setPropertyValue(Number(e.target.value))} placeholder="e.g. 1,00,00,000" className={inp} /></div>
             <div><label className="text-xs text-gray-400">Interest Rate (%)</label><input type="number" step="0.05" value={rate} onChange={e => setRate(Number(e.target.value))} className={inp} /></div>
             <div className="md:col-span-2">
               <label className="text-xs text-gray-400">Tenure: {tenure} years</label>
@@ -74,13 +73,14 @@ const CustomerLoanEngine = () => {
           {digiDone ? (
             <div className="space-y-3">
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                <p className="text-xs text-amber-700 flex items-center gap-1"><AlertCircle size={12} /> Demo mode — In production, this connects to the real DigiLocker API</p>
+                <p className="text-xs text-amber-700 flex items-center gap-1"><AlertCircle size={12} /> Demo mode — production integrates with the real DigiLocker API</p>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-sm bg-gray-50 rounded-xl border border-gray-100 p-4">
-                <p className="text-gray-400">Name:</p><p className="text-gray-900 font-medium">Vijay Anand</p>
-                <p className="text-gray-400">DOB:</p><p className="text-gray-900 font-medium">15-Mar-1990</p>
-                <p className="text-gray-400">PAN:</p><p className="text-gray-900 font-medium">ABCDE1234F</p>
-                <p className="text-gray-400">Aadhaar:</p><p className="text-gray-900 font-medium">XXXX XXXX 1234</p>
+              <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-emerald-800">Documents connected successfully</p>
+                  <p className="text-xs text-emerald-700 mt-0.5">Your KYC documents have been fetched from DigiLocker. A loan advisor will verify them shortly.</p>
+                </div>
               </div>
             </div>
           ) : (

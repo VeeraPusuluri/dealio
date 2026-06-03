@@ -45,8 +45,15 @@ export const customerController = {
     });
     if (project) {
       const { priceFrom, priceTo, builder, ...rest } = project as any;
+      // Ensure JSON array fields are proper arrays (Prisma returns JsonValue)
+      const amenities = Array.isArray(rest.amenities) ? rest.amenities : null;
+      const configurations = Array.isArray(rest.configurations) ? rest.configurations : null;
+      const nearbyHighlights = Array.isArray(rest.nearbyHighlights) ? rest.nearbyHighlights : null;
       res.json({ ok: true, data: {
         ...rest,
+        amenities,
+        configurations,
+        nearbyHighlights,
         priceMin:    priceFrom ?? null,
         priceMax:    priceTo   ?? null,
         builderName:              builder?.companyName || builder?.user?.fullName || null,

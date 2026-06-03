@@ -4,9 +4,19 @@ import { channelManager } from '../services/channelManager';
 import PDFDocument from 'pdfkit';
 
 // Maps DB column names (priceFrom/priceTo) to the frontend's expected names (priceMin/priceMax)
-function toProjectDto(p: Record<string, unknown>) {
+function toProjectDto(p: Record<string, unknown>, builder?: Record<string, unknown>) {
   const { priceFrom, priceTo, ...rest } = p;
-  return { ...rest, priceMin: priceFrom ?? null, priceMax: priceTo ?? null };
+  return {
+    ...rest,
+    priceMin: priceFrom ?? null,
+    priceMax: priceTo ?? null,
+    // Expose builder profile fields on the project DTO for the edit form
+    builderName: builder?.companyName ?? null,
+    builderAbout: builder?.about ?? null,
+    builderYearEstablished: builder?.yearEstablished ?? null,
+    builderDeliveredProjects: builder?.deliveredProjects ?? null,
+    builderWebsite: builder?.website ?? null,
+  };
 }
 
 export const builderController = {
@@ -72,8 +82,15 @@ export const builderController = {
         builderId: Number(builderId),
         name: projectData.name,
         city: projectData.city,
+        locality: projectData.locality || null,
+        pincode: projectData.pincode || null,
+        landmark: projectData.landmark || null,
         description: projectData.description,
         address: projectData.address,
+        projectType: projectData.projectType || null,
+        configurations: projectData.configurations ?? null,
+        nearbyHighlights: projectData.nearbyHighlights?.length ? projectData.nearbyHighlights : null,
+        amenities: projectData.amenities?.length ? projectData.amenities : null,
         totalUnits: projectData.totalUnits,
         availableUnits: projectData.availableUnits,
         bookedUnits: projectData.bookedUnits,
@@ -82,7 +99,13 @@ export const builderController = {
         reraExpiry: projectData.reraExpiry,
         priceFrom: projectData.priceMin ?? projectData.priceFrom,
         priceTo: projectData.priceMax ?? projectData.priceTo,
+        pricePerSqftFrom: projectData.pricePerSqftMin ?? projectData.pricePerSqftFrom ?? null,
+        pricePerSqftTo: projectData.pricePerSqftMax ?? projectData.pricePerSqftTo ?? null,
+        maintenanceCharges: projectData.maintenanceCharges ?? null,
+        floorRiseCharges: projectData.floorRiseCharges ?? null,
+        commissionStructure: projectData.commissionStructure || null,
         commissionValue: projectData.commissionValue,
+        cpIncentive: projectData.cpIncentive || null,
         featured: projectData.featured ?? false,
         closingSoon: projectData.closingSoon ?? false,
         possessionDate: projectData.possessionDate,
@@ -97,6 +120,9 @@ export const builderController = {
         specifications: projectData.specifications || null,
         paymentPlans: projectData.paymentPlans || null,
         locationAdvantages: projectData.locationAdvantages || null,
+        towers: projectData.towers ?? null,
+        floorsPerTower: projectData.floorsPerTower ?? null,
+        unitMatrix: projectData.unitMatrix ?? null,
       }
     });
 
@@ -215,11 +241,13 @@ export const builderController = {
   getProject: async (req: Request, res: Response) => {
     const { projectId } = req.params;
     const project = await prisma.project.findUnique({
-      where: { id: Number(projectId) }
+      where: { id: Number(projectId) },
+      include: { builder: true },
     });
 
     if (project) {
-      res.json({ ok: true, data: toProjectDto(project as unknown as Record<string, unknown>) });
+      const { builder, ...projectData } = project as unknown as Record<string, unknown>;
+      res.json({ ok: true, data: toProjectDto(projectData, builder as Record<string, unknown> | undefined) });
     } else {
       res.status(404).json({ ok: false, message: 'Project not found' });
     }
@@ -230,37 +258,77 @@ export const builderController = {
     const b = req.body;
 
     const data: Record<string, unknown> = {};
-    if (b.description    !== undefined) data.description    = b.description;
-    if (b.possessionDate !== undefined) data.possessionDate = b.possessionDate;
-    if (b.status         !== undefined) data.status         = b.status;
-    if (b.published      !== undefined) data.published      = b.published;
-    if (b.featured       !== undefined) data.featured       = b.featured;
-    if (b.closingSoon    !== undefined) data.closingSoon    = b.closingSoon;
-    if (b.totalUnits     !== undefined) data.totalUnits     = b.totalUnits;
-    if (b.availableUnits !== undefined) data.availableUnits = b.availableUnits;
-    if (b.bookedUnits    !== undefined) data.bookedUnits    = b.bookedUnits;
-    if (b.soldUnits      !== undefined) data.soldUnits      = b.soldUnits;
-    if (b.priceMin       !== undefined) data.priceFrom      = b.priceMin;
-    if (b.priceMax       !== undefined) data.priceTo        = b.priceMax;
-    if (b.commissionValue !== undefined) data.commissionValue = b.commissionValue;
-    if (b.imageUrl              !== undefined) data.imageUrl             = b.imageUrl;
-    if (b.coverUrl              !== undefined) data.imageUrl             = b.coverUrl;
-    if (b.videoUrl              !== undefined) data.videoUrl             = b.videoUrl;
-    if (b.googleMapsLink        !== undefined) data.googleMapsLink       = b.googleMapsLink || null;
-    if (b.landArea              !== undefined) data.landArea             = b.landArea || null;
-    if (b.buildingPermitNumber  !== undefined) data.buildingPermitNumber = b.buildingPermitNumber || null;
-    if (b.reraState             !== undefined) data.reraState            = b.reraState || null;
-    if (b.clubhouseAreaSqft     !== undefined) data.clubhouseAreaSqft    = b.clubhouseAreaSqft || null;
-    if (b.specifications        !== undefined) data.specifications       = b.specifications;
-    if (b.paymentPlans          !== undefined) data.paymentPlans         = b.paymentPlans;
-    if (b.locationAdvantages    !== undefined) data.locationAdvantages   = b.locationAdvantages;
+    if (b.name               !== undefined) data.name               = b.name;
+    if (b.description        !== undefined) data.description        = b.description;
+    if (b.possessionDate     !== undefined) data.possessionDate     = b.possessionDate;
+    if (b.status             !== undefined) data.status             = b.status;
+    if (b.published          !== undefined) data.published          = b.published;
+    if (b.featured           !== undefined) data.featured           = b.featured;
+    if (b.closingSoon        !== undefined) data.closingSoon        = b.closingSoon;
+    if (b.city               !== undefined) data.city               = b.city;
+    if (b.locality           !== undefined) data.locality           = b.locality || null;
+    if (b.pincode            !== undefined) data.pincode            = b.pincode || null;
+    if (b.landmark           !== undefined) data.landmark           = b.landmark || null;
+    if (b.address            !== undefined) data.address            = b.address || null;
+    if (b.projectType        !== undefined) data.projectType        = b.projectType || null;
+    if (b.configurations     !== undefined) data.configurations     = b.configurations ?? null;
+    if (b.bhkTypes           !== undefined) data.configurations     = b.bhkTypes ?? null;
+    if (b.nearbyHighlights   !== undefined) data.nearbyHighlights   = b.nearbyHighlights?.length ? b.nearbyHighlights : null;
+    if (b.amenities          !== undefined) data.amenities          = b.amenities?.length ? b.amenities : null;
+    if (b.totalUnits         !== undefined) data.totalUnits         = b.totalUnits;
+    if (b.availableUnits     !== undefined) data.availableUnits     = b.availableUnits;
+    if (b.bookedUnits        !== undefined) data.bookedUnits        = b.bookedUnits;
+    if (b.soldUnits          !== undefined) data.soldUnits          = b.soldUnits;
+    if (b.reraNumber         !== undefined) data.reraNumber         = b.reraNumber || null;
+    if (b.reraId             !== undefined) data.reraNumber         = b.reraId || null;
+    if (b.reraExpiry         !== undefined) data.reraExpiry         = b.reraExpiry || null;
+    if (b.priceMin           !== undefined) data.priceFrom          = b.priceMin;
+    if (b.priceMax           !== undefined) data.priceTo            = b.priceMax;
+    if (b.pricePerSqftMin    !== undefined) data.pricePerSqftFrom   = b.pricePerSqftMin ?? null;
+    if (b.pricePerSqftMax    !== undefined) data.pricePerSqftTo     = b.pricePerSqftMax ?? null;
+    if (b.maintenanceCharges !== undefined) data.maintenanceCharges = b.maintenanceCharges ?? null;
+    if (b.floorRiseCharges   !== undefined) data.floorRiseCharges   = b.floorRiseCharges ?? null;
+    if (b.commissionStructure !== undefined) data.commissionStructure = b.commissionStructure || null;
+    if (b.commissionValue    !== undefined) data.commissionValue    = b.commissionValue;
+    if (b.commissionPercent  !== undefined) data.commissionValue    = b.commissionPercent;
+    if (b.cpIncentive        !== undefined) data.cpIncentive        = b.cpIncentive || null;
+    if (b.imageUrl           !== undefined) data.imageUrl           = b.imageUrl;
+    if (b.coverUrl           !== undefined) data.imageUrl           = b.coverUrl;
+    if (b.videoUrl           !== undefined) data.videoUrl           = b.videoUrl;
+    if (b.googleMapsLink     !== undefined) data.googleMapsLink     = b.googleMapsLink || null;
+    if (b.landArea           !== undefined) data.landArea           = b.landArea || null;
+    if (b.buildingPermitNumber !== undefined) data.buildingPermitNumber = b.buildingPermitNumber || null;
+    if (b.reraState          !== undefined) data.reraState          = b.reraState || null;
+    if (b.clubhouseAreaSqft  !== undefined) data.clubhouseAreaSqft  = b.clubhouseAreaSqft || null;
+    if (b.specifications     !== undefined) data.specifications     = b.specifications;
+    if (b.paymentPlans       !== undefined) data.paymentPlans       = b.paymentPlans;
+    if (b.locationAdvantages !== undefined) data.locationAdvantages = b.locationAdvantages;
+    if (b.towers             !== undefined) data.towers             = b.towers ?? null;
+    if (b.floorsPerTower     !== undefined) data.floorsPerTower     = b.floorsPerTower ?? null;
+    if (b.unitMatrix         !== undefined) data.unitMatrix         = b.unitMatrix;
 
     try {
       const updatedProject = await prisma.project.update({
         where: { id: Number(projectId) },
+        include: { builder: true },
         data,
       });
-      res.json({ ok: true, data: toProjectDto(updatedProject as unknown as Record<string, unknown>) });
+      const { builder, ...projectData } = updatedProject as unknown as Record<string, unknown>;
+      // Also update Builder profile fields if provided
+      if (b.builderName || b.builderAbout || b.builderYearEstablished || b.builderDeliveredProjects || b.builderWebsite) {
+        const bid = (updatedProject as unknown as { builderId: number }).builderId;
+        await prisma.builder.update({
+          where: { id: bid },
+          data: {
+            ...(b.builderName             !== undefined && { companyName: b.builderName }),
+            ...(b.builderAbout            !== undefined && { about: b.builderAbout }),
+            ...(b.builderYearEstablished  !== undefined && { yearEstablished: Number(b.builderYearEstablished) || null }),
+            ...(b.builderDeliveredProjects !== undefined && { deliveredProjects: Number(b.builderDeliveredProjects) || null }),
+            ...(b.builderWebsite          !== undefined && { website: b.builderWebsite || null }),
+          },
+        }).catch(() => {});
+      }
+      res.json({ ok: true, data: toProjectDto(projectData, builder as Record<string, unknown> | undefined) });
     } catch (error) {
       res.status(404).json({ ok: false, message: 'Project not found' });
     }
@@ -272,7 +340,7 @@ export const builderController = {
       where: { builderId: Number(builderId) },
       include: {
         customer: { select: { fullName: true, phone: true, email: true } },
-        project:  { select: { name: true } },
+        project:  { select: { name: true, commissionValue: true } },
         cp:       { include: { user: { select: { fullName: true } } } },
       },
       orderBy: { createdAt: 'desc' },
@@ -290,9 +358,13 @@ export const builderController = {
       budget:       d.dealValue ?? 0,
       stage:        d.status,
       notes:        '',
-      source:       d.cpId ? 'CP Share' : 'Direct',
-      createdAt:    d.createdAt.toISOString().split('T')[0],
-      daysInStage:  Math.floor((Date.now() - new Date(d.updatedAt).getTime()) / 86_400_000),
+      source:            d.cpId ? 'CP Share' : 'Direct',
+      createdAt:         d.createdAt.toISOString().split('T')[0],
+      daysInStage:       Math.floor((Date.now() - new Date(d.updatedAt).getTime()) / 86_400_000),
+      dealValue:         d.dealValue ?? 0,
+      commissionPercent: d.project?.commissionValue ?? 0,
+      commissionAmount:  d.dealValue ? (d.dealValue * (d.project?.commissionValue ?? 0)) / 100 : 0,
+      commissionStatus:  d.commissionStatus ?? 'Pending',
     }));
     res.json({ ok: true, data: leads });
   },
@@ -527,7 +599,10 @@ export const builderController = {
   // Portal (Meeting) interactions
   createLeadFromShare: async (req: Request, res: Response) => {
     const { projectId } = req.params;
-    const { cpUserId, customerName, customerPhone } = req.body;
+    const { cpUserId, customerName, customerPhone, stage } = req.body;
+    // Default: customer self-registers via share link → 'Profile Created'
+    // CP manually adding via button passes stage='NEW_LEAD' explicitly via cpApi.createLead
+    const leadStatus = stage ?? 'Profile Created';
 
     if (!customerPhone) {
       res.status(400).json({ ok: false, message: 'customerPhone is required' });
@@ -562,7 +637,7 @@ export const builderController = {
     if (existingDeal) {
       deal = await prisma.deal.update({
         where: { id: existingDeal.id },
-        data: { status: 'Profile Created', ...(cp ? { cpId: cp.id } : {}) },
+        data: { status: leadStatus, ...(cp ? { cpId: cp.id } : {}) },
       });
     } else {
       deal = await prisma.deal.create({
@@ -570,7 +645,7 @@ export const builderController = {
           projectId:  project.id,
           builderId:  project.builderId,
           customerId: customer.id,
-          status:     'Profile Created',
+          status:     leadStatus,
           ...(cp ? { cpId: cp.id } : {}),
         },
       });
@@ -633,6 +708,42 @@ export const builderController = {
 
     const projectName = newMeeting.project?.name ?? 'your project';
     const ts = new Date().toISOString();
+
+    // Upsert a Deal so the lead appears in the builder's Leads & Meetings page
+    if (meetingData.projectId) {
+      try {
+        const existingDeal = await prisma.deal.findFirst({
+          where: {
+            builderId:  meetingData.builderId,
+            customerId: customer.id,
+            projectId:  Number(meetingData.projectId),
+          },
+          select: { id: true, status: true },
+        });
+
+        const stagesAlreadyPast = ['Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Booked', 'Closed'];
+
+        if (existingDeal) {
+          // Only move backward if the lead hasn't already progressed past "Meeting Requested"
+          if (!stagesAlreadyPast.includes(existingDeal.status)) {
+            await prisma.deal.update({
+              where: { id: existingDeal.id },
+              data: { status: 'Meeting Requested', ...(cpId ? { cpId } : {}) },
+            });
+          }
+        } else {
+          await prisma.deal.create({
+            data: {
+              builderId:  meetingData.builderId,
+              customerId: customer.id,
+              projectId:  Number(meetingData.projectId),
+              status:     'Meeting Requested',
+              ...(cpId ? { cpId } : {}),
+            },
+          });
+        }
+      } catch { /* best-effort — meeting is still saved */ }
+    }
 
     // Notify the builder
     const builder = await prisma.builder.findUnique({
@@ -817,21 +928,22 @@ export const builderController = {
       orderBy: { createdAt: 'desc' }
     });
 
-    // Batch-load CP names for meetings that have a cpId
+    // Batch-load CP names + userIds for meetings that have a cpId
     const cpIds = [...new Set(meetings.map(m => (m as any).cpId).filter(Boolean))];
-    const cpMap: Record<number, string> = {};
+    const cpMap: Record<number, { name: string; userId: number | null }> = {};
     if (cpIds.length > 0) {
       const cps = await prisma.channelPartner.findMany({
         where: { id: { in: cpIds } },
-        select: { id: true, user: { select: { fullName: true } } },
+        select: { id: true, userId: true, user: { select: { fullName: true } } },
       });
-      cps.forEach(cp => { cpMap[cp.id] = cp.user?.fullName ?? 'CP'; });
+      cps.forEach(cp => { cpMap[cp.id] = { name: cp.user?.fullName ?? 'CP', userId: cp.userId }; });
     }
 
     const mapped = meetings.map(m => ({
       ...m,
       projectName: m.project?.name ?? 'Unknown Project',
-      cpName: (m as any).cpId ? (cpMap[(m as any).cpId] ?? null) : null,
+      cpName:   (m as any).cpId ? (cpMap[(m as any).cpId]?.name   ?? null) : null,
+      cpUserId: (m as any).cpId ? (cpMap[(m as any).cpId]?.userId ?? null) : null,
       project: undefined,
     }));
     res.json({ ok: true, data: mapped });
@@ -1072,5 +1184,140 @@ export const builderController = {
     } finally {
       clearTimeout(timeout);
     }
-  }
+  },
+
+  // ── Project Updates ───────────────────────────────────────────────────────
+
+  getProjectUpdates: async (req: Request, res: Response) => {
+    const { projectId } = req.params;
+    const updates = await prisma.projectUpdate.findMany({
+      where: { projectId: Number(projectId) },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ ok: true, data: updates });
+  },
+
+  createProjectUpdate: async (req: Request, res: Response) => {
+    const { projectId } = req.params;
+    const { title, content, type, visibleTo } = req.body;
+    if (!title?.trim() || !content?.trim()) {
+      return res.status(400).json({ ok: false, message: 'title and content are required' });
+    }
+    const update = await prisma.projectUpdate.create({
+      data: {
+        projectId:  Number(projectId),
+        title:      title.trim(),
+        content:    content.trim(),
+        type:       type ?? 'announcement',
+        visibleTo:  visibleTo ?? 'ALL',
+      },
+    });
+    res.json({ ok: true, data: update });
+  },
+
+  editProjectUpdate: async (req: Request, res: Response) => {
+    const { updateId } = req.params;
+    const { title, content, type, visibleTo } = req.body;
+    try {
+      const update = await prisma.projectUpdate.update({
+        where: { id: Number(updateId) },
+        data: {
+          ...(title     !== undefined && { title:     title.trim()   }),
+          ...(content   !== undefined && { content:   content.trim() }),
+          ...(type      !== undefined && { type                       }),
+          ...(visibleTo !== undefined && { visibleTo                  }),
+        },
+      });
+      res.json({ ok: true, data: update });
+    } catch {
+      res.status(404).json({ ok: false, message: 'Update not found' });
+    }
+  },
+
+  deleteProjectUpdate: async (req: Request, res: Response) => {
+    const { updateId } = req.params;
+    try {
+      await prisma.projectUpdate.delete({ where: { id: Number(updateId) } });
+      res.json({ ok: true });
+    } catch {
+      res.status(404).json({ ok: false, message: 'Update not found' });
+    }
+  },
+
+  // ── Broadcasts ────────────────────────────────────────────────────────────
+
+  getBroadcasts: async (req: Request, res: Response) => {
+    const { builderId } = req.params;
+    const broadcasts = await prisma.broadcast.findMany({
+      where: { builderId: Number(builderId) },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ ok: true, data: broadcasts });
+  },
+
+  sendBroadcast: async (req: Request, res: Response) => {
+    const { builderId } = req.params;
+    const { message, audience, audienceFilter, projectId, projectName } = req.body;
+    if (!message?.trim()) {
+      return res.status(400).json({ ok: false, message: 'message is required' });
+    }
+
+    // Resolve which CPs to notify
+    const cpFilter: Record<string, unknown> = {};
+    if (audience === 'By City' && audienceFilter) cpFilter.city = audienceFilter;
+    if (audience === 'By Tier' && audienceFilter) cpFilter.tier = audienceFilter;
+
+    const cps = await prisma.channelPartner.findMany({
+      where: cpFilter,
+      select: { userId: true },
+    });
+
+    const title = projectName
+      ? `Builder Update: ${projectName}`
+      : 'Broadcast from Builder';
+
+    // Create in-app notifications for all matched CPs
+    if (cps.length > 0) {
+      await prisma.notification.createMany({
+        data: cps.map(cp => ({
+          userId:  cp.userId,
+          title,
+          message: message.trim(),
+          type:    'info',
+          link:    '/cp/projects',
+        })),
+      });
+    }
+
+    const broadcast = await prisma.broadcast.create({
+      data: {
+        builderId:     Number(builderId),
+        projectId:     projectId ? Number(projectId) : null,
+        projectName:   projectName ?? null,
+        message:       message.trim(),
+        audience,
+        audienceFilter: audienceFilter ?? null,
+        delivered:     cps.length,
+      },
+    });
+
+    res.json({ ok: true, data: broadcast });
+  },
+
+  // Public endpoint — returns only updates visible to the requesting role
+  getPublicProjectUpdates: async (req: Request, res: Response) => {
+    const { projectId } = req.params;
+    const role = (req.query.role as string ?? 'CP').toUpperCase();
+    const updates = await prisma.projectUpdate.findMany({
+      where: {
+        projectId: Number(projectId),
+        OR: [
+          { visibleTo: 'ALL' },
+          { visibleTo: { contains: role } },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ ok: true, data: updates });
+  },
 };

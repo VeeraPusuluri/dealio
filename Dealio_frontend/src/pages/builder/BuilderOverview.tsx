@@ -28,6 +28,7 @@ const QUICK_ACTIONS = [
   { label: 'New Project',    path: '/builder/projects/new',    icon: Plus,        color: '#0A7E8C' },
   { label: 'Unit Matrix',    path: '/builder/units',            icon: Layers,      color: '#7C3AED' },
   { label: 'View Leads',     path: '/builder/leads',            icon: Users,       color: '#2563EB' },
+  { label: 'CP Performance', path: '/builder/cp-performance',  icon: BarChart3,   color: '#0A7E8C' },
   { label: 'Analytics',      path: '/builder/analytics',        icon: BarChart3,   color: '#D97706' },
   { label: 'Broadcast',      path: '/builder/broadcast',        icon: Megaphone,   color: '#E87722' },
   { label: 'RERA',           path: '/builder/rera',             icon: Shield,      color: '#16A34A' },

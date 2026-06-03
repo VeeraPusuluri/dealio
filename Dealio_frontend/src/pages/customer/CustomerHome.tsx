@@ -7,7 +7,7 @@ import {
   Building2, MapPin, Search, Loader2, X, Bookmark,
   SlidersHorizontal, ArrowUpDown, ChevronDown, Check, Wifi, Car,
   Dumbbell, TreePine, Shield, Waves, Coffee, UtensilsCrossed,
-  Navigation, LocateFixed,
+  Navigation, LocateFixed, CheckCircle2,
 } from 'lucide-react';
 import ProjectPlaceholder from '@/components/shared/ProjectPlaceholder';
 
@@ -30,10 +30,12 @@ interface ProjectSummary {
   imageUrl?: string | null;
   builderName?: string;
   amenities?: string[];
+  soldUnits?: number;
+  totalUnits?: number;
 }
 
 type FilterTab = 'all' | 'saved' | 'ready2027' | 'under1cr' | 'nearme';
-type SortOption = 'default' | 'price-asc' | 'price-desc' | 'distance';
+type SortOption = 'default' | 'price-asc' | 'price-desc' | 'distance' | 'popularity';
 type GeoStatus = 'idle' | 'locating' | 'done' | 'denied' | 'error';
 
 /* ─── Constants ──────────────────────────────────────────────────── */
@@ -110,150 +112,147 @@ function othersSaved(id: number): number {
 }
 
 /* ─── Project Card ───────────────────────────────────────────────── */
-function ProjectCard({
-  project, shortlist, onToggleShortlist, onClick, distanceKm,
+/* ─── Project card (matches builder project view style) ─────────── */
+function ProjectGridCard({
+  project, shortlist, onToggleShortlist, onClick, featured = false,
 }: {
   project: ProjectSummary;
   shortlist: Set<number>;
   onToggleShortlist: (id: number, e: React.MouseEvent) => void;
   onClick: () => void;
-  distanceKm?: number;
+  featured?: boolean;
 }) {
-  const isSaved   = shortlist.has(project.id);
-  const savedCount = othersSaved(project.id);
+  const isSaved = shortlist.has(project.id);
+  const loc = [project.locality, project.city].filter(Boolean).join(', ');
+  const cfgs = project.configurations?.slice(0, 3).join(' · ') ?? '';
+  const locLine = [loc, cfgs].filter(Boolean).join(' · ');
+  const hasPrice = project.priceMin != null || project.priceMax != null;
   const startPrice = project.priceMin ?? project.priceMax ?? 0;
-  const hasPrice   = project.priceMin != null || project.priceMax != null;
-
-  const amenities = (project.amenities ?? []).slice(0, 4);
+  const statusMeta: Record<string, { dot: string; label: string }> = {
+    ACTIVE:             { dot: '#22c55e', label: 'Selling'        },
+    LAUNCHED:           { dot: '#22c55e', label: 'Selling'        },
+    READY_TO_MOVE:      { dot: '#22c55e', label: 'Ready to move'  },
+    CLOSING_SOON:       { dot: '#f59e0b', label: 'Closing soon'   },
+    NEW_LAUNCH:         { dot: '#a855f7', label: 'New launch'     },
+    PRE_LAUNCH:         { dot: '#8b5cf6', label: 'Pre-launch'     },
+    UNDER_CONSTRUCTION: { dot: '#3b82f6', label: 'Under const.'   },
+  };
+  const meta = statusMeta[project.status] ?? { dot: '#94a3b8', label: project.status };
 
   return (
     <div
       onClick={onClick}
-      className="group bg-white rounded-2xl overflow-hidden cursor-pointer flex flex-col border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all duration-200">
-
-      {/* ── Image area ── */}
-      <div className="relative overflow-hidden bg-gray-50" style={{ aspectRatio: '4/5' }}>
-        {project.imageUrl ? (
-          <img src={project.imageUrl} alt={project.name}
-            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
-        ) : (
-          <ProjectPlaceholder seed={project.id} />
-        )}
-
-        {/* Status badge top-left */}
-        <div className="absolute top-2.5 left-2.5">
-          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${STATUS_BADGE[project.status] ?? 'bg-gray-50 text-gray-600 border-gray-100'}`}>
-            {STATUS_LABEL[project.status] ?? project.status}
-          </span>
+      className={`group bg-white rounded-3xl overflow-hidden cursor-pointer flex flex-col border border-gray-100/80
+        transition-all duration-200 hover:shadow-2xl hover:shadow-gray-200/60 hover:border-gray-200
+        ${featured ? 'col-span-2' : ''}`}
+      style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.03)' }}
+    >
+      {/* Status header strip */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-50/80">
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: meta.dot }} />
+          <span className="text-[11px] font-semibold text-gray-500">{meta.label}</span>
         </div>
-
-        {/* Bookmark top-right */}
-        <div className="absolute top-2.5 right-2.5" onClick={e => { e.stopPropagation(); onToggleShortlist(project.id, e); }}>
-          <button className={`w-7 h-7 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm transition-colors ${isSaved ? 'text-teal-600' : 'text-gray-400 hover:text-teal-600'}`}>
-            <Bookmark size={13} fill={isSaved ? 'currentColor' : 'none'} />
-          </button>
-        </div>
-
-        {/* Bottom-left: distance badge (distance sort) or others-saved count */}
-        <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1">
-          {distanceKm != null && distanceKm < 99999 ? (
-            <span className="flex items-center gap-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-black/50 backdrop-blur text-white">
-              <Navigation size={8} /> {distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(1)} km`}
+        <div className="flex items-center gap-2">
+          {project.reraNumber && (
+            <span className="text-emerald-500 text-[10px] font-bold flex items-center gap-0.5">
+              <CheckCircle2 size={9} /> RERA
             </span>
-          ) : savedCount > 0 ? (
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-black/40 backdrop-blur text-white">
-              {savedCount} others saved
-            </span>
-          ) : null}
+          )}
+          <div onClick={e => { e.stopPropagation(); onToggleShortlist(project.id, e); }}>
+            <button className={`w-6 h-6 rounded-full flex items-center justify-center transition-all
+              ${isSaved ? 'bg-teal-100 text-teal-600' : 'bg-gray-100 text-gray-400 hover:text-teal-600'}`}>
+              <Bookmark size={11} fill={isSaved ? 'currentColor' : 'none'} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── Body ── */}
-      <div className="p-3 flex flex-col flex-1 gap-0.5">
-        <div className="flex items-start justify-between gap-1">
-          <h3 className="font-bold text-slate-800 text-[13px] leading-snug line-clamp-1 flex-1 group-hover:text-teal-700 transition-colors">
-            {project.name}
-          </h3>
-        </div>
+      {/* Image */}
+      <div className={`relative overflow-hidden flex-shrink-0 ${featured ? 'h-80' : 'h-56'}`}>
+        {project.imageUrl ? (
+          <img src={project.imageUrl} alt={project.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        ) : (
+          <ProjectPlaceholder seed={project.id} />
+        )}
+        {project.featured && (
+          <span className="absolute top-2.5 left-2.5 bg-amber-400 text-amber-900 text-[9px] font-bold px-2 py-0.5 rounded-full">
+            FEATURED
+          </span>
+        )}
+        {project.closingSoon && (
+          <span className="absolute top-2.5 right-2.5 bg-red-100 text-red-600 text-[9px] font-bold px-2 py-0.5 rounded-full">
+            CLOSING SOON
+          </span>
+        )}
+      </div>
 
+      {/* Body */}
+      <div className={`flex flex-col gap-1 flex-1 ${featured ? 'p-5' : 'p-4'}`}>
+        <h3 className={`font-bold text-gray-900 leading-snug line-clamp-1 group-hover:text-teal-700 transition-colors ${featured ? 'text-[18px]' : 'text-[14px]'}`}>
+          {project.name}
+        </h3>
+        {locLine && <p className="text-[11px] text-gray-400 line-clamp-1">{locLine}</p>}
         {hasPrice && (
-          <p className="text-[10px] text-slate-400 leading-none mb-0.5">
-            <span className="uppercase tracking-wide text-[8px]">FROM </span>
-            <span className="font-black text-[12px] text-slate-800">{fmtPrice(startPrice, undefined)}</span>
+          <p className={`font-semibold text-gray-800 mt-0.5 ${featured ? 'text-[15px]' : 'text-[12px]'}`}>
+            <span className="text-[10px] font-normal text-gray-400 mr-1">FROM</span>
+            {fmtPrice(startPrice, undefined)}
           </p>
         )}
 
-        <p className="flex items-center gap-1 text-[10px] text-slate-400 line-clamp-1">
-          <MapPin size={9} className="shrink-0 text-teal-500/70" />
-          {[project.locality, project.city].filter(Boolean).join(', ') || '—'}
-          {project.reraNumber ? ' · RERA' : ''}
-        </p>
-
-        {/* Amenities */}
-        {amenities.length > 0 && (
-          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-            {amenities.map(a => {
-              const Icon = getAmenityIcon(a);
-              return (
-                <span key={a} className="flex items-center gap-0.5 text-[10px] text-slate-500 bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-100">
-                  <Icon size={9} className="text-teal-500" /> {a}
-                </span>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Configurations */}
-        {!amenities.length && project.configurations && project.configurations.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-0.5">
-            {project.configurations.slice(0, 3).map(c => (
-              <span key={c} className="text-[10px] px-1.5 py-0.5 rounded-md bg-gray-50 text-slate-600 font-semibold border border-gray-100">
-                {c}
-              </span>
+        {/* Configs row */}
+        {project.configurations && project.configurations.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {project.configurations.slice(0, 4).map(c => (
+              <span key={c} className="text-[10px] px-1.5 py-0.5 rounded-md bg-gray-50 text-slate-500 border border-gray-100">{c}</span>
             ))}
           </div>
         )}
 
-        {/* Distance from area */}
-        {project.locality && (
-          <p className="text-[10px] text-slate-400 mt-0.5">
-            {(0.5 + (project.id % 8) * 0.3).toFixed(1)} km from {project.locality}
+        {/* Possession */}
+        {project.possessionDate && (
+          <p className="text-[10px] text-gray-400 mt-1">
+            Possession: {new Date(project.possessionDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
           </p>
         )}
-
-        {/* View button */}
-        <div className="mt-auto pt-2">
-          <div className="flex items-center justify-end">
-            <span className="text-[11px] font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors px-3 py-1 rounded-lg">
-              View →
-            </span>
-          </div>
-        </div>
       </div>
+    </div>
+  );
+}
+
+/* ─── Builder-style grid renderer ───────────────────────────────── */
+function ProjectGrid({
+  projects, shortlist, onToggleShortlist, onOpen,
+}: {
+  projects: ProjectSummary[];
+  shortlist: Set<number>;
+  onToggleShortlist: (id: number, e: React.MouseEvent) => void;
+  onOpen: (p: ProjectSummary) => void;
+}) {
+  if (!projects.length) return null;
+  const card = (p: ProjectSummary, featured = false) => (
+    <ProjectGridCard key={p.id} project={p} shortlist={shortlist}
+      onToggleShortlist={onToggleShortlist} onClick={() => onOpen(p)} featured={featured}/>
+  );
+  return (
+    <div className="space-y-5">
+      {/* Row 1: featured (col-span-2) + first small */}
+      <div className="grid grid-cols-3 gap-5 items-start">
+        {card(projects[0], true)}
+        {projects[1] && card(projects[1])}
+      </div>
+      {/* Remaining: 3-col equal */}
+      {projects.length > 2 && (
+        <div className="grid grid-cols-3 gap-5">
+          {projects.slice(2).map(p => card(p))}
+        </div>
+      )}
     </div>
   );
 }
 
 /* ─── Skeleton ───────────────────────────────────────────────────── */
-function CardSkeleton() {
-  return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 animate-pulse">
-      <div className="bg-gray-100" style={{ aspectRatio: '4/5' }} />
-      <div className="p-3 space-y-2">
-        <div className="h-3 bg-gray-100 rounded w-3/4" />
-        <div className="h-2.5 bg-gray-100 rounded w-1/2" />
-        <div className="h-2 bg-gray-100 rounded w-2/3" />
-        <div className="flex gap-1 mt-2">
-          <div className="h-5 w-14 rounded-md bg-gray-100" />
-          <div className="h-5 w-14 rounded-md bg-gray-100" />
-        </div>
-        <div className="flex justify-end mt-2">
-          <div className="h-6 w-12 rounded-lg bg-gray-100" />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ─── Haversine distance (km) ────────────────────────────────────── */
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -452,8 +451,17 @@ const CustomerHome = () => {
       );
     }
 
-    if (sortBy === 'price-asc')  list.sort((a, b) => (a.priceMin ?? 0) - (b.priceMin ?? 0));
-    if (sortBy === 'price-desc') list.sort((a, b) => (b.priceMin ?? 0) - (a.priceMin ?? 0));
+    if (sortBy === 'price-asc')   list.sort((a, b) => (a.priceMin ?? 0) - (b.priceMin ?? 0));
+    if (sortBy === 'price-desc')  list.sort((a, b) => (b.priceMin ?? 0) - (a.priceMin ?? 0));
+    if (sortBy === 'popularity')  list.sort((a, b) => {
+      // Primary: soldUnits descending; secondary: soldUnits as % of totalUnits (sell-through rate)
+      const soldA = a.soldUnits ?? 0;
+      const soldB = b.soldUnits ?? 0;
+      if (soldB !== soldA) return soldB - soldA;
+      const rateA = a.totalUnits ? soldA / a.totalUnits : 0;
+      const rateB = b.totalUnits ? soldB / b.totalUnits : 0;
+      return rateB - rateA;
+    });
     if (sortBy === 'distance' && userCoords) {
       const getKm = (p: ProjectSummary) => {
         const key = p.locality || p.city || '';
@@ -478,14 +486,15 @@ const CustomerHome = () => {
     ['default',    'Default'],
     ['price-asc',  'Price: Low → High'],
     ['price-desc', 'Price: High → Low'],
-    ['distance',   'Nearest first', !userCoords], // third element = disabled
+    ['popularity', 'Most Popular'],
+    ['distance',   'Nearest first', !userCoords],
   ];
 
   const sortLabel = SORT_OPTIONS.find(([k]) => k === sortBy)?.[1] ?? 'Sort';
 
   return (
     <DashboardLayout>
-      <div className="space-y-0 pb-8">
+      <div className="space-y-0 pb-8" style={{zoom:0.9}}>
 
         {/* ══ HEADER ══ */}
         <div className="flex items-start justify-between gap-4 pt-1 pb-4">
@@ -604,7 +613,7 @@ const CustomerHome = () => {
               onClick={() => setFilterTab('saved')}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold text-white transition-colors hover:opacity-90"
               style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
-              <Bookmark size={13} /> Shortlist a project
+              <Bookmark size={13} /> Shortlisted Places
             </button>
           </div>
         </div>
@@ -781,15 +790,21 @@ const CustomerHome = () => {
         )}
 
         {/* ══ GRID ══ */}
-        <div className="pt-5">
+        <div className="pt-10 px-20">
           {error ? (
             <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
               <Building2 size={32} className="mx-auto mb-3 text-gray-300" />
               <p className="text-sm text-red-500">{error}</p>
             </div>
           ) : loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
+            <div className="space-y-5">
+              <div className="grid grid-cols-3 gap-5">
+                <div className="col-span-2 h-80 bg-gray-100 rounded-3xl animate-pulse"/>
+                <div className="h-80 bg-gray-100 rounded-3xl animate-pulse"/>
+              </div>
+              <div className="grid grid-cols-3 gap-5">
+                {[1,2,3].map(i => <div key={i} className="h-56 bg-gray-100 rounded-3xl animate-pulse"/>)}
+              </div>
             </div>
           ) : displayed.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
@@ -816,28 +831,93 @@ const CustomerHome = () => {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-              {displayed.map(p => {
-                const key = p.locality || p.city || '';
-                const coords = localityCoords.get(key);
-                const distanceKm = (sortBy === 'distance' && userCoords && coords)
-                  ? haversine(userCoords.lat, userCoords.lon, coords.lat, coords.lon)
-                  : undefined;
-                return (
-                  <ProjectCard
-                    key={p.id}
-                    project={p}
-                    shortlist={shortlist}
-                    onToggleShortlist={toggleShortlist}
-                    onClick={() => navigate(`/customer/projects/${p.id}`, { state: { project: p } })}
-                    distanceKm={distanceKm}
-                  />
-                );
-              })}
-            </div>
+            <ProjectGrid
+              projects={displayed}
+              shortlist={shortlist}
+              onToggleShortlist={toggleShortlist}
+              onOpen={p => window.open(`/customer/projects/${p.id}?standalone=1`, '_blank')}
+            />
           )}
         </div>
+
       </div>
+
+      {/* ── Footer: Tell Us What You're Looking For ─────────────────── */}
+      <footer style={{background:'#0B2237',flexShrink:0,marginTop:'48px',position:'relative',overflow:'hidden',borderRadius:'24px 24px 0 0'}}>
+        <div className="max-w-7xl mx-auto px-12 py-16 flex items-center justify-between gap-12">
+
+          {/* Left — copy */}
+          <div style={{maxWidth:420}}>
+            <h2 style={{fontFamily:'Georgia,"Times New Roman",serif',fontSize:'clamp(32px,4vw,52px)',fontWeight:700,lineHeight:1.1,color:'#fff',margin:'0 0 4px'}}>
+              Tell Us What You're
+            </h2>
+            <h2 style={{fontFamily:'Georgia,"Times New Roman",serif',fontSize:'clamp(32px,4vw,52px)',fontWeight:700,lineHeight:1.1,color:'#4ADE80',margin:'0 0 24px'}}>
+              Looking For!
+            </h2>
+            <p style={{fontFamily:'system-ui,sans-serif',fontSize:14,color:'rgba(255,255,255,0.55)',lineHeight:1.75,margin:'0 0 36px',maxWidth:340}}>
+              Have a home in mind? Or do you like something we built? Get in touch with us and we'll help you get closer to your dream home.
+            </p>
+            <button
+              onClick={() => navigate('/customer/contact')}
+              style={{display:'inline-flex',alignItems:'center',gap:12,padding:'12px 24px',borderRadius:999,border:'1.5px solid rgba(255,255,255,0.5)',background:'transparent',color:'#fff',fontFamily:'system-ui,sans-serif',fontSize:14,fontWeight:600,cursor:'pointer',transition:'all .2s'}}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background='rgba(255,255,255,0.08)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background='transparent'; }}
+            >
+              Contact Us
+              <span style={{width:28,height:28,borderRadius:'50%',background:'#4ADE80',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M2 7h10M8 3l4 4-4 4" stroke="#0B2237" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </span>
+            </button>
+
+            {/* Copyright */}
+            <p style={{fontFamily:'system-ui,sans-serif',fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:48}}>
+              © {new Date().getFullYear()} Dealio · Real Estate Platform
+            </p>
+          </div>
+
+          {/* Right — geometric SVG illustration */}
+          <div style={{flexShrink:0,width:380,height:300,position:'relative',opacity:0.85}}>
+            <svg viewBox="0 0 380 300" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'100%',height:'100%'}}>
+              {/* Stacked layered diamond wireframe — 5 nested diamonds offset */}
+              {[0,1,2,3,4].map(i => {
+                const scale = 1 - i * 0.13;
+                const yShift = i * 22;
+                const cx = 190, cy = 150 - yShift * 0.5;
+                const rx = 130 * scale, ry = 75 * scale;
+                const opacity = 0.18 + i * 0.07;
+                const pts = [
+                  [cx, cy - ry],
+                  [cx + rx, cy],
+                  [cx, cy + ry],
+                  [cx - rx, cy],
+                ].map(p => p.join(',')).join(' ');
+                return (
+                  <g key={i}>
+                    <polygon points={pts} stroke="rgba(74,222,128,0.6)" strokeWidth="1" fill="none" opacity={opacity + 0.3}/>
+                    {/* Vertical connecting lines on sides */}
+                    {i < 4 && (() => {
+                      const nScale = 1 - (i+1) * 0.13;
+                      const nYShift = (i+1) * 22;
+                      const nCx = 190, nCy = 150 - nYShift * 0.5;
+                      const nRx = 130 * nScale, nRy = 75 * nScale;
+                      return (
+                        <>
+                          <line x1={cx} y1={cy - ry} x2={nCx} y2={nCy - nRy} stroke="rgba(74,222,128,0.25)" strokeWidth="1"/>
+                          <line x1={cx + rx} y1={cy} x2={nCx + nRx} y2={nCy} stroke="rgba(74,222,128,0.25)" strokeWidth="1"/>
+                          <line x1={cx} y1={cy + ry} x2={nCx} y2={nCy + nRy} stroke="rgba(74,222,128,0.25)" strokeWidth="1"/>
+                          <line x1={cx - rx} y1={cy} x2={nCx - nRx} y2={nCy} stroke="rgba(74,222,128,0.25)" strokeWidth="1"/>
+                        </>
+                      );
+                    })()}
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        </div>
+      </footer>
     </DashboardLayout>
   );
 };

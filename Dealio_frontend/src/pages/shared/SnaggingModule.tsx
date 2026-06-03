@@ -1,111 +1,198 @@
 import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Camera, AlertTriangle, CheckCircle, Clock, RotateCcw, Plus, Send } from 'lucide-react';
+import {
+  Camera, AlertTriangle, CheckCircle2, Clock, RotateCcw,
+  Plus, Send, X, Wrench,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 interface SnagItem {
-  id: string; location: string; category: string; description: string; priority: 'High' | 'Medium' | 'Low';
-  status: 'Open' | 'In Progress' | 'Resolved' | 'Rejected' | 'Reopened'; assignedTo?: string; dueDate?: string; resolutionNote?: string;
+  id: string; location: string; category: string; description: string;
+  priority: 'High' | 'Medium' | 'Low';
+  status: 'Open' | 'In Progress' | 'Resolved' | 'Rejected' | 'Reopened';
+  assignedTo?: string; dueDate?: string; resolutionNote?: string;
 }
 
-const initialSnags: SnagItem[] = [
-  { id: 'SNG-0001', location: 'Master Bedroom', category: 'Painting', description: 'Uneven paint finish on east wall', priority: 'Medium', status: 'In Progress', assignedTo: 'Paint Team A', dueDate: '2025-02-01' },
-  { id: 'SNG-0002', location: 'Kitchen', category: 'Plumbing', description: 'Sink tap has slow drip', priority: 'High', status: 'Open' },
-  { id: 'SNG-0003', location: 'Bathroom 1', category: 'Flooring', description: 'Loose tile near shower drain', priority: 'High', status: 'Resolved', assignedTo: 'Floor Team', resolutionNote: 'Tile re-laid and grouted' },
-];
+const LOCATIONS = ['Living Room', 'Master Bedroom', 'Bedroom 2', 'Kitchen', 'Bathroom 1', 'Bathroom 2', 'Balcony', 'Entrance', 'Parking', 'Other'];
+const CATEGORIES = ['Structural', 'Plumbing', 'Electrical', 'Painting', 'Flooring', 'Fixtures', 'Other'];
 
-const locations = ['Living Room', 'Master Bedroom', 'Bedroom 2', 'Kitchen', 'Bathroom 1', 'Bathroom 2', 'Balcony', 'Entrance', 'Parking', 'Other'];
-const categories = ['Structural', 'Plumbing', 'Electrical', 'Painting', 'Flooring', 'Fixtures', 'Other'];
+const statusIcon: Record<string, React.ElementType> = {
+  Open: AlertTriangle, 'In Progress': Clock, Resolved: CheckCircle2, Rejected: X, Reopened: RotateCcw,
+};
+const statusPill: Record<string, string> = {
+  Open: 'bg-red-50 text-red-600 border border-red-200',
+  'In Progress': 'bg-amber-50 text-amber-700 border border-amber-200',
+  Resolved: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  Rejected: 'bg-muted text-muted-foreground border border-border',
+  Reopened: 'bg-red-50 text-red-600 border border-red-200',
+};
+const priorityPill: Record<string, string> = {
+  High: 'bg-red-100 text-red-700',
+  Medium: 'bg-amber-100 text-amber-700',
+  Low: 'bg-blue-100 text-blue-700',
+};
 
-const statusIcon: Record<string, React.ElementType> = { Open: AlertTriangle, 'In Progress': Clock, Resolved: CheckCircle, Rejected: AlertTriangle, Reopened: RotateCcw };
-const statusColor: Record<string, string> = { Open: 'text-red-600', 'In Progress': 'text-amber-600', Resolved: 'text-green-600', Rejected: 'text-muted-foreground', Reopened: 'text-red-600' };
-const priorityColor: Record<string, string> = { High: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300', Medium: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300', Low: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' };
+const inp = 'w-full mt-1 px-3 py-2.5 rounded-xl border border-border bg-background text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all placeholder:text-muted-foreground';
 
 const SnaggingModule = ({ isBuilder = false }: { isBuilder?: boolean }) => {
-  const [snags, setSnags] = useState(initialSnags);
+  const [snags, setSnags] = useState<SnagItem[]>([]);
   const [showAdd, setShowAdd] = useState(false);
-  const [newLoc, setNewLoc] = useState(locations[0]);
-  const [newCat, setNewCat] = useState(categories[0]);
+  const [newLoc, setNewLoc] = useState(LOCATIONS[0]);
+  const [newCat, setNewCat] = useState(CATEGORIES[0]);
   const [newDesc, setNewDesc] = useState('');
   const [newPriority, setNewPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
 
+  const total = snags.length;
+  const resolved = snags.filter(s => s.status === 'Resolved').length;
+  const pending = snags.filter(s => ['Open', 'In Progress', 'Reopened'].includes(s.status)).length;
+  const overdue = snags.filter(s => s.dueDate && new Date(s.dueDate) < new Date() && s.status !== 'Resolved').length;
+
   const addSnag = () => {
-    if (!newDesc.trim()) { toast.error('Enter description'); return; }
+    if (!newDesc.trim()) { toast.error('Please enter a description'); return; }
     const id = `SNG-${String(snags.length + 1).padStart(4, '0')}`;
-    setSnags(prev => [...prev, { id, location: newLoc, category: newCat, description: newDesc, priority: newPriority, status: 'Open' }]);
+    setSnags(prev => [...prev, { id, location: newLoc, category: newCat, description: newDesc.trim(), priority: newPriority, status: 'Open' }]);
     setShowAdd(false); setNewDesc('');
-    toast.success(`Snag ${id} raised`);
+    toast.success(`Snag ${id} raised successfully`);
   };
 
   const updateStatus = (id: string, status: SnagItem['status']) => {
     setSnags(prev => prev.map(s => s.id === id ? { ...s, status } : s));
-    toast.success(`Snag ${id} → ${status}`);
+    toast.success(`Snag updated → ${status}`);
   };
-
-  const total = snags.length; const resolved = snags.filter(s => s.status === 'Resolved').length;
-  const pending = snags.filter(s => ['Open', 'In Progress', 'Reopened'].includes(s.status)).length;
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-5 pb-10 max-w-4xl">
+
+        {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-card-foreground">Snagging Report</h2>
-          {!isBuilder && <button onClick={() => setShowAdd(!showAdd)} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center gap-2 hover:bg-primary/90"><Plus size={14} /> Raise Snag</button>}
+          <div>
+            <h1 className="text-[18px] font-bold text-foreground">Snagging Report</h1>
+            <p className="text-[13px] text-muted-foreground mt-0.5">Report and track defects for resolution before possession</p>
+          </div>
+          {!isBuilder && (
+            <button onClick={() => setShowAdd(!showAdd)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-opacity"
+              style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}>
+              <Plus size={14} /> Raise Snag
+            </button>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-card rounded-lg p-3 border border-border"><p className="text-xs text-muted-foreground">Total</p><p className="text-xl font-bold text-card-foreground">{total}</p></div>
-          <div className="bg-card rounded-lg p-3 border border-border"><p className="text-xs text-muted-foreground">Resolved</p><p className="text-xl font-bold text-green-600">{resolved}</p></div>
-          <div className="bg-card rounded-lg p-3 border border-border"><p className="text-xs text-muted-foreground">Pending</p><p className="text-xl font-bold text-amber-600">{pending}</p></div>
-          <div className="bg-card rounded-lg p-3 border border-border"><p className="text-xs text-muted-foreground">Overdue</p><p className="text-xl font-bold text-destructive">{snags.filter(s => s.dueDate && new Date(s.dueDate) < new Date() && s.status !== 'Resolved').length}</p></div>
-        </div>
-
-        {showAdd && (
-          <div className="bg-card rounded-lg p-5 border border-border space-y-3">
-            <h3 className="font-semibold text-card-foreground">New Snag Item</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div><label className="text-xs text-muted-foreground">Location</label><select value={newLoc} onChange={e => setNewLoc(e.target.value)} className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground">{locations.map(l => <option key={l}>{l}</option>)}</select></div>
-              <div><label className="text-xs text-muted-foreground">Category</label><select value={newCat} onChange={e => setNewCat(e.target.value)} className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground">{categories.map(c => <option key={c}>{c}</option>)}</select></div>
-              <div><label className="text-xs text-muted-foreground">Priority</label><select value={newPriority} onChange={e => setNewPriority(e.target.value as 'High'|'Medium'|'Low')} className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground"><option>High</option><option>Medium</option><option>Low</option></select></div>
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: 'Total', value: total, color: 'text-foreground', bg: 'bg-muted/40' },
+            { label: 'Resolved', value: resolved, color: 'text-emerald-600', bg: 'bg-emerald-50 border border-emerald-200' },
+            { label: 'Pending', value: pending, color: 'text-amber-600', bg: 'bg-amber-50 border border-amber-200' },
+            { label: 'Overdue', value: overdue, color: 'text-red-600', bg: 'bg-red-50 border border-red-200' },
+          ].map(({ label, value, color, bg }) => (
+            <div key={label} className={`rounded-2xl p-4 ${bg}`}>
+              <p className="text-[11px] font-medium text-muted-foreground mb-1">{label}</p>
+              <p className={`text-[24px] font-bold leading-none ${color}`}>{value}</p>
             </div>
-            <div><label className="text-xs text-muted-foreground">Description</label><textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={2} className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground resize-none placeholder:text-muted-foreground" placeholder="Describe the defect..." /></div>
-            <button onClick={addSnag} className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold flex items-center gap-2 hover:bg-green-700"><Send size={14} /> Submit Snag</button>
+          ))}
+        </div>
+
+        {/* Add snag form */}
+        {showAdd && !isBuilder && (
+          <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[14px] font-bold text-foreground">New Snag Item</h3>
+              <button onClick={() => setShowAdd(false)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+                <X size={14} />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Location</label>
+                <select value={newLoc} onChange={e => setNewLoc(e.target.value)} className={inp}>
+                  {LOCATIONS.map(l => <option key={l}>{l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Category</label>
+                <select value={newCat} onChange={e => setNewCat(e.target.value)} className={inp}>
+                  {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Priority</label>
+                <select value={newPriority} onChange={e => setNewPriority(e.target.value as 'High' | 'Medium' | 'Low')} className={inp}>
+                  <option>High</option><option>Medium</option><option>Low</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Description</label>
+              <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={2} className={`${inp} resize-none`}
+                placeholder="Describe the defect clearly…" />
+            </div>
+            <button onClick={addSnag}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-opacity"
+              style={{ background: '#16A34A' }}>
+              <Send size={13} /> Submit Snag
+            </button>
           </div>
         )}
 
-        <div className="space-y-2">
-          {snags.map(s => {
-            const Icon = statusIcon[s.status] || Clock;
-            return (
-              <div key={s.id} className="bg-card rounded-lg border border-border p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <Icon size={16} className={statusColor[s.status]} />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs font-bold text-muted-foreground">{s.id}</p>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${priorityColor[s.priority]}`}>{s.priority}</span>
+        {/* Snag list */}
+        {snags.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-12 flex flex-col items-center text-center">
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-4">
+              {isBuilder ? <Wrench size={24} className="text-muted-foreground" /> : <Camera size={24} className="text-muted-foreground" />}
+            </div>
+            <h3 className="text-[14px] font-bold text-foreground mb-1">No snags reported yet</h3>
+            <p className="text-[12px] text-muted-foreground max-w-xs">
+              {isBuilder
+                ? 'Snag items reported by customers will appear here for you to assign and resolve.'
+                : 'After possession, use "Raise Snag" to report any defects to your builder for resolution.'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {snags.map(s => {
+              const Icon = statusIcon[s.status] ?? Clock;
+              return (
+                <div key={s.id} className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <Icon size={15} className={`shrink-0 mt-0.5 ${
+                        s.status === 'Open' ? 'text-red-500' : s.status === 'In Progress' ? 'text-amber-500' :
+                        s.status === 'Resolved' ? 'text-emerald-500' : 'text-muted-foreground'
+                      }`} />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="text-[10px] font-bold text-muted-foreground">{s.id}</span>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${priorityPill[s.priority]}`}>{s.priority}</span>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusPill[s.status]}`}>{s.status}</span>
+                        </div>
+                        <p className="text-[13px] font-medium text-foreground">{s.description}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{s.location} · {s.category}</p>
+                        {s.assignedTo && <p className="text-[11px] text-muted-foreground mt-0.5">Assigned: {s.assignedTo}{s.dueDate ? ` · Due: ${s.dueDate}` : ''}</p>}
+                        {s.resolutionNote && <p className="text-[11px] text-emerald-600 mt-1">✅ {s.resolutionNote}</p>}
                       </div>
-                      <p className="text-sm font-medium text-card-foreground mt-0.5">{s.description}</p>
-                      <p className="text-xs text-muted-foreground">{s.location} · {s.category}</p>
-                      {s.assignedTo && <p className="text-xs text-muted-foreground mt-1">Assigned: {s.assignedTo}{s.dueDate ? ` · Due: ${s.dueDate}` : ''}</p>}
-                      {s.resolutionNote && <p className="text-xs text-green-600 mt-1">✅ {s.resolutionNote}</p>}
+                    </div>
+                    <div className="flex gap-1.5 shrink-0">
+                      {isBuilder && s.status !== 'Resolved' && (
+                        <button onClick={() => updateStatus(s.id, 'Resolved')}
+                          className="text-[11px] px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold hover:bg-emerald-100 transition-colors">
+                          Resolve
+                        </button>
+                      )}
+                      {!isBuilder && s.status === 'Resolved' && (
+                        <button onClick={() => updateStatus(s.id, 'Reopened')}
+                          className="text-[11px] px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 font-semibold hover:bg-red-100 transition-colors">
+                          Reopen
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex gap-1">
-                    {isBuilder && s.status !== 'Resolved' && (
-                      <button onClick={() => updateStatus(s.id, 'Resolved')} className="text-[10px] px-2 py-1 rounded bg-green-100 dark:bg-green-900/30 text-green-600 font-medium">Resolve</button>
-                    )}
-                    {!isBuilder && s.status === 'Resolved' && (
-                      <button onClick={() => updateStatus(s.id, 'Reopened')} className="text-[10px] px-2 py-1 rounded bg-red-100 dark:bg-red-900/30 text-red-600 font-medium">Reopen</button>
-                    )}
-                  </div>
                 </div>
-              </div>
-            );
-          })}
-          {snags.length === 0 && <div className="bg-muted/50 rounded-lg p-8 text-center"><Camera size={32} className="mx-auto text-muted-foreground mb-2" /><p className="text-sm text-muted-foreground">No snag items raised yet — items will appear here after possession</p></div>}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

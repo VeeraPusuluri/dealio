@@ -5,12 +5,14 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { useCommissionStore } from '@/stores/useCommissionStore';
 import { channelPartners, tierColors } from '@/data/channelPartners';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { DollarSign, Users, AlertTriangle, CheckCircle, Search, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { DollarSign, Users, AlertTriangle, CheckCircle, Search, X, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 type AdminCommissionStatus = 'Pending' | 'Released' | 'On Hold' | 'Disputed';
 
 const AdminCommissions = () => {
+  const navigate = useNavigate();
   const { commissions, releaseCommission } = useCommissionStore();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -67,6 +69,12 @@ const AdminCommissions = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigate('/admin')} className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Back to Overview">
+            <ArrowLeft size={15} className="text-muted-foreground" />
+          </button>
+          <h2 className="text-[15px] font-bold text-foreground">Commission Management</h2>
+        </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard title="Total Pending Payout" value={formatCurrency(pendingTotal)} icon={DollarSign} color="#F59E0B" />
           <StatCard title="Released This Month" value={formatCurrency(releasedThisMonth)} icon={CheckCircle} color="#16A34A" />

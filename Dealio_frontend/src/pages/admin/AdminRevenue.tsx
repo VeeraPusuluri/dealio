@@ -1,178 +1,337 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import StatCard from '@/components/shared/StatCard';
+import { adminApi } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
-import { DollarSign, TrendingUp, Clock, BarChart3, Download } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, FunnelChart, Funnel, LabelList } from 'recharts';
+import { useNavigate } from 'react-router-dom';
+import { DollarSign, TrendingUp, Clock, BarChart3, Download, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, LineChart, Line,
+} from 'recharts';
 import { toast } from 'sonner';
 
-const gmvByMonth = [
-  { month: 'Aug', gmv: 52 }, { month: 'Sep', gmv: 61 }, { month: 'Oct', gmv: 75 },
-  { month: 'Nov', gmv: 68 }, { month: 'Dec', gmv: 84 }, { month: 'Jan', gmv: 92 },
+const RANGE_OPTIONS = [
+  { label: 'This Month',     value: 'this_month' },
+  { label: 'Last 3 Months',  value: 'last_3_months' },
+  { label: 'Last 6 Months',  value: 'last_6_months' },
+  { label: 'This Year',      value: 'this_year' },
 ];
 
-const revenueByCity = [
-  { city: 'Hyderabad', revenue: 58 }, { city: 'Mumbai', revenue: 24 },
-  { city: 'Bangalore', revenue: 18 }, { city: 'Chennai', revenue: 12 },
-];
+const fmtCr = (n: number) => {
+  if (n >= 1_00_00_000) return `₹${(n / 1_00_00_000).toFixed(1)}Cr`;
+  if (n >= 1_00_000)    return `₹${(n / 1_00_000).toFixed(1)}L`;
+  return `₹${n.toLocaleString('en-IN')}`;
+};
 
-const revenueByTier = [
-  { name: 'Platinum', value: 45, color: '#8B5CF6' }, { name: 'Gold', value: 30, color: '#F59E0B' },
-  { name: 'Silver', value: 18, color: '#6B7280' }, { name: 'Bronze', value: 7, color: '#B87333' },
-];
-
-const topProjects = [
-  { name: 'My Home Avatar', revenue: 28 }, { name: 'Prestige Skyline', revenue: 22 },
-  { name: 'Sobha Meridian', revenue: 18 }, { name: 'Incor Carmel Heights', revenue: 15 },
-  { name: 'Mahindra Happinest', revenue: 12 }, { name: 'Aparna Sarovar', revenue: 10 },
-];
-
-const dealTrend = [
-  { month: 'Aug', deals: 32, revenue: 52 }, { month: 'Sep', deals: 38, revenue: 61 },
-  { month: 'Oct', deals: 45, revenue: 75 }, { month: 'Nov', deals: 41, revenue: 68 },
-  { month: 'Dec', deals: 52, revenue: 84 }, { month: 'Jan', deals: 58, revenue: 92 },
-];
-
-const funnel = [
-  { name: 'Leads', value: 1240, fill: '#3B82F6' },
-  { name: 'Meetings', value: 680, fill: '#8B5CF6' },
-  { name: 'Negotiations', value: 320, fill: '#F59E0B' },
-  { name: 'Closed', value: 148, fill: '#16A34A' },
-];
-
-const breakdownData = [
-  { builder: 'My Home Group', project: 'My Home Avatar', unitsSold: 45, gmv: 990000000, platformFee: 9900000, cpCommission: 29700000, netRevenue: 9900000 },
-  { builder: 'Prestige Group', project: 'Prestige Skyline', unitsSold: 38, gmv: 456000000, platformFee: 4560000, cpCommission: 11400000, netRevenue: 4560000 },
-  { builder: 'Sobha Ltd', project: 'Sobha Meridian', unitsSold: 28, gmv: 224000000, platformFee: 2240000, cpCommission: 4480000, netRevenue: 2240000 },
-  { builder: 'Incor Infrastructure', project: 'Incor Carmel Heights', unitsSold: 22, gmv: 198000000, platformFee: 1980000, cpCommission: 4455000, netRevenue: 1980000 },
-];
+interface RevenueData {
+  kpis: { totalGmv: number; totalDeals: number; pendingPayout: number; avgDealSize: number };
+  trendData: { month: string; gmv: number; deals: number; revenue: number }[];
+  revenueByCity: { city: string; revenue: number }[];
+  revenueByTier: { name: string; value: number; color: string }[];
+  topProjects: { name: string; revenue: number }[];
+  funnel: { name: string; value: number; fill: string }[];
+  breakdown: { builder: string; project: string; unitsSold: number; gmv: number; cpCommission: number; netRevenue: number; pendingPayout: number }[];
+}
 
 const AdminRevenue = () => {
-  const [dateRange, setDateRange] = useState('This Month');
+  const navigate = useNavigate();
+  const [range, setRange] = useState('this_month');
+  const [data, setData] = useState<RevenueData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await adminApi.getRevenueStats(range) as RevenueData;
+      setData(result);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to load revenue data');
+    } finally {
+      setLoading(false);
+    }
+  }, [range]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const exportCSV = () => {
+    if (!data?.breakdown.length) return;
+    const hdr = 'Builder,Project,Units Sold,GMV,CP Commission,Net Revenue\n';
+    const rows = data.breakdown.map(r =>
+      `"${r.builder}","${r.project}",${r.unitsSold},${r.gmv},${r.cpCommission},${r.netRevenue}`
+    ).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([hdr + rows], { type: 'text/csv' }));
+    a.download = `revenue-${range}.csv`;
+    a.click();
+    toast.success('CSV exported');
+  };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Filter */}
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2">
-            {['This Month', 'Last 3 Months', 'Last 6 Months', 'This Year'].map(d => (
-              <button key={d} onClick={() => setDateRange(d)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${dateRange === d ? 'bg-[#6B3FA0] text-white' : 'bg-muted text-muted-foreground'}`}>{d}</button>
+        {/* Header / filter bar */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate('/admin')} className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Back to Overview">
+              <ArrowLeft size={15} className="text-muted-foreground" />
+            </button>
+            {RANGE_OPTIONS.map(r => (
+              <button
+                key={r.value}
+                onClick={() => setRange(r.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${range === r.value ? 'bg-[#6B3FA0] text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+              >
+                {r.label}
+              </button>
             ))}
           </div>
+          <button onClick={load} className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Refresh">
+            <RefreshCw size={14} className={`text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard title="Total GMV" value="₹840Cr" icon={DollarSign} color="#6B3FA0" />
-          <StatCard title="Platform Commission" value="₹42.6L" icon={TrendingUp} color="#16A34A" />
-          <StatCard title="Pending Payouts" value="₹8.2L" icon={Clock} color="#F59E0B" />
-          <StatCard title="Avg Deal Size" value="₹98L" icon={BarChart3} color="#0A7E8C" />
-        </div>
+        {loading && (
+          <div className="flex justify-center py-20">
+            <Loader2 size={28} className="animate-spin text-muted-foreground" />
+          </div>
+        )}
 
-        {/* Charts Row 1 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-card rounded-lg p-5 card-shadow border border-border">
-            <h3 className="font-semibold text-card-foreground mb-4">GMV by Month (Cr)</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={gmvByMonth}><XAxis dataKey="month" fontSize={11} tickLine={false} axisLine={false} /><YAxis fontSize={11} tickLine={false} axisLine={false} /><Tooltip /><Bar dataKey="gmv" fill="#0D9488" radius={[4,4,0,0]} /></BarChart>
-            </ResponsiveContainer>
+        {!loading && error && (
+          <div className="flex flex-col items-center gap-3 py-20">
+            <p className="text-sm text-destructive">{error}</p>
+            <button onClick={load} className="px-4 py-2 rounded-lg bg-muted text-sm hover:bg-muted/80">Retry</button>
           </div>
-          <div className="bg-card rounded-lg p-5 card-shadow border border-border">
-            <h3 className="font-semibold text-card-foreground mb-4">Revenue by City (Cr)</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={revenueByCity} layout="vertical"><XAxis type="number" fontSize={11} tickLine={false} axisLine={false} /><YAxis type="category" dataKey="city" fontSize={11} tickLine={false} axisLine={false} width={80} /><Tooltip /><Bar dataKey="revenue" fill="#6B3FA0" radius={[0,4,4,0]} /></BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        )}
 
-        {/* Charts Row 2 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-card rounded-lg p-5 card-shadow border border-border">
-            <h3 className="font-semibold text-card-foreground mb-4">Revenue by CP Tier</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart><Pie data={revenueByTier} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value" paddingAngle={2}>
-                {revenueByTier.map((e, i) => <Cell key={i} fill={e.color} />)}
-              </Pie><Tooltip /></PieChart>
-            </ResponsiveContainer>
-            <div className="flex justify-center gap-4 mt-2">{revenueByTier.map(t => (
-              <span key={t.name} className="text-xs text-muted-foreground flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: t.color }} />{t.name} ({t.value}%)</span>
-            ))}</div>
-          </div>
-          <div className="bg-card rounded-lg p-5 card-shadow border border-border">
-            <h3 className="font-semibold text-card-foreground mb-4">Top Projects by Revenue (Cr)</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={topProjects} layout="vertical"><XAxis type="number" fontSize={11} tickLine={false} axisLine={false} /><YAxis type="category" dataKey="name" fontSize={10} tickLine={false} axisLine={false} width={120} /><Tooltip /><Bar dataKey="revenue" fill="#E87722" radius={[0,4,4,0]} /></BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Charts Row 3 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-card rounded-lg p-5 card-shadow border border-border">
-            <h3 className="font-semibold text-card-foreground mb-4">Deal Volume vs Revenue Trend</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={dealTrend}><XAxis dataKey="month" fontSize={11} tickLine={false} axisLine={false} /><YAxis yAxisId="left" fontSize={11} tickLine={false} axisLine={false} /><YAxis yAxisId="right" orientation="right" fontSize={11} tickLine={false} axisLine={false} /><Tooltip /><Line yAxisId="left" type="monotone" dataKey="deals" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} /><Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#6B3FA0" strokeWidth={2} dot={{ r: 3 }} /></LineChart>
-            </ResponsiveContainer>
-            <div className="flex justify-center gap-4 mt-2">
-              <span className="text-xs text-muted-foreground flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" />Deals</span>
-              <span className="text-xs text-muted-foreground flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-600" />Revenue (Cr)</span>
-            </div>
-          </div>
-          <div className="bg-card rounded-lg p-5 card-shadow border border-border">
-            <h3 className="font-semibold text-card-foreground mb-4">Conversion Funnel</h3>
-            <div className="space-y-3 mt-4">
-              {funnel.map((f, i) => (
-                <div key={f.name}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-card-foreground">{f.name}</span>
-                    <span className="text-sm text-muted-foreground">{f.value}</span>
+        {!loading && !error && data && (
+          <>
+            {/* KPIs */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { title: 'Total GMV',          value: fmtCr(data.kpis.totalGmv),      icon: DollarSign, color: '#6B3FA0' },
+                { title: 'Total Deals',        value: data.kpis.totalDeals,            icon: TrendingUp, color: '#16A34A' },
+                { title: 'Pending Payout',     value: fmtCr(data.kpis.pendingPayout),  icon: Clock,      color: '#F59E0B' },
+                { title: 'Avg Deal Size',      value: fmtCr(data.kpis.avgDealSize),    icon: BarChart3,  color: '#0A7E8C' },
+              ].map(c => (
+                <div key={c.title} className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${c.color}18`, color: c.color }}>
+                    <c.icon size={18} />
                   </div>
-                  <div className="w-full bg-muted rounded-full h-6">
-                    <div className="h-6 rounded-full flex items-center justify-end pr-2" style={{ width: `${(f.value / funnel[0].value) * 100}%`, backgroundColor: f.fill }}>
-                      <span className="text-[10px] text-white font-semibold">{Math.round((f.value / funnel[0].value) * 100)}%</span>
-                    </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground font-medium">{c.title}</p>
+                    <p className="text-xl font-bold text-card-foreground">{c.value}</p>
                   </div>
-                  {i < funnel.length - 1 && <p className="text-[10px] text-muted-foreground text-right mt-0.5">→ {Math.round((funnel[i + 1].value / f.value) * 100)}% conversion</p>}
                 </div>
               ))}
             </div>
-          </div>
-        </div>
 
-        {/* Breakdown Table */}
-        <div className="bg-card rounded-lg card-shadow border border-border">
-          <div className="p-5 flex items-center justify-between border-b border-border">
-            <h3 className="font-semibold text-card-foreground">Revenue Breakdown</h3>
-            <button onClick={() => toast.success('CSV exported')} className="px-4 py-2 rounded-lg text-sm font-medium bg-[#6B3FA0] text-white flex items-center gap-2"><Download size={14} /> Export CSV</button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="text-left text-muted-foreground border-b border-border">
-                <th className="px-4 py-3 font-medium">Builder</th>
-                <th className="px-4 py-3 font-medium">Project</th>
-                <th className="px-4 py-3 font-medium text-right">Units Sold</th>
-                <th className="px-4 py-3 font-medium text-right">GMV</th>
-                <th className="px-4 py-3 font-medium text-right">Platform Fee</th>
-                <th className="px-4 py-3 font-medium text-right">CP Commission</th>
-                <th className="px-4 py-3 font-medium text-right">Net Revenue</th>
-              </tr></thead>
-              <tbody>
-                {breakdownData.map((r, i) => (
-                  <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/30">
-                    <td className="px-4 py-3 text-card-foreground">{r.builder}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{r.project}</td>
-                    <td className="px-4 py-3 text-right text-card-foreground">{r.unitsSold}</td>
-                    <td className="px-4 py-3 text-right text-card-foreground">{formatCurrency(r.gmv)}</td>
-                    <td className="px-4 py-3 text-right text-card-foreground">{formatCurrency(r.platformFee)}</td>
-                    <td className="px-4 py-3 text-right text-muted-foreground">{formatCurrency(r.cpCommission)}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-card-foreground">{formatCurrency(r.netRevenue)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+            {/* Charts Row 1 — GMV trend + Revenue by City */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-card rounded-lg p-5 border border-border">
+                <h3 className="font-semibold text-card-foreground mb-4">GMV by Month (Cr)</h3>
+                {data.trendData.length === 0 ? (
+                  <div className="flex items-center justify-center h-[220px] text-sm text-muted-foreground">No data for this period</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={data.trendData}>
+                      <XAxis dataKey="month" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis fontSize={11} tickLine={false} axisLine={false} />
+                      <Tooltip formatter={(v: number) => [`₹${v}Cr`, 'GMV']} />
+                      <Bar dataKey="gmv" fill="#0D9488" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              <div className="bg-card rounded-lg p-5 border border-border">
+                <h3 className="font-semibold text-card-foreground mb-4">Revenue by City (Cr)</h3>
+                {data.revenueByCity.length === 0 ? (
+                  <div className="flex items-center justify-center h-[220px] text-sm text-muted-foreground">No data for this period</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={data.revenueByCity} layout="vertical">
+                      <XAxis type="number" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis type="category" dataKey="city" fontSize={11} tickLine={false} axisLine={false} width={80} />
+                      <Tooltip formatter={(v: number) => [`₹${v}Cr`, 'Revenue']} />
+                      <Bar dataKey="revenue" fill="#6B3FA0" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Charts Row 2 — CP Tier + Top Projects */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-card rounded-lg p-5 border border-border">
+                <h3 className="font-semibold text-card-foreground mb-4">Revenue by CP Tier</h3>
+                {data.revenueByTier.length === 0 ? (
+                  <div className="flex items-center justify-center h-[220px] text-sm text-muted-foreground">No data for this period</div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie data={data.revenueByTier} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value" paddingAngle={2}>
+                          {data.revenueByTier.map((e, i) => <Cell key={i} fill={e.color} />)}
+                        </Pie>
+                        <Tooltip formatter={(v: number) => [`${v}%`, 'Share']} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex justify-center gap-4 mt-2 flex-wrap">
+                      {data.revenueByTier.map(t => (
+                        <span key={t.name} className="text-xs text-muted-foreground flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: t.color }} />
+                          {t.name} ({t.value}%)
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="bg-card rounded-lg p-5 border border-border">
+                <h3 className="font-semibold text-card-foreground mb-4">Top Projects by Revenue (Cr)</h3>
+                {data.topProjects.length === 0 ? (
+                  <div className="flex items-center justify-center h-[220px] text-sm text-muted-foreground">No data for this period</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={data.topProjects} layout="vertical">
+                      <XAxis type="number" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis type="category" dataKey="name" fontSize={10} tickLine={false} axisLine={false} width={120} />
+                      <Tooltip formatter={(v: number) => [`₹${v}Cr`, 'Revenue']} />
+                      <Bar dataKey="revenue" fill="#E87722" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Charts Row 3 — Deal Trend + Funnel */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-card rounded-lg p-5 border border-border">
+                <h3 className="font-semibold text-card-foreground mb-4">Deal Volume vs Revenue Trend</h3>
+                {data.trendData.length === 0 ? (
+                  <div className="flex items-center justify-center h-[220px] text-sm text-muted-foreground">No data for this period</div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <LineChart data={data.trendData}>
+                        <XAxis dataKey="month" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis yAxisId="left" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis yAxisId="right" orientation="right" fontSize={11} tickLine={false} axisLine={false} />
+                        <Tooltip />
+                        <Line yAxisId="left" type="monotone" dataKey="deals" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} name="Deals" />
+                        <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#6B3FA0" strokeWidth={2} dot={{ r: 3 }} name="Revenue (Cr)" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                    <div className="flex justify-center gap-4 mt-2">
+                      <span className="text-xs text-muted-foreground flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" />Deals</span>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-600" />Revenue (Cr)</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="bg-card rounded-lg p-5 border border-border">
+                <h3 className="font-semibold text-card-foreground mb-4">Conversion Funnel</h3>
+                {data.funnel[0]?.value === 0 ? (
+                  <div className="flex items-center justify-center h-[220px] text-sm text-muted-foreground">No data for this period</div>
+                ) : (
+                  <div className="space-y-3 mt-4">
+                    {data.funnel.map((f, i) => (
+                      <div key={f.name}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium text-card-foreground">{f.name}</span>
+                          <span className="text-sm text-muted-foreground">{f.value.toLocaleString()}</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-6">
+                          <div
+                            className="h-6 rounded-full flex items-center justify-end pr-2 min-w-[2rem]"
+                            style={{ width: `${data.funnel[0].value > 0 ? Math.max((f.value / data.funnel[0].value) * 100, 4) : 4}%`, backgroundColor: f.fill }}
+                          >
+                            <span className="text-[10px] text-white font-semibold">
+                              {data.funnel[0].value > 0 ? Math.round((f.value / data.funnel[0].value) * 100) : 0}%
+                            </span>
+                          </div>
+                        </div>
+                        {i < data.funnel.length - 1 && f.value > 0 && (
+                          <p className="text-[10px] text-muted-foreground text-right mt-0.5">
+                            → {Math.round((data.funnel[i + 1].value / f.value) * 100)}% conversion
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Breakdown Table */}
+            <div className="bg-card rounded-lg border border-border">
+              <div className="p-5 flex items-center justify-between border-b border-border">
+                <h3 className="font-semibold text-card-foreground">
+                  Revenue Breakdown
+                  <span className="ml-2 text-xs text-muted-foreground font-normal">{data.breakdown.length} projects</span>
+                </h3>
+                <button
+                  onClick={exportCSV}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-[#6B3FA0] text-white flex items-center gap-2 hover:bg-[#5a3487] transition-colors"
+                >
+                  <Download size={14} /> Export CSV
+                </button>
+              </div>
+
+              {data.breakdown.length === 0 ? (
+                <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
+                  No deals in the selected period.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-muted-foreground border-b border-border">
+                        <th className="px-4 py-3 font-medium">Builder</th>
+                        <th className="px-4 py-3 font-medium">Project</th>
+                        <th className="px-4 py-3 font-medium text-right">Units Sold</th>
+                        <th className="px-4 py-3 font-medium text-right">GMV</th>
+                        <th className="px-4 py-3 font-medium text-right">CP Commission</th>
+                        <th className="px-4 py-3 font-medium text-right">Net Revenue</th>
+                        <th className="px-4 py-3 font-medium text-right">Pending Payout</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.breakdown.map((r, i) => (
+                        <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/30">
+                          <td className="px-4 py-3 text-card-foreground font-medium">{r.builder}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{r.project}</td>
+                          <td className="px-4 py-3 text-right text-card-foreground">{r.unitsSold}</td>
+                          <td className="px-4 py-3 text-right text-card-foreground font-medium">{formatCurrency(r.gmv)}</td>
+                          <td className="px-4 py-3 text-right text-muted-foreground">{formatCurrency(r.cpCommission)}</td>
+                          <td className="px-4 py-3 text-right font-semibold text-card-foreground">{formatCurrency(r.netRevenue)}</td>
+                          <td className="px-4 py-3 text-right">
+                            <span className={r.pendingPayout > 0 ? 'text-amber-600 font-medium' : 'text-muted-foreground'}>
+                              {formatCurrency(r.pendingPayout)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {/* Totals row */}
+                      <tr className="border-t-2 border-border bg-muted/20 font-semibold">
+                        <td className="px-4 py-3 text-card-foreground" colSpan={2}>Total</td>
+                        <td className="px-4 py-3 text-right text-card-foreground">{data.breakdown.reduce((s, r) => s + r.unitsSold, 0)}</td>
+                        <td className="px-4 py-3 text-right text-card-foreground">{formatCurrency(data.kpis.totalGmv)}</td>
+                        <td className="px-4 py-3 text-right text-muted-foreground">{formatCurrency(data.breakdown.reduce((s, r) => s + r.cpCommission, 0))}</td>
+                        <td className="px-4 py-3 text-right text-card-foreground">{formatCurrency(data.breakdown.reduce((s, r) => s + r.netRevenue, 0))}</td>
+                        <td className="px-4 py-3 text-right text-amber-600">{formatCurrency(data.kpis.pendingPayout)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </DashboardLayout>
   );

@@ -36,8 +36,8 @@ model Notification {
 }
 
 model Builder {
-  id                Int       @id @default(autoincrement())
-  userId            Int       @unique
+  id                Int         @id @default(autoincrement())
+  userId            Int         @unique
   companyName       String?
   about             String?
   yearEstablished   Int?
@@ -45,10 +45,24 @@ model Builder {
   website           String?
   contactPhone      String?
   contactEmail      String?
-  user              User      @relation(fields: [userId], references: [id])
+  user              User        @relation(fields: [userId], references: [id])
   projects          Project[]
-  meetings          Meeting[] @relation("BuilderMeetings")
+  meetings          Meeting[]   @relation("BuilderMeetings")
   deals             Deal[]
+  broadcasts        Broadcast[]
+}
+
+model Broadcast {
+  id             Int      @id @default(autoincrement())
+  builderId      Int
+  builder        Builder  @relation(fields: [builderId], references: [id])
+  projectId      Int?
+  projectName    String?
+  message        String
+  audience       String   @default("All CPs")
+  audienceFilter String?
+  delivered      Int      @default(0)
+  createdAt      DateTime @default(now())
 }
 
 model Project {
@@ -57,8 +71,15 @@ model Project {
   builder         Builder   @relation(fields: [builderId], references: [id])
   name            String
   city            String?
+  locality        String?
+  pincode         String?
+  landmark        String?
   description     String?
   address         String?
+  projectType     String?
+  configurations  Json?
+  nearbyHighlights Json?
+  amenities       Json?
   totalUnits      Int?
   availableUnits  Int?
   bookedUnits     Int?
@@ -67,7 +88,13 @@ model Project {
   reraExpiry      String?
   priceFrom       Float?
   priceTo         Float?
+  pricePerSqftFrom Float?
+  pricePerSqftTo   Float?
+  maintenanceCharges Float?
+  floorRiseCharges   Float?
+  commissionStructure String?
   commissionValue Float?
+  cpIncentive     String?
   featured        Boolean   @default(false)
   closingSoon     Boolean   @default(false)
   imageUrl              String?
@@ -85,6 +112,10 @@ model Project {
   specifications        Json?
   paymentPlans          Json?
   locationAdvantages    Json?
+  towers                Int?
+  floorsPerTower        Int?
+  unitMatrix            Json?
+  projectUpdates        ProjectUpdate[]
   meetings              Meeting[]
   deals                 Deal[]
   documents             Document[]
@@ -144,6 +175,8 @@ model Deal {
   updatedAt            DateTime  @updatedAt
   loanCase             LoanCase?
   messages             DealMessage[]
+  followUps            CPFollowUp[]
+  callLogs             CPCallLog[]
 }
 
 model DealMessage {
@@ -211,6 +244,8 @@ model ChannelPartner {
   deals             Deal[]
   contacts          CPContact[]
   shareLinks        ProjectShareLink[]
+  followUps         CPFollowUp[]
+  callLogs          CPCallLog[]
   createdAt         DateTime         @default(now())
 }
 
@@ -225,4 +260,58 @@ model CPContact {
   tags            String?        // comma-separated: "Hot Lead,Family,Colleague"
   bhkPreference   String?        // e.g. "2 BHK", "3 BHK", "Villa"
   createdAt       DateTime       @default(now())
+}
+
+model ContactRequest {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String
+  email     String?
+  city      String?
+  interest  String?
+  message   String?
+  status    String   @default("new") // new | in_progress | resolved
+  createdAt DateTime @default(now())
+}
+
+model CPFollowUp {
+  id        Int            @id @default(autoincrement())
+  cpId      Int
+  cp        ChannelPartner @relation(fields: [cpId], references: [id])
+  dealId    Int
+  deal      Deal           @relation(fields: [dealId], references: [id])
+  dueDate   String         // YYYY-MM-DD
+  dueTime   String?
+  reason    String
+  done      Boolean        @default(false)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model CPCallLog {
+  id               Int            @id @default(autoincrement())
+  cpId             Int
+  cp               ChannelPartner @relation(fields: [cpId], references: [id])
+  dealId           Int
+  deal             Deal           @relation(fields: [dealId], references: [id])
+  outcome          String
+  duration         String
+  notes            String         @default("")
+  nextFollowUp     String?        // YYYY-MM-DD
+  nextFollowUpTime String?
+  createdAt        DateTime       @default(now())
+  createdBy        String
+}
+
+model ProjectUpdate {
+  id          Int       @id @default(autoincrement())
+  projectId   Int
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  content     String
+  type        String    @default("announcement") // announcement | milestone | construction | legal | price
+  // comma-separated roles that can see this: ALL | CP | CUSTOMER | CP,CUSTOMER
+  visibleTo   String    @default("ALL")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
