@@ -17,10 +17,11 @@ model User {
   createdAt       DateTime         @default(now())
   builder         Builder?
   channelPartner  ChannelPartner?
-  meetings        Meeting[]
-  dealsAsCustomer Deal[]           @relation("CustomerDeals")
-  loanCases       LoanCase[]
-  notifications   Notification[]
+  meetings          Meeting[]
+  dealsAsCustomer   Deal[]           @relation("CustomerDeals")
+  loanCases         LoanCase[]
+  notifications     Notification[]
+  unitShortlists    UnitShortlist[]  @relation("CustomerShortlists")
 }
 
 model Notification {
@@ -50,6 +51,7 @@ model Builder {
   meetings          Meeting[]   @relation("BuilderMeetings")
   deals             Deal[]
   broadcasts        Broadcast[]
+  unitShortlists    UnitShortlist[]
 }
 
 model Broadcast {
@@ -120,6 +122,24 @@ model Project {
   deals                 Deal[]
   documents             Document[]
   shareLinks            ProjectShareLink[]
+  unitShortlists        UnitShortlist[]
+}
+
+model UnitShortlist {
+  id          Int      @id @default(autoincrement())
+  customerId  Int
+  customer    User     @relation("CustomerShortlists", fields: [customerId], references: [id])
+  builderId   Int
+  builder     Builder  @relation(fields: [builderId], references: [id])
+  projectId   Int
+  project     Project  @relation(fields: [projectId], references: [id])
+  cpId        Int?
+  unitId      String
+  unitDetails Json
+  status      String   @default("Pending") // Pending, Accepted, SuggestOther
+  builderNote String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model ProjectShareLink {
@@ -150,6 +170,8 @@ model Meeting {
   notes           String?
   builderNotes    String?
   cpNotes         String?
+  cpRating        Int?      // 1–5, set by CP after visit
+  customerRating  Int?      // 1–5, set by customer after visit
   confirmedDate   String?
   confirmedTime   String?
   status          String    @default("Pending") // Pending, Confirmed, Rescheduled, Completed, Follow-up Required, Cancelled
@@ -177,6 +199,10 @@ model Deal {
   messages             DealMessage[]
   followUps            CPFollowUp[]
   callLogs             CPCallLog[]
+  paymentSchedule      Json?     // [{installment:string, amount:number, dueDate:string, status:'Pending'|'Paid'}]
+  cpAgreed             Boolean   @default(false)
+  customerConfirmed    Boolean   @default(false)
+  dealDocuments        DealDocument[]
 }
 
 model DealMessage {
@@ -190,19 +216,49 @@ model DealMessage {
   createdAt  DateTime @default(now())
 }
 
+model DealDocument {
+  id                 Int      @id @default(autoincrement())
+  dealId             Int
+  deal               Deal     @relation(fields: [dealId], references: [id])
+  name               String
+  docType            String   // 'Pricing Quote' | 'Sale Agreement' | 'Allotment Letter' | 'Other'
+  fileUrl            String?
+  uploadedByRole     String   @default("builder")
+  sharedWithCp       Boolean  @default(false)
+  sharedWithCustomer Boolean  @default(false)
+  createdAt          DateTime @default(now())
+}
+
 model LoanCase {
-  id              Int       @id @default(autoincrement())
-  dealId          Int       @unique
-  deal            Deal      @relation(fields: [dealId], references: [id])
+  id              Int        @id @default(autoincrement())
+  dealId          Int        @unique
+  deal            Deal       @relation(fields: [dealId], references: [id])
   customerId      Int
-  customer        User      @relation(fields: [customerId], references: [id])
+  customer        User       @relation(fields: [customerId], references: [id])
   projectId       Int
   loanAmount      Float
   propertyValue   Float
   employmentType  String?
   tenureMonths    Int?
-  status          String    @default("Active") // Active, Sanctioned, Disbursed, Rejected
-  submittedAt     DateTime  @default(now())
+  bank            String?
+  interestRate    Float?
+  emi             Float?
+  officerName     String?
+  officerPhone    String?
+  status          String     @default("Applied") // Applied, Under Review, Sanctioned, Disbursed, Rejected
+  submittedAt     DateTime   @default(now())
+  notes           LoanNote[]
+}
+
+model LoanNote {
+  id          Int      @id @default(autoincrement())
+  loanCaseId  Int
+  loanCase    LoanCase @relation(fields: [loanCaseId], references: [id])
+  type        String   @default("note") // note, status_update, document, loan_initiated
+  sender      String
+  senderRole  String
+  content     String
+  createdAt   DateTime @default(now())
 }
 
 model Document {

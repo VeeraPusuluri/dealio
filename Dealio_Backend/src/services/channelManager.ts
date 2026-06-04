@@ -12,7 +12,14 @@ export interface ChannelEvent {
     | 'meeting_cancelled'
     | 'meeting_completed'
     | 'meeting_followup'
-    | 'notification';
+    | 'notification'
+    | 'unit_shortlist'
+    | 'shortlist_response'
+    | 'deal_doc'
+    | 'deal_message'
+    | 'deal_assigned'
+    | 'deal_confirmed'
+    | 'deal_agreed';
   title: string;
   message: string;
   projectId?: number;

@@ -22,6 +22,9 @@ router.get('/revenue',                        adminController.getRevenueStats);
 router.get('/deals',                          adminController.getDeals);
 router.patch('/deals/:dealId/milestone',      adminController.updateDealMilestone);
 router.get('/commissions',                    adminController.getCommissions);
+router.get('/loan-cases',                     adminController.getLoanCases);
+router.patch('/loan-cases/:id/status',        adminController.updateLoanCaseStatus);
+router.get('/meetings',                       adminController.getMeetings);
 router.get('/contact',                        adminController.getContactRequests);
 router.patch('/contact/:id/status',           adminController.updateContactStatus);
 

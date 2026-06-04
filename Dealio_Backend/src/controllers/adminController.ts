@@ -474,4 +474,79 @@ export const adminController = {
     });
     res.json({ ok: true, data: deals });
   },
+
+  // ── All loan cases (bank / admin view) ────────────────────────────────────
+  getLoanCases: async (_req: Request, res: Response) => {
+    const cases = await prisma.loanCase.findMany({
+      include: {
+        customer:  { select: { id: true, fullName: true, phone: true, email: true } },
+        deal:      { select: { id: true, status: true, dealValue: true,
+                               project: { select: { name: true, city: true } },
+                               builder: { select: { companyName: true } } } },
+      },
+      orderBy: { submittedAt: 'desc' },
+      take: 200,
+    });
+    res.json({ ok: true, data: cases });
+  },
+
+  updateLoanCaseStatus: async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { status, bank, officerName, officerPhone, interestRate, emi } = req.body;
+    const allowed = ['Applied', 'Under Review', 'Sanctioned', 'Disbursed', 'Rejected'];
+    if (!allowed.includes(status)) return res.status(400).json({ ok: false, message: 'Invalid status' });
+    try {
+      const updated = await prisma.loanCase.update({
+        where: { id: Number(id) },
+        data: {
+          status,
+          ...(bank         ? { bank }         : {}),
+          ...(officerName  ? { officerName }  : {}),
+          ...(officerPhone ? { officerPhone } : {}),
+          ...(interestRate ? { interestRate: Number(interestRate) } : {}),
+          ...(emi          ? { emi: Number(emi) }                  : {}),
+        },
+      });
+      res.json({ ok: true, data: updated });
+    } catch {
+      res.status(404).json({ ok: false, message: 'Loan case not found' });
+    }
+  },
+
+  // ── All meetings (admin review) ────────────────────────────────────────────
+  getMeetings: async (req: Request, res: Response) => {
+    const { status, search } = req.query as Record<string, string | undefined>;
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status;
+    if (search) {
+      where.OR = [
+        { customerName: { contains: search, mode: 'insensitive' } },
+        { customerPhone: { contains: search } },
+      ];
+    }
+    const meetings = await prisma.meeting.findMany({
+      where,
+      include: { project: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+
+    const cpIds = [...new Set(meetings.map(m => (m as any).cpId).filter(Boolean))];
+    const cpMap: Record<number, string> = {};
+    if (cpIds.length > 0) {
+      const cps = await prisma.channelPartner.findMany({
+        where: { id: { in: cpIds } },
+        select: { id: true, user: { select: { fullName: true } } },
+      });
+      cps.forEach(cp => { cpMap[cp.id] = cp.user?.fullName ?? 'CP'; });
+    }
+
+    const mapped = meetings.map(m => ({
+      ...m,
+      projectName: m.project?.name ?? 'Unknown Project',
+      cpName: (m as any).cpId ? (cpMap[(m as any).cpId] ?? null) : null,
+      project: undefined,
+    }));
+    res.json({ ok: true, data: mapped });
+  },
 };

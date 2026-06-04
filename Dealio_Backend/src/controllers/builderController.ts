@@ -5,6 +5,17 @@ import PDFDocument from 'pdfkit';
 import { generateICS } from '../services/calendarService';
 import { sendCalendarInvite } from '../services/emailService';
 
+const DEAL_STATUS_NORM: Record<string, string> = {
+  'new lead': 'New Lead', 'profile created': 'Profile Created',
+  'meeting requested': 'Meeting Requested', 'meeting confirmed': 'Meeting Confirmed',
+  'meeting done': 'Meeting Done', 'negotiation': 'Negotiation',
+  'agreement': 'Agreement', 'booked': 'Booked',
+  'loan sanctioned': 'Loan Sanctioned', 'closed': 'Closed', 'possession': 'Possession',
+};
+function normalizeDealStatus(s: string): string {
+  return DEAL_STATUS_NORM[s.toLowerCase().trim()] ?? s;
+}
+
 // Maps DB column names (priceFrom/priceTo) to the frontend's expected names (priceMin/priceMax)
 function toProjectDto(p: Record<string, unknown>, builder?: Record<string, unknown>) {
   const { priceFrom, priceTo, ...rest } = p;
@@ -377,7 +388,7 @@ export const builderController = {
     try {
       const updated = await prisma.deal.update({
         where: { id: Number(dealId) },
-        data:  { status: stage },
+        data:  { status: normalizeDealStatus(stage) },
       });
       res.json({ ok: true, data: { id: String(updated.id), stage: updated.status } });
     } catch {
@@ -442,7 +453,7 @@ export const builderController = {
     try {
       const updated = await prisma.deal.update({
         where: { id: Number(dealId), builderId: Number(builderId) },
-        data:  { status },
+        data:  { status: normalizeDealStatus(status) },
       });
       res.json({ ok: true, data: { id: String(updated.id), status: updated.status } });
     } catch {
@@ -667,8 +678,39 @@ export const builderController = {
     res.json({ ok: true, data: { dealId: deal.id, customerId: customer.id } });
   },
 
+  // GET /customer/booked-slots?builderId=X&date=YYYY-MM-DD
+  // Returns time slots already confirmed by the builder on that date so customers can't request taken slots
+  getBookedSlots: async (req: Request, res: Response) => {
+    const { builderId, date } = req.query as { builderId?: string; date?: string };
+    if (!builderId || !date) return res.json({ ok: true, data: [] });
+
+    const meetings = await prisma.meeting.findMany({
+      where: {
+        builderId: Number(builderId),
+        status: { in: ['Confirmed', 'CONFIRMED'] },
+        confirmedDate: date,
+      },
+      select: { confirmedTime: true },
+    });
+    const slots = meetings.map(m => m.confirmedTime).filter(Boolean) as string[];
+    res.json({ ok: true, data: slots });
+  },
+
   bookMeeting: async (req: Request, res: Response) => {
     const meetingData = req.body;
+
+    // Reject if the requested slot is already confirmed for another meeting
+    const slotTaken = await prisma.meeting.findFirst({
+      where: {
+        builderId: meetingData.builderId,
+        status: { in: ['Confirmed', 'CONFIRMED'] },
+        confirmedDate: meetingData.preferredDate,
+        confirmedTime: meetingData.preferredTime,
+      },
+    });
+    if (slotTaken) {
+      return res.status(409).json({ ok: false, message: `The ${meetingData.preferredTime} slot on ${meetingData.preferredDate} is already confirmed for another customer. Please choose a different time.` });
+    }
 
     let customer = await prisma.user.findUnique({ where: { phone: meetingData.customerPhone } });
     if (!customer) {
@@ -988,9 +1030,10 @@ export const builderController = {
 
   // All deals for a builder with customer + project info
   getBuilderDeals: async (req: Request, res: Response) => {
-    const { builderId } = req.params;
+    const builderId = parseInt(req.params.builderId as string, 10);
+    if (isNaN(builderId)) return res.status(400).json({ ok: false, message: 'Invalid builderId' });
     const deals = await prisma.deal.findMany({
-      where: { builderId: Number(builderId) },
+      where: { builderId },
       include: {
         customer: { select: { fullName: true, phone: true, email: true } },
         project:  { select: { name: true } },
@@ -1061,6 +1104,64 @@ export const builderController = {
       ...m,
       projectName: m.project?.name ?? 'Unknown Project',
       project: undefined
+    }));
+    res.json({ ok: true, data: mapped });
+  },
+
+  rateCustomerMeeting: async (req: Request, res: Response) => {
+    const meetingId = Number(req.params.id);
+    const { rating } = req.body;
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ ok: false, message: 'Rating must be between 1 and 5' });
+    }
+    try {
+      await prisma.meeting.update({
+        where: { id: meetingId },
+        data: { customerRating: Number(rating) },
+      });
+      res.json({ ok: true });
+    } catch {
+      res.status(404).json({ ok: false, message: 'Meeting not found' });
+    }
+  },
+
+  getCustomerDeals: async (req: Request, res: Response) => {
+    const { phone } = req.query;
+    if (!phone) return res.json({ ok: true, data: [] });
+    const customer = await prisma.user.findUnique({ where: { phone: phone as string } });
+    if (!customer) return res.json({ ok: true, data: [] });
+    const deals = await prisma.deal.findMany({
+      where: { customerId: customer.id },
+      include: {
+        project:       { select: { name: true } },
+        loanCase:      { select: { id: true, loanAmount: true, status: true, tenureMonths: true, interestRate: true } },
+        dealDocuments: { where: { sharedWithCustomer: true }, orderBy: { createdAt: 'asc' } },
+        messages:      { orderBy: { createdAt: 'asc' } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const mapped = deals.map(d => ({
+      dealId:            d.id,
+      projectId:         d.projectId,
+      projectName:       (d.project as any)?.name ?? 'Unknown Project',
+      dealStatus:        d.status,
+      dealValue:         d.dealValue,
+      customerConfirmed: d.customerConfirmed,
+      cpAgreed:          d.cpAgreed,
+      createdAt:         d.createdAt,
+      loanCaseId:        (d.loanCase as any)?.id           ?? null,
+      loanAmount:        (d.loanCase as any)?.loanAmount   ?? null,
+      loanStatus:        (d.loanCase as any)?.status       ?? null,
+      tenureMonths:      (d.loanCase as any)?.tenureMonths ?? null,
+      interestRate:      (d.loanCase as any)?.interestRate ?? null,
+      dealDocuments:     (d.dealDocuments as any[]).map(doc => ({
+        id: doc.id, name: doc.name, docType: doc.docType,
+        fileUrl: doc.fileUrl, createdAt: doc.createdAt.toISOString(),
+      })),
+      messages: (d.messages as any[]).map(m => ({
+        id: m.id, senderName: m.senderName, senderRole: m.senderRole,
+        message: m.message, createdAt: m.createdAt.toISOString(),
+      })),
     }));
     res.json({ ok: true, data: mapped });
   },
@@ -1419,5 +1520,503 @@ export const builderController = {
       orderBy: { createdAt: 'desc' },
     });
     res.json({ ok: true, data: updates });
+  },
+
+  // ── Loan Cases ──────────────────────────────────────────────────────────────
+
+  getBuilderLoans: async (req: Request, res: Response) => {
+    const { builderId } = req.params;
+    const loans = await prisma.loanCase.findMany({
+      where: { deal: { builderId: Number(builderId) } },
+      include: {
+        customer: { select: { fullName: true, phone: true, email: true } },
+        deal: {
+          select: {
+            id: true, status: true,
+            project: { select: { id: true, name: true } },
+            cp: { select: { user: { select: { fullName: true } } } },
+          },
+        },
+        notes: { orderBy: { createdAt: 'asc' } },
+      },
+      orderBy: { submittedAt: 'desc' },
+    });
+    res.json({ ok: true, data: loans.map(l => ({
+      id: l.id,
+      dealId: l.dealId,
+      projectId: l.deal?.project?.id ?? l.projectId,
+      projectName: l.deal?.project?.name ?? 'Unknown Project',
+      customerName: l.customer?.fullName ?? 'Customer',
+      customerPhone: l.customer?.phone ?? '',
+      customerEmail: l.customer?.email ?? '',
+      employmentType: l.employmentType,
+      loanAmount: l.loanAmount,
+      propertyValue: l.propertyValue,
+      tenureMonths: l.tenureMonths,
+      bank: l.bank,
+      interestRate: l.interestRate,
+      emi: l.emi,
+      officerName: l.officerName,
+      officerPhone: l.officerPhone,
+      cpName: l.deal?.cp?.user?.fullName ?? null,
+      status: l.status,
+      submittedAt: l.submittedAt,
+      notes: l.notes,
+    })) });
+  },
+
+  createBuilderLoan: async (req: Request, res: Response) => {
+    const { builderId } = req.params;
+    const {
+      customerPhone, customerName, customerEmail,
+      projectId, employmentType,
+      loanAmount, propertyValue, tenureMonths,
+      bank, interestRate, emi, officerName, officerPhone,
+      tower, unit, floor, unitType, saleValue,
+    } = req.body;
+
+    if (!customerPhone || !projectId || !loanAmount) {
+      return res.status(400).json({ ok: false, message: 'customerPhone, projectId, and loanAmount are required' });
+    }
+
+    // Find or create customer
+    let customer = await prisma.user.findUnique({ where: { phone: customerPhone } });
+    if (!customer) {
+      customer = await prisma.user.create({
+        data: { phone: customerPhone, fullName: customerName ?? 'Customer', email: customerEmail ?? null, role: 'CUSTOMER' },
+      });
+    }
+
+    // Find or create deal
+    let deal = await prisma.deal.findFirst({
+      where: { builderId: Number(builderId), customerId: customer.id, projectId: Number(projectId) },
+    });
+    if (!deal) {
+      deal = await prisma.deal.create({
+        data: {
+          builderId: Number(builderId), customerId: customer.id, projectId: Number(projectId),
+          status: 'Interested Loan Required',
+        },
+      });
+    }
+
+    // Check for existing loan case on this deal
+    const existing = await prisma.loanCase.findUnique({ where: { dealId: deal.id } });
+    if (existing) {
+      return res.status(409).json({ ok: false, message: 'A loan case already exists for this deal' });
+    }
+
+    const loanCase = await prisma.loanCase.create({
+      data: {
+        dealId: deal.id, customerId: customer.id, projectId: Number(projectId),
+        loanAmount: Number(loanAmount), propertyValue: Number(propertyValue ?? saleValue ?? loanAmount),
+        employmentType: employmentType ?? null, tenureMonths: tenureMonths ? Number(tenureMonths) : null,
+        bank: bank ?? null, interestRate: interestRate ? Number(interestRate) : null,
+        emi: emi ? Number(emi) : null, officerName: officerName ?? null, officerPhone: officerPhone ?? null,
+        status: 'Applied',
+      },
+    });
+
+    // Seed initial event
+    await prisma.loanNote.create({
+      data: {
+        loanCaseId: loanCase.id, type: 'loan_initiated', sender: 'System', senderRole: 'system',
+        content: `Loan application initiated — ${bank ?? 'Bank'}, ₹${Number(loanAmount).toLocaleString('en-IN')}${tenureMonths ? `, ${Math.round(Number(tenureMonths) / 12)} year tenure` : ''}`,
+      },
+    });
+
+    res.json({ ok: true, data: { id: loanCase.id } });
+  },
+
+  updateLoanStatus: async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { status, note, sender, senderRole } = req.body;
+    const valid = ['Applied', 'Under Review', 'Documents Submitted', 'Sanctioned', 'Disbursed', 'Rejected'];
+    if (!valid.includes(status)) return res.status(400).json({ ok: false, message: 'Invalid status' });
+
+    const prev = await prisma.loanCase.findUnique({ where: { id: Number(id) }, select: { status: true } });
+    const updated = await prisma.loanCase.update({ where: { id: Number(id) }, data: { status } });
+
+    await prisma.loanNote.create({
+      data: {
+        loanCaseId: Number(id), type: 'status_update',
+        sender: sender ?? 'System', senderRole: senderRole ?? 'system',
+        content: note ?? `Status updated: ${prev?.status} → ${status}`,
+      },
+    });
+
+    res.json({ ok: true, data: updated });
+  },
+
+  addLoanNote: async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { type, sender, senderRole, content } = req.body;
+    if (!content?.trim()) return res.status(400).json({ ok: false, message: 'Content is required' });
+
+    const note = await prisma.loanNote.create({
+      data: { loanCaseId: Number(id), type: type ?? 'note', sender, senderRole, content },
+    });
+    res.json({ ok: true, data: note });
+  },
+
+  // ── Unit Shortlists ─────────────────────────────────────────────────────────
+
+  createUnitShortlist: async (req: Request, res: Response) => {
+    const { customerPhone, builderId, projectId, cpId, unitId, unitDetails } = req.body;
+    if (!customerPhone || !builderId || !projectId || !unitId || !unitDetails) {
+      return res.status(400).json({ ok: false, message: 'Missing required fields' });
+    }
+    const customer = await prisma.user.findUnique({ where: { phone: customerPhone } });
+    if (!customer) return res.status(404).json({ ok: false, message: 'Customer not found' });
+
+    const shortlist = await prisma.unitShortlist.create({
+      data: {
+        customerId: customer.id,
+        builderId: Number(builderId),
+        projectId: Number(projectId),
+        cpId: cpId ? Number(cpId) : null,
+        unitId,
+        unitDetails,
+      },
+      include: { project: { select: { name: true } }, builder: { select: { userId: true } } },
+    });
+
+    const builderUserId = (shortlist.builder as any)?.userId;
+    if (builderUserId) {
+      const msg = `${customer.fullName ?? 'A customer'} shortlisted Unit ${unitId} in ${(shortlist.project as any)?.name ?? 'your project'}.`;
+      await prisma.notification.create({ data: { userId: builderUserId, title: 'Unit Shortlisted', message: msg, type: 'info', link: '/builder/leads' } });
+      channelManager.publish(`user:${builderUserId}`, { type: 'unit_shortlist', title: 'Unit Shortlisted', message: msg, city: '', timestamp: new Date().toISOString(), link: '/builder/leads' });
+    }
+
+    if (cpId) {
+      const cp = await prisma.channelPartner.findUnique({ where: { id: Number(cpId) }, select: { userId: true } });
+      if (cp) {
+        const cpMsg = `${customer.fullName ?? 'Your customer'} shortlisted Unit ${unitId} in ${(shortlist.project as any)?.name ?? 'a project'}.`;
+        await prisma.notification.create({ data: { userId: cp.userId, title: 'Unit Shortlisted', message: cpMsg, type: 'info', link: '/cp/meetings' } });
+        channelManager.publish(`user:${cp.userId}`, { type: 'unit_shortlist', title: 'Unit Shortlisted', message: cpMsg, city: '', timestamp: new Date().toISOString(), link: '/cp/meetings' });
+      }
+    }
+
+    res.json({ ok: true, data: shortlist });
+  },
+
+  getCustomerShortlists: async (req: Request, res: Response) => {
+    const { phone } = req.query;
+    if (!phone) return res.json({ ok: true, data: [] });
+    const customer = await prisma.user.findUnique({ where: { phone: phone as string } });
+    if (!customer) return res.json({ ok: true, data: [] });
+    const shortlists = await prisma.unitShortlist.findMany({
+      where: { customerId: customer.id },
+      include: { project: { select: { name: true, city: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ ok: true, data: shortlists.map(s => ({ ...s, projectName: (s.project as any)?.name ?? 'Unknown', projectCity: (s.project as any)?.city ?? '', project: undefined })) });
+  },
+
+  getBuilderShortlists: async (req: Request, res: Response) => {
+    const { builderId } = req.params;
+    const shortlists = await prisma.unitShortlist.findMany({
+      where: { builderId: Number(builderId) },
+      include: {
+        customer: { select: { fullName: true, phone: true } },
+        project:  { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ ok: true, data: shortlists.map(s => ({
+      ...s,
+      customerName: (s.customer as any)?.fullName ?? 'Customer',
+      customerPhone: (s.customer as any)?.phone ?? '',
+      projectName: (s.project as any)?.name ?? 'Unknown',
+      customer: undefined, project: undefined,
+    })) });
+  },
+
+  respondToShortlist: async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { status, builderNote } = req.body;
+    if (!['Accepted', 'SuggestOther'].includes(status)) {
+      return res.status(400).json({ ok: false, message: 'Invalid status' });
+    }
+    const shortlist = await prisma.unitShortlist.update({
+      where: { id: Number(id) },
+      data: { status, builderNote: builderNote ?? null },
+      include: { project: { select: { name: true } } },
+    });
+
+    // When builder accepts a unit shortlist, advance (or create) the deal at Negotiation stage
+    if (status === 'Accepted') {
+      try {
+        const existing = await prisma.deal.findFirst({
+          where: { builderId: Number(shortlist.builderId), customerId: shortlist.customerId, projectId: shortlist.projectId },
+          select: { id: true, cpId: true },
+        });
+
+        // Resolve cpId: shortlist → meeting fallback
+        let resolvedCpId: number | null = shortlist.cpId ?? null;
+        if (resolvedCpId == null) {
+          const mtg = await prisma.meeting.findFirst({
+            where: { builderId: Number(shortlist.builderId), customerId: shortlist.customerId, projectId: shortlist.projectId, cpId: { not: null } },
+            select: { cpId: true },
+            orderBy: { createdAt: 'desc' },
+          });
+          resolvedCpId = mtg?.cpId ?? null;
+        }
+
+        if (existing) {
+          await prisma.deal.update({
+            where: { id: existing.id },
+            data: {
+              status: 'Negotiation',
+              ...(existing.cpId == null && resolvedCpId != null ? { cpId: resolvedCpId } : {}),
+            },
+          });
+        } else {
+          await prisma.deal.create({
+            data: {
+              builderId: Number(shortlist.builderId),
+              customerId: shortlist.customerId,
+              projectId:  shortlist.projectId,
+              cpId:       resolvedCpId,
+              status:     'Negotiation',
+            },
+          });
+        }
+      } catch { /* best-effort */ }
+    }
+
+    const label = status === 'Accepted' ? 'accepted' : 'has a suggestion for';
+    const msg = `The builder ${label} your shortlisted unit (${shortlist.unitId}) in ${(shortlist.project as any)?.name ?? 'the project'}.${builderNote ? ` Note: ${builderNote}` : ''}`;
+    await prisma.notification.create({ data: { userId: shortlist.customerId, title: status === 'Accepted' ? 'Unit Accepted!' : 'Choose Another Unit', message: msg, type: 'info', link: '/customer/property' } });
+    channelManager.publish(`user:${shortlist.customerId}`, { type: 'shortlist_response', title: status === 'Accepted' ? 'Unit Accepted!' : 'Choose Another Unit', message: msg, city: '', timestamp: new Date().toISOString(), link: '/customer/property' });
+    res.json({ ok: true, data: shortlist });
+  },
+
+  // GET /:builderId/deals/:dealId — full deal detail
+  getDeal: async (req: Request, res: Response) => {
+    const { builderId, dealId } = req.params;
+    const deal = await prisma.deal.findUnique({
+      where: { id: Number(dealId), builderId: Number(builderId) },
+      include: {
+        customer: { select: { fullName: true, phone: true, email: true } },
+        project:  { select: { name: true, commissionValue: true } },
+        cp:       { select: { tier: true, user: { select: { fullName: true, phone: true } } } },
+        messages:     { orderBy: { createdAt: 'asc' } },
+        dealDocuments:{ orderBy: { createdAt: 'asc' } },
+      },
+    });
+    if (!deal) return res.status(404).json({ ok: false, message: 'Deal not found' });
+    const tierRates: Record<string, number> = { Silver: 1.5, Gold: 2.0, Platinum: 2.5 };
+    const cpTier    = (deal.cp as any)?.tier ?? 'Silver';
+    const commPct   = (deal.project as any)?.commissionValue > 0 ? (deal.project as any).commissionValue : (tierRates[cpTier] ?? 1.5);
+    const commAmount = deal.dealValue ? deal.dealValue * commPct / 100 : null;
+    res.json({ ok: true, data: {
+      ...deal,
+      customerName:  (deal.customer as any)?.fullName ?? 'Unknown',
+      customerPhone: (deal.customer as any)?.phone ?? '',
+      projectName:   (deal.project as any)?.name ?? 'Unknown',
+      cpName:        (deal.cp as any)?.user?.fullName ?? null,
+      cpPhone:       (deal.cp as any)?.user?.phone ?? null,
+      cpTier,
+      commissionPercent: commPct,
+      commissionAmount:  commAmount,
+      customer: undefined, project: undefined, cp: undefined,
+    }});
+  },
+
+  // POST /:builderId/deals/:dealId/upload — multipart file upload for a deal document
+  uploadDealDocument: async (req: Request, res: Response) => {
+    const { builderId, dealId } = req.params;
+    const file = (req as any).file as Express.Multer.File | undefined;
+    if (!file) return res.status(400).json({ ok: false, message: 'No file uploaded' });
+    const { docType, sharedWithCp, sharedWithCustomer } = req.body;
+    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/deal-docs/${file.filename}`;
+    const doc = await prisma.dealDocument.create({
+      data: {
+        dealId:             Number(dealId),
+        name:               file.originalname,
+        docType:            docType || 'Other',
+        fileUrl,
+        uploadedByRole:     'builder',
+        sharedWithCp:       sharedWithCp === 'true' || sharedWithCp === true,
+        sharedWithCustomer: sharedWithCustomer === 'true' || sharedWithCustomer === true,
+      },
+    });
+    const deal = await prisma.deal.findUnique({
+      where: { id: Number(dealId) },
+      include: { cp: { select: { userId: true } }, project: { select: { name: true } } },
+    });
+    if (doc.sharedWithCp && deal?.cp) {
+      const cpUid = (deal.cp as any).userId;
+      const msg = `Builder shared "${file.originalname}" for ${(deal.project as any)?.name ?? 'your deal'}.`;
+      await prisma.notification.create({ data: { userId: cpUid, title: 'Document Shared', message: msg, type: 'info', link: '/cp/leads' } });
+      channelManager.publish(`user:${cpUid}`, { type: 'deal_doc', title: 'Document Shared', message: msg, city: '', timestamp: new Date().toISOString(), link: '/cp/leads' });
+    }
+    if (doc.sharedWithCustomer && deal?.customerId) {
+      const msg = `Builder shared "${file.originalname}" — please review in your journey.`;
+      await prisma.notification.create({ data: { userId: deal.customerId, title: 'Document Ready for Review', message: msg, type: 'info', link: '/customer/journey' } });
+      channelManager.publish(`user:${deal.customerId}`, { type: 'deal_doc', title: 'Document for Review', message: msg, city: '', timestamp: new Date().toISOString(), link: '/customer/journey' });
+    }
+    res.json({ ok: true, data: {
+      id: doc.id, name: doc.name, docType: doc.docType, fileUrl: doc.fileUrl,
+      uploadedByRole: doc.uploadedByRole, sharedWithCp: doc.sharedWithCp,
+      sharedWithCustomer: doc.sharedWithCustomer, createdAt: doc.createdAt.toISOString(),
+    }});
+  },
+
+  // POST /:builderId/deals/:dealId/documents — add deal doc + optionally share
+  addDealDocument: async (req: Request, res: Response) => {
+    const { builderId, dealId } = req.params;
+    const { name, docType, fileUrl, sharedWithCp, sharedWithCustomer } = req.body;
+    if (!name) return res.status(400).json({ ok: false, message: 'name is required' });
+    const doc = await prisma.dealDocument.create({
+      data: {
+        dealId: Number(dealId),
+        name,
+        docType: docType ?? 'Other',
+        fileUrl: fileUrl ?? null,
+        uploadedByRole: 'builder',
+        sharedWithCp:       sharedWithCp ?? false,
+        sharedWithCustomer: sharedWithCustomer ?? false,
+      },
+    });
+    const deal = await prisma.deal.findUnique({
+      where: { id: Number(dealId) },
+      include: { cp: { select: { userId: true } }, project: { select: { name: true } } },
+    });
+    if (sharedWithCp && deal?.cp) {
+      const cpUid = (deal.cp as any).userId;
+      const msg = `Builder shared "${name}" for ${(deal.project as any)?.name ?? 'your deal'}.`;
+      await prisma.notification.create({ data: { userId: cpUid, title: 'Document Shared', message: msg, type: 'info', link: '/cp/leads' } });
+      channelManager.publish(`user:${cpUid}`, { type: 'deal_doc', title: 'Document Shared', message: msg, city: '', timestamp: new Date().toISOString(), link: '/cp/leads' });
+    }
+    if (sharedWithCustomer && deal?.customerId) {
+      const msg = `Builder shared "${name}" — please review it in your journey.`;
+      await prisma.notification.create({ data: { userId: deal.customerId, title: 'Document Ready for Review', message: msg, type: 'info', link: '/customer/journey' } });
+      channelManager.publish(`user:${deal.customerId}`, { type: 'deal_doc', title: 'Document for Review', message: msg, city: '', timestamp: new Date().toISOString(), link: '/customer/journey' });
+    }
+    res.json({ ok: true, data: doc });
+  },
+
+  // PATCH /:builderId/deals/:dealId/documents/:docId/share — update sharing flags
+  shareDealDocument: async (req: Request, res: Response) => {
+    const { dealId, docId } = req.params;
+    const { sharedWithCp, sharedWithCustomer } = req.body;
+    try {
+      const doc = await prisma.dealDocument.update({
+        where: { id: Number(docId), dealId: Number(dealId) },
+        data: {
+          ...(sharedWithCp         !== undefined ? { sharedWithCp }         : {}),
+          ...(sharedWithCustomer   !== undefined ? { sharedWithCustomer }   : {}),
+        },
+      });
+      res.json({ ok: true, data: doc });
+    } catch {
+      res.status(404).json({ ok: false, message: 'Document not found' });
+    }
+  },
+
+  // POST /:builderId/deals/:dealId/messages — builder sends message to CP in deal thread
+  sendDealMessage: async (req: Request, res: Response) => {
+    const { builderId, dealId } = req.params;
+    const { message } = req.body;
+    if (!message?.trim()) return res.status(400).json({ ok: false, message: 'message is required' });
+    const builder = await prisma.builder.findUnique({
+      where: { id: Number(builderId) },
+      select: { userId: true, user: { select: { fullName: true } } },
+    });
+    if (!builder) return res.status(404).json({ ok: false, message: 'Builder not found' });
+    const msg = await prisma.dealMessage.create({
+      data: {
+        dealId:     Number(dealId),
+        senderId:   builder.userId,
+        senderName: (builder.user as any)?.fullName ?? 'Builder',
+        senderRole: 'builder',
+        message,
+      },
+    });
+    const deal = await prisma.deal.findUnique({
+      where: { id: Number(dealId) },
+      include: { cp: { select: { userId: true } }, project: { select: { name: true } } },
+    });
+    if (deal?.cp) {
+      const cpUid = (deal.cp as any).userId;
+      channelManager.publish(`user:${cpUid}`, { type: 'deal_message', title: 'New message from Builder', message: message.substring(0, 80), city: '', timestamp: new Date().toISOString(), link: '/cp/leads' });
+    }
+    res.json({ ok: true, data: msg });
+  },
+
+  // PATCH /:builderId/deals/:dealId/payment-schedule — set payment schedule
+  setPaymentSchedule: async (req: Request, res: Response) => {
+    const { builderId, dealId } = req.params;
+    const { schedule } = req.body;
+    try {
+      const updated = await prisma.deal.update({
+        where: { id: Number(dealId), builderId: Number(builderId) },
+        data:  { paymentSchedule: schedule },
+      });
+      res.json({ ok: true, data: { id: updated.id, paymentSchedule: updated.paymentSchedule } });
+    } catch {
+      res.status(404).json({ ok: false, message: 'Deal not found' });
+    }
+  },
+
+  // PATCH /:builderId/deals/:dealId/assign-cp — builder links a CP (by userId) to a deal
+  assignCPToDeal: async (req: Request, res: Response) => {
+    const { builderId, dealId } = req.params;
+    const { cpUserId } = req.body; // the CP's auth user id
+    try {
+      let cpId: number | null = null;
+      if (cpUserId != null) {
+        // Ensure the ChannelPartner row exists — create it if this CP has never used the CP features yet
+        const cp = await prisma.channelPartner.upsert({
+          where:  { userId: Number(cpUserId) },
+          update: {},
+          create: { userId: Number(cpUserId) },
+        });
+        cpId = cp.id;
+      }
+      const updated = await prisma.deal.update({
+        where: { id: Number(dealId), builderId: Number(builderId) },
+        data:  { cpId },
+        include: { project: { select: { name: true } } },
+      });
+      if (cpId) {
+        const cp = await prisma.channelPartner.findUnique({ where: { id: cpId }, select: { userId: true } });
+        if (cp) {
+          const msg = `You have been assigned to the deal for ${(updated.project as any)?.name ?? 'a project'}.`;
+          await prisma.notification.create({ data: { userId: cp.userId, title: 'Deal Assigned', message: msg, type: 'info', link: '/cp/leads' } });
+          channelManager.publish(`user:${cp.userId}`, { type: 'deal_assigned', title: 'Deal Assigned', message: msg, city: '', timestamp: new Date().toISOString(), link: '/cp/leads' });
+        }
+      }
+      res.json({ ok: true, data: { id: updated.id, cpId: updated.cpId } });
+    } catch {
+      res.status(404).json({ ok: false, message: 'Deal not found' });
+    }
+  },
+
+  // PATCH /customer/deals/:dealId/confirm — customer confirms acceptance
+  confirmCustomerDeal: async (req: Request, res: Response) => {
+    const { dealId } = req.params;
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ ok: false, message: 'phone is required' });
+    const customer = await prisma.user.findUnique({ where: { phone } });
+    if (!customer) return res.status(404).json({ ok: false, message: 'Customer not found' });
+    try {
+      const updated = await prisma.deal.update({
+        where: { id: Number(dealId), customerId: customer.id },
+        data:  { customerConfirmed: true, status: 'Agreement' },
+        include: { builder: { select: { userId: true } }, project: { select: { name: true } } },
+      });
+      const builderUid = (updated.builder as any)?.userId;
+      if (builderUid) {
+        const msg = `Customer confirmed the deal for ${(updated.project as any)?.name ?? 'your project'}.`;
+        await prisma.notification.create({ data: { userId: builderUid, title: 'Customer Confirmed Deal', message: msg, type: 'info', link: '/builder/deals' } });
+        channelManager.publish(`user:${builderUid}`, { type: 'deal_confirmed', title: 'Customer Confirmed Deal', message: msg, city: '', timestamp: new Date().toISOString(), link: '/builder/deals' });
+      }
+      res.json({ ok: true, data: { id: updated.id, status: updated.status } });
+    } catch {
+      res.status(404).json({ ok: false, message: 'Deal not found or not authorized' });
+    }
   },
 };

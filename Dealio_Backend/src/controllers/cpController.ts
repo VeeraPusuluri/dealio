@@ -230,12 +230,15 @@ export const cpController = {
 
   addMeetingNote: async (req: Request, res: Response) => {
     const meetingId = Number(req.params.meetingId);
-    const { notes } = req.body;
+    const { notes, cpRating } = req.body;
 
     try {
       const meeting = await prisma.meeting.update({
         where: { id: meetingId },
-        data: { cpNotes: notes ?? null },
+        data: {
+          cpNotes: notes ?? null,
+          ...(cpRating !== undefined ? { cpRating: cpRating ? Number(cpRating) : null } : {}),
+        },
         include: { project: { select: { name: true } } },
       });
       res.json({
@@ -276,8 +279,11 @@ export const cpController = {
 
   getCPLeads: async (req: Request, res: Response) => {
     const cpUserId = Number(req.params.cpUserId);
-    const cp = await prisma.channelPartner.findUnique({ where: { userId: cpUserId } });
-    if (!cp) return res.json({ ok: true, data: [] });
+    const cp = await prisma.channelPartner.upsert({
+      where:  { userId: cpUserId },
+      update: {},
+      create: { userId: cpUserId },
+    });
 
     const deals = await prisma.deal.findMany({
       where: { cpId: cp.id },
@@ -606,5 +612,131 @@ export const cpController = {
         clickCount: link.clickCount,
       },
     });
+  },
+
+  agreeDeal: async (req: Request, res: Response) => {
+    const { cpUserId, dealId } = req.params;
+    const cp = await prisma.channelPartner.findUnique({ where: { userId: Number(cpUserId) } });
+    if (!cp) return res.status(404).json({ ok: false, message: 'CP not found' });
+    try {
+      const updated = await prisma.deal.update({
+        where: { id: Number(dealId), cpId: cp.id },
+        data:  { cpAgreed: true, status: 'Agreement' },
+        include: {
+          builder: { select: { userId: true } },
+          project: { select: { name: true, commissionValue: true } },
+        },
+      });
+      const tierRates: Record<string, number> = { Silver: 1.5, Gold: 2.0, Platinum: 2.5 };
+      const commPct    = (updated.project as any)?.commissionValue > 0 ? (updated.project as any).commissionValue : (tierRates[cp.tier] ?? 1.5);
+      const commAmount = updated.dealValue ? updated.dealValue * commPct / 100 : null;
+      const builderUid = (updated.builder as any)?.userId;
+      if (builderUid) {
+        const msg = `CP agreed to the deal for ${(updated.project as any)?.name ?? 'your project'}. Stage: Agreement.`;
+        channelManager.publish(`user:${builderUid}`, { type: 'deal_agreed', title: 'CP Agreed to Deal', message: msg, city: '', timestamp: new Date().toISOString(), link: '/builder/deals' });
+      }
+      res.json({ ok: true, data: { id: updated.id, status: updated.status, commissionPercent: commPct, commissionAmount: commAmount } });
+    } catch {
+      res.status(404).json({ ok: false, message: 'Deal not found' });
+    }
+  },
+
+  // POST /:cpUserId/deals/:dealId/messages — CP sends message to builder in deal thread
+  sendCPDealMessage: async (req: Request, res: Response) => {
+    const { cpUserId, dealId } = req.params;
+    const { message } = req.body;
+    if (!message?.trim()) return res.status(400).json({ ok: false, message: 'message is required' });
+    const cp = await prisma.channelPartner.findUnique({
+      where: { userId: Number(cpUserId) },
+      select: { id: true, user: { select: { fullName: true } } },
+    });
+    if (!cp) return res.status(404).json({ ok: false, message: 'CP not found' });
+    const msg = await prisma.dealMessage.create({
+      data: {
+        dealId:     Number(dealId),
+        senderId:   Number(cpUserId),
+        senderName: (cp.user as any)?.fullName ?? 'CP',
+        senderRole: 'cp',
+        message,
+      },
+    });
+    const deal = await prisma.deal.findUnique({
+      where: { id: Number(dealId) },
+      include: { builder: { select: { userId: true } }, project: { select: { name: true } } },
+    });
+    if (deal?.builder) {
+      const bUid = (deal.builder as any).userId;
+      channelManager.publish(`user:${bUid}`, { type: 'deal_message', title: 'New message from CP', message: message.substring(0, 80), city: '', timestamp: new Date().toISOString(), link: '/builder/deals' });
+    }
+    res.json({ ok: true, data: msg });
+  },
+
+  // GET /:cpUserId/commissions — all deals this CP closed with commission breakdown
+  getCommissions: async (req: Request, res: Response) => {
+    const { cpUserId } = req.params;
+    const cp = await prisma.channelPartner.findUnique({ where: { userId: Number(cpUserId) } });
+    if (!cp) return res.json({ ok: true, data: [] });
+
+    const tierRates: Record<string, number> = { Silver: 1.5, Gold: 2.0, Platinum: 2.5 };
+
+    const deals = await prisma.deal.findMany({
+      where: { cpId: cp.id },
+      include: {
+        customer: { select: { fullName: true, phone: true } },
+        project:  { select: { name: true, city: true, commissionValue: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const result = deals.map(d => {
+      const commPct    = (d.project as any)?.commissionValue > 0 ? (d.project as any).commissionValue : (tierRates[cp.tier] ?? 1.5);
+      const commAmount = d.dealValue ? Math.round(d.dealValue * commPct / 100) : 0;
+      return {
+        id:                  d.id,
+        status:              d.status,
+        dealValue:           d.dealValue,
+        commissionStatus:    d.commissionStatus,
+        commissionPercent:   commPct,
+        commissionAmount:    commAmount,
+        commissionReleasedAt: d.commissionReleasedAt,
+        createdAt:           d.createdAt,
+        customerName:        (d.customer as any)?.fullName ?? 'Unknown',
+        projectName:         (d.project as any)?.name ?? 'Unknown',
+        projectCity:         (d.project as any)?.city ?? '',
+        cpTier:              cp.tier,
+      };
+    });
+
+    res.json({ ok: true, data: result });
+  },
+
+  // GET /:cpUserId/deals/:dealId — CP gets deal detail with docs + messages + commission
+  getCPDeal: async (req: Request, res: Response) => {
+    const { cpUserId, dealId } = req.params;
+    const cp = await prisma.channelPartner.findUnique({ where: { userId: Number(cpUserId) } });
+    if (!cp) return res.status(404).json({ ok: false, message: 'CP not found' });
+    const deal = await prisma.deal.findUnique({
+      where: { id: Number(dealId), cpId: cp.id },
+      include: {
+        customer: { select: { fullName: true, phone: true } },
+        project:  { select: { name: true, commissionValue: true } },
+        messages:      { orderBy: { createdAt: 'asc' } },
+        dealDocuments: { where: { sharedWithCp: true }, orderBy: { createdAt: 'asc' } },
+      },
+    });
+    if (!deal) return res.status(404).json({ ok: false, message: 'Deal not found' });
+    const tierRates: Record<string, number> = { Silver: 1.5, Gold: 2.0, Platinum: 2.5 };
+    const commPct    = (deal.project as any)?.commissionValue > 0 ? (deal.project as any).commissionValue : (tierRates[cp.tier] ?? 1.5);
+    const commAmount = deal.dealValue ? deal.dealValue * commPct / 100 : null;
+    res.json({ ok: true, data: {
+      ...deal,
+      customerName:  (deal.customer as any)?.fullName ?? 'Unknown',
+      customerPhone: (deal.customer as any)?.phone ?? '',
+      projectName:   (deal.project as any)?.name ?? 'Unknown',
+      cpTier: cp.tier,
+      commissionPercent: commPct,
+      commissionAmount:  commAmount,
+      customer: undefined, project: undefined,
+    }});
   },
 };

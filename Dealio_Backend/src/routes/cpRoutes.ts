@@ -50,6 +50,14 @@ router.post('/:cpUserId/verify-phone', requireAuth, cpController.verifyPhone);
 router.get('/:cpUserId/leads',  requireAuth, cpController.getCPLeads);
 router.post('/:cpUserId/leads', requireAuth, cpController.createCPLead);
 
+// Commissions
+router.get('/:cpUserId/commissions', requireAuth, cpController.getCommissions);
+
+// Deal detail for CP
+router.get('/:cpUserId/deals/:dealId',          requireAuth, cpController.getCPDeal);
+router.patch('/:cpUserId/deals/:dealId/agree',  requireAuth, cpController.agreeDeal);
+router.post('/:cpUserId/deals/:dealId/messages',requireAuth, cpController.sendCPDealMessage);
+
 // Meetings
 router.get('/:cpUserId/meetings', requireAuth, cpController.getCPMeetings);
 router.patch('/:cpUserId/meetings/:meetingId/notes', requireAuth, cpController.addMeetingNote);
