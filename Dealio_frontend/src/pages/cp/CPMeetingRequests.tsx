@@ -50,6 +50,7 @@ interface ApiMeeting {
   notes: string | null;
   builderNotes: string | null;
   cpNotes: string | null;
+  cpRating: number | null;
   status: string;
   createdAt: string;
 }
@@ -90,6 +91,8 @@ const CPMeetingRequests = () => {
   const [selected, setSelected] = useState<ApiMeeting | null>(null);
   const [noteInput, setNoteInput] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [selectedOutcome, setSelectedOutcome] = useState<string | null>(null);
+  const [selectedRating, setSelectedRating] = useState<number | null>(null);
 
   // Real projects
   const [realProjects, setRealProjects] = useState<RealProject[]>([]);
@@ -138,13 +141,13 @@ const CPMeetingRequests = () => {
     if (!selected || !cpUserId) return;
     setSavingNote(true);
     try {
-      const updated = await cpApi.addMeetingNote(cpUserId, selected.id, noteInput);
+      const updated = await cpApi.addMeetingNote(cpUserId, selected.id, noteInput, selectedRating ?? undefined);
       const u = updated as ApiMeeting;
-      setMeetings(prev => prev.map(m => m.id === selected.id ? { ...m, cpNotes: u.cpNotes } : m));
-      setSelected(prev => prev ? { ...prev, cpNotes: u.cpNotes } : null);
-      toast.success('Note saved');
+      setMeetings(prev => prev.map(m => m.id === selected.id ? { ...m, cpNotes: u.cpNotes, cpRating: u.cpRating } : m));
+      setSelected(prev => prev ? { ...prev, cpNotes: u.cpNotes, cpRating: u.cpRating } : null);
+      toast.success('Saved');
     } catch {
-      toast.error('Failed to save note');
+      toast.error('Failed to save');
     } finally {
       setSavingNote(false);
     }
@@ -153,6 +156,8 @@ const CPMeetingRequests = () => {
   const openDetail = (m: ApiMeeting) => {
     setSelected(m);
     setNoteInput(m.cpNotes ?? '');
+    setSelectedOutcome(null);
+    setSelectedRating(m.cpRating ?? null);
   };
 
   // New meeting request
@@ -493,22 +498,52 @@ const CPMeetingRequests = () => {
                 <div className="bg-card rounded-xl border border-border p-4 space-y-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Next Actions</p>
 
+                  {/* Star rating */}
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] text-muted-foreground">Meeting rating</p>
+                    <div className="flex gap-1">
+                      {[1,2,3,4,5].map(star => (
+                        <button
+                          key={star}
+                          onClick={() => setSelectedRating(prev => prev === star ? null : star)}
+                          className={`text-xl transition-colors ${(selectedRating ?? 0) >= star ? 'text-amber-400' : 'text-gray-300 hover:text-amber-300'}`}>
+                          ★
+                        </button>
+                      ))}
+                      {selectedRating && (
+                        <span className="text-[11px] text-muted-foreground self-center ml-1">
+                          {['','Poor','Fair','Good','Very Good','Excellent'][selectedRating]}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Outcome chips */}
                   <div className="space-y-1.5">
                     <p className="text-[11px] text-muted-foreground">Lead outcome</p>
                     <div className="flex gap-2 flex-wrap">
                       {([
-                        { label: 'Interested',      color: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' },
-                        { label: 'Needs Follow-up', color: 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' },
-                        { label: 'Not Interested',  color: 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' },
-                      ] as const).map(({ label, color }) => (
-                        <button
-                          key={label}
-                          onClick={() => setNoteInput(prev => prev ? prev : `Outcome: ${label}. `)}
-                          className={`px-3 py-1.5 rounded-full border text-[12px] font-semibold transition-colors ${color}`}>
-                          {label}
-                        </button>
-                      ))}
+                        { label: 'Interested',      base: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100', active: 'bg-emerald-600 border-emerald-600 text-white' },
+                        { label: 'Needs Follow-up', base: 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100',         active: 'bg-amber-500 border-amber-500 text-white' },
+                        { label: 'Not Interested',  base: 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100',                 active: 'bg-red-500 border-red-500 text-white' },
+                      ] as const).map(({ label, base, active }) => {
+                        const isActive = selectedOutcome === label;
+                        return (
+                          <button
+                            key={label}
+                            onClick={() => {
+                              const next = isActive ? null : label;
+                              setSelectedOutcome(next);
+                              setNoteInput(prev => {
+                                const stripped = prev.replace(/^Outcome: .+?\. /, '');
+                                return next ? `Outcome: ${next}. ${stripped}` : stripped;
+                              });
+                            }}
+                            className={`px-3 py-1.5 rounded-full border text-[12px] font-semibold transition-colors ${isActive ? active : base}`}>
+                            {label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 

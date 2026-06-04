@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { nriProfiles, nriCountries } from '@/data/nriData';
-import { nriProperties } from '@/data/investments';
-import { Globe, MessageCircle, Video, FileText, CheckCircle2, Circle, TrendingUp, Home, Wallet, DollarSign } from 'lucide-react';
+import { nriCountries } from '@/data/nriData';
+import { Globe, Video, FileText, CheckCircle2, Circle, TrendingUp, Home, Wallet, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 const NRIDashboard = () => {
-  const navigate = useNavigate();
-  const profile = nriProfiles[0];
-  const country = nriCountries.find(c => c.name === profile.country)!;
+  const navigate   = useNavigate();
+  const { user }   = useAuthStore();
+  // Fall back to first country for local time display (can be personalised later)
+  const country    = nriCountries[0];
   const [localTime, setLocalTime] = useState('');
-  const property = nriProperties[0];
 
   useEffect(() => {
     const update = () => {
@@ -47,12 +47,8 @@ const NRIDashboard = () => {
         <div className="rounded-xl p-6 text-white" style={{ background: 'linear-gradient(135deg, #0F2035 0%, #1B3A5C 100%)' }}>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold">Good morning, {profile.name}! 🌍</h2>
-              <p className="text-white/70 mt-1">Investing from {profile.city}, {profile.country}</p>
-              <p className="text-sm text-white/50 mt-2 flex items-center gap-2">
-                Your Dealio NRI advisor: {profile.assignedCPName} · +91 98765 43210
-                <a href="https://wa.me/919876543210" target="_blank" rel="noopener" className="text-green-400 hover:text-green-300"><MessageCircle size={16} /></a>
-              </p>
+              <h2 className="text-2xl font-bold">Welcome, {user?.name ?? 'NRI Investor'}! 🌍</h2>
+              <p className="text-white/70 mt-1">Your NRI property investment dashboard</p>
             </div>
             <div className="text-right text-sm text-white/60">
               <p>{country.flag} {country.timezone} · {localTime}</p>
@@ -72,7 +68,7 @@ const NRIDashboard = () => {
           </div>
           <div className="bg-card rounded-xl p-4 border cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/nri/manage')} style={{ borderColor: '#16A34A40' }}>
             <div className="flex items-center gap-2"><DollarSign size={18} className="text-green-600" /><span className="text-xs text-muted-foreground">Rental Income This Month</span></div>
-            <p className="text-2xl font-bold mt-1 text-green-600">₹{property.tenant.monthlyRent.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold mt-1 text-green-600">—</p>
           </div>
         </div>
 

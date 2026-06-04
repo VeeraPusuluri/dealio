@@ -208,7 +208,7 @@ const CPOverview = () => {
                   style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.orange, color: '#fff', border: 'none', borderRadius: 12, padding: '9px 16px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', boxShadow: `0 4px 14px ${C.orange}50`, whiteSpace: 'nowrap' }}>
                   <Plus size={13} /> Add Lead
                 </button>
-                <button onClick={() => navigate('/cp/broadcast')}
+                <button onClick={() => navigate('/cp/whatsapp-broadcast')}
                   style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.08)', color: '#CBD5E1', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '9px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                   <Send size={12} /> Broadcast
                 </button>

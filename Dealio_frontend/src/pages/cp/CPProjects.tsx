@@ -1533,7 +1533,7 @@ function ProjectCard({
           className="flex items-center gap-0.5 text-green-600 font-semibold hover:text-green-700 transition-colors">
           <Share2 size={9} /> Share via WA
         </button>
-        <a href={`/customer/projects/${project.id}`} target="_blank" rel="noreferrer"
+        <a href={`/customer/projects/${project.id}?standalone=1`} target="_blank" rel="noreferrer"
           onClick={e => e.stopPropagation()}
           className="flex items-center gap-0.5 text-blue-500 font-semibold hover:text-blue-700 transition-colors">
           <Eye size={9} /> Customer View
@@ -1577,7 +1577,6 @@ const CPProjects = () => {
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState('');
   const [flyerProject, setFlyerProject]       = useState<ProjectSummary | null>(null);
-  const [selected, setSelected]               = useState<ProjectSummary | null>(null);
   const [bookmarks, setBookmarks]             = useState<Set<number>>(loadBookmarks);
   const [filterTab, setFilterTab]             = useState<FilterTab>('all');
   const [shareTypePickerProject, setShareTypePickerProject] = useState<ProjectSummary | null>(null);
@@ -1864,7 +1863,7 @@ const CPProjects = () => {
                   key={project.id}
                   project={project}
                   bookmarks={bookmarks}
-                  onSelect={setSelected}
+                  onSelect={p => navigate(`/cp/projects/${p.id}`)}
                   onShare={setShareTypePickerProject}
                   onFlyer={setFlyerProject}
                   onToggleBookmark={toggleBookmark}
@@ -1876,19 +1875,6 @@ const CPProjects = () => {
           )}
         </div>
       </div>
-
-      {selected && (
-        <ProjectDetailDrawer
-          project={selected}
-          onClose={() => setSelected(null)}
-          onFlyer={() => { setFlyerProject(selected); setSelected(null); }}
-          onShare={() => { setShareTypePickerProject(selected); setSelected(null); }}
-          bookmarks={bookmarks}
-          onToggleBookmark={toggleBookmark}
-          cpId={user?.id}
-          projectLeads={leadsByProject.get(selected.id) ?? []}
-        />
-      )}
 
       {shareTypePickerProject && (
         <ShareTypePicker

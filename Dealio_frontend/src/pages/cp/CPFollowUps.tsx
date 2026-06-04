@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { cpApi } from '@/lib/api';
-import { Phone, MessageSquare, CalendarDays, Loader2, RefreshCw, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { Phone, MessageSquare, Loader2, RefreshCw, User, List, CalendarDays } from 'lucide-react';
+import { AppleCalendar, CalEvent } from '@/components/shared/AppleCalendar';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface CPLead {
   id: number;
@@ -12,6 +15,33 @@ interface CPLead {
   status: string;
   createdAt: string;
 }
+
+interface CPFollowUp {
+  id: string;
+  dealId: string;
+  customerName: string;
+  projectName: string;
+  reason: string;
+  dueDate: string;
+  dueTime?: string | null;
+  done: boolean;
+  createdAt: string;
+}
+
+interface CPMeeting {
+  id: number;
+  projectName: string;
+  customerName: string;
+  customerPhone: string;
+  preferredDate: string;
+  preferredTime: string;
+  confirmedDate: string | null;
+  confirmedTime: string | null;
+  meetingType: string | null;
+  status: string;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<string, string> = {
   'New Lead':          'bg-slate-100 text-slate-600',
@@ -38,54 +68,91 @@ const ACTIVE_STATUSES = ['New Lead', 'Profile Created', 'Meeting Requested', 'Me
 const daysBetween = (dateStr: string) =>
   Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 
-const getDateStr = (y: number, m: number, d: number) =>
-  `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+function toDateOnly(iso: string) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso.split('T')[0];
+  return d.toISOString().split('T')[0];
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CPFollowUps() {
   const { user } = useAuthStore();
   const cpUserId = user?.id ?? '';
 
-  const [leads, setLeads]         = useState<CPLead[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [filter, setFilter]       = useState<string>('All');
-  const [viewMode, setViewMode]   = useState<'calendar' | 'list'>('list');
+  const [leads,     setLeads]     = useState<CPLead[]>([]);
+  const [followUps, setFollowUps] = useState<CPFollowUp[]>([]);
+  const [meetings,  setMeetings]  = useState<CPMeeting[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [filter,    setFilter]    = useState<string>('All');
+  const [viewMode,  setViewMode]  = useState<'list' | 'calendar'>('list');
 
-  const today = new Date();
-  const [calYear, setCalYear]     = useState(today.getFullYear());
-  const [calMonth, setCalMonth]   = useState(today.getMonth());
-  const [selectedDate, setSelectedDate] = useState(today.toISOString().split('T')[0]);
-
-  const fetchLeads = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     if (!cpUserId) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await cpApi.getLeads(cpUserId);
-      setLeads((data as CPLead[]) || []);
+      const [leadsData, fuData, mtgData] = await Promise.all([
+        cpApi.getLeads(cpUserId),
+        cpApi.getFollowUps(cpUserId),
+        cpApi.getMeetings(cpUserId),
+      ]);
+      setLeads((leadsData as CPLead[]) || []);
+      setFollowUps((fuData as CPFollowUp[]) || []);
+      setMeetings((mtgData as CPMeeting[]) || []);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [cpUserId]);
 
-  useEffect(() => { fetchLeads(); }, [fetchLeads]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const active = leads.filter(l => ACTIVE_STATUSES.includes(l.status));
+  const active   = leads.filter(l => ACTIVE_STATUSES.includes(l.status));
   const filtered = filter === 'All' ? active : active.filter(l => l.status === filter);
 
-  const daysInMonth  = new Date(calYear, calMonth + 1, 0).getDate();
-  const firstDayOfW  = new Date(calYear, calMonth, 1).getDay();
-  const hasDot = (day: number) => active.some(l =>
-    l.createdAt.startsWith(getDateStr(calYear, calMonth, day))
-  );
-  const calDayLeads = active.filter(l => l.createdAt.startsWith(selectedDate));
-
-  const prevMonth = () => { if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); } else setCalMonth(m => m - 1); };
-  const nextMonth = () => { if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); } else setCalMonth(m => m + 1); };
+  const statuses = ['All', ...ACTIVE_STATUSES];
 
   const openWA = (name: string, project: string, phone: string) => {
     const msg = `Hi ${name}, just checking in on your property search! Have you had time to think about ${project}? I'm here to answer any questions.`;
     window.open(`https://wa.me/91${phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  const statuses = ['All', ...ACTIVE_STATUSES];
+  // ── Calendar events mapping ────────────────────────────────────────────────
+  const today = new Date().toISOString().split('T')[0];
+  const calEvents: CalEvent[] = [
+    ...followUps
+      .filter(f => !f.done)
+      .map(f => ({
+        id:       `fu-${f.id}`,
+        title:    f.customerName,
+        subtitle: f.projectName + ' · ' + f.reason,
+        date:     toDateOnly(f.dueDate),
+        time:     f.dueTime || undefined,
+        type:     'followup' as const,
+      })),
+    ...meetings
+      .filter(m => !['Cancelled'].includes(m.status))
+      .map(m => ({
+        id:       `mtg-${m.id}`,
+        title:    m.customerName,
+        subtitle: m.projectName,
+        date:     toDateOnly(m.confirmedDate || m.preferredDate),
+        time:     m.confirmedTime || m.preferredTime || undefined,
+        type:     (m.meetingType === 'Site Visit' ? 'visit' : 'meeting') as CalEvent['type'],
+        status:   m.status,
+        phone:    m.customerPhone,
+      })),
+    // Leads in Negotiation show as ongoing action items (pinned to today)
+    ...active
+      .filter(l => l.status === 'Negotiation')
+      .map(l => ({
+        id:       `lead-${l.id}`,
+        title:    l.customerName,
+        subtitle: l.projectName + ' · Negotiate pricing',
+        date:     today,
+        type:     'negotiation' as const,
+        phone:    l.customerPhone,
+      })),
+  ];
 
   return (
     <DashboardLayout>
@@ -101,12 +168,13 @@ export default function CPFollowUps() {
             <div className="flex gap-1 bg-muted/60 rounded-xl p-1">
               {(['list', 'calendar'] as const).map(v => (
                 <button key={v} onClick={() => setViewMode(v)}
-                  className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all capitalize ${viewMode === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${viewMode === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                  {v === 'list' ? <List size={13} /> : <CalendarDays size={13} />}
                   {v === 'list' ? 'List' : 'Calendar'}
                 </button>
               ))}
             </div>
-            <button onClick={fetchLeads} disabled={loading}
+            <button onClick={fetchAll} disabled={loading}
               className="p-2 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             </button>
@@ -116,9 +184,9 @@ export default function CPFollowUps() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Active Follow-ups', value: active.length, color: 'text-foreground' },
+            { label: 'Active Follow-ups',    value: active.length,                                       color: 'text-foreground' },
             { label: 'Needs Attention (7d+)', value: active.filter(l => daysBetween(l.createdAt) >= 7).length, color: 'text-amber-600' },
-            { label: 'Hot (Negotiation)', value: active.filter(l => l.status === 'Negotiation').length, color: 'text-orange-600' },
+            { label: 'Hot (Negotiation)',     value: active.filter(l => l.status === 'Negotiation').length, color: 'text-orange-600' },
           ].map(s => (
             <div key={s.label} className="rounded-2xl border border-border bg-card p-4">
               <p className="text-[11px] text-muted-foreground font-medium">{s.label}</p>
@@ -127,6 +195,12 @@ export default function CPFollowUps() {
           ))}
         </div>
 
+        {/* ── Calendar view ── */}
+        {viewMode === 'calendar' && (
+          <AppleCalendar events={calEvents} loading={loading} accentColor="#0A7E8C" />
+        )}
+
+        {/* ── List view ── */}
         {viewMode === 'list' && (
           <>
             {/* Status filter */}
@@ -155,11 +229,11 @@ export default function CPFollowUps() {
                     <CalendarDays size={22} className="text-muted-foreground" />
                   </div>
                   <p className="text-[13px] font-semibold text-foreground">No active follow-ups</p>
-                  <p className="text-[12px] text-muted-foreground mt-1">All leads are either booked or closed. Add new leads from the Projects page.</p>
+                  <p className="text-[12px] text-muted-foreground mt-1">All leads are either booked or closed.</p>
                 </div>
               ) : (
                 filtered.map((lead, i) => {
-                  const age = daysBetween(lead.createdAt);
+                  const age    = daysBetween(lead.createdAt);
                   const action = NEXT_ACTION[lead.status];
                   return (
                     <div key={lead.id} className={`px-5 py-4 ${i < filtered.length - 1 ? 'border-b border-border' : ''}`}>
@@ -207,86 +281,6 @@ export default function CPFollowUps() {
               )}
             </div>
           </>
-        )}
-
-        {viewMode === 'calendar' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Calendar */}
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-muted transition-colors"><ChevronLeft size={14} /></button>
-                <p className="text-[13px] font-semibold text-foreground">
-                  {new Date(calYear, calMonth).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
-                </p>
-                <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-muted transition-colors"><ChevronRight size={14} /></button>
-              </div>
-              <div className="grid grid-cols-7 gap-1 text-center">
-                {['S','M','T','W','T','F','S'].map((d, i) => (
-                  <div key={i} className="text-[10px] font-medium text-muted-foreground py-1">{d}</div>
-                ))}
-                {Array.from({ length: firstDayOfW }).map((_, i) => <div key={`e${i}`} />)}
-                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
-                  const ds = getDateStr(calYear, calMonth, day);
-                  const isToday = ds === today.toISOString().split('T')[0];
-                  const isSelected = ds === selectedDate;
-                  return (
-                    <button key={day} onClick={() => setSelectedDate(ds)}
-                      className={`text-[11px] py-1.5 rounded-lg relative transition-colors ${
-                        isSelected ? 'bg-teal-600 text-white font-bold'
-                        : isToday   ? 'bg-teal-50 text-teal-700 font-semibold'
-                        : 'text-foreground hover:bg-muted'
-                      }`}>
-                      {day}
-                      {hasDot(day) && (
-                        <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-orange-400" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Day leads */}
-            <div className="lg:col-span-2 space-y-3">
-              <p className="text-[13px] font-semibold text-foreground">
-                Leads created on {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
-                <span className="ml-2 text-[12px] text-muted-foreground font-normal">({calDayLeads.length})</span>
-              </p>
-              {calDayLeads.length === 0 ? (
-                <div className="rounded-2xl border border-border bg-card p-8 text-center">
-                  <p className="text-[13px] text-muted-foreground">No leads created on this day</p>
-                </div>
-              ) : (
-                calDayLeads.map(lead => (
-                  <div key={lead.id} className="rounded-2xl border border-border bg-card px-5 py-4 flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-[13px] font-semibold text-foreground">{lead.customerName}</p>
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_COLOR[lead.status] ?? 'bg-muted text-muted-foreground'}`}>
-                          {lead.status}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">{lead.projectName}</p>
-                    </div>
-                    <div className="flex gap-1.5">
-                      {lead.customerPhone && (
-                        <>
-                          <a href={`tel:${lead.customerPhone}`}
-                            className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 hover:bg-emerald-100 transition-colors">
-                            <Phone size={13} />
-                          </a>
-                          <button onClick={() => openWA(lead.customerName, lead.projectName, lead.customerPhone)}
-                            className="w-8 h-8 rounded-xl bg-green-50 flex items-center justify-center text-green-600 hover:bg-green-100 transition-colors">
-                            <MessageSquare size={13} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
         )}
       </div>
     </DashboardLayout>

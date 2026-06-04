@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { formatCurrency } from '@/lib/format';
+import { portalApi } from '@/lib/api';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { toast } from 'sonner';
 import {
-  CheckCircle2, Info, TrendingUp, Home, GraduationCap, HeartPulse,
-  Sparkles, Banknote, Calculator, ChevronRight,
+  CheckCircle2, Info, TrendingUp, Home, GraduationCap,
+  Sparkles, Banknote, Calculator, ChevronRight, Loader2,
 } from 'lucide-react';
 
 const PURPOSES = ['Home Renovation', 'Education', 'Medical', 'Personal', 'Business', 'Repay Other Loan', 'Investment'];
@@ -19,14 +21,17 @@ const SMART_USES = [
 const inp = 'w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all placeholder:text-muted-foreground';
 
 export default function CustomerTopup() {
-  const [outstanding, setOutstanding]     = useState('');
-  const [propertyValue, setPropertyValue] = useState('');
-  const [yearsPaid, setYearsPaid]         = useState('');
-  const [monthlyIncome, setMonthlyIncome] = useState('');
-  const [checked, setChecked]             = useState(false);
-  const [topupAmount, setTopupAmount]     = useState(2000000);
-  const [purpose, setPurpose]             = useState('Home Renovation');
-  const [showForm, setShowForm]           = useState(false);
+  const { user }                              = useAuthStore();
+  const [outstanding, setOutstanding]         = useState('');
+  const [propertyValue, setPropertyValue]     = useState('');
+  const [yearsPaid, setYearsPaid]             = useState('');
+  const [monthlyIncome, setMonthlyIncome]     = useState('');
+  const [checked, setChecked]                 = useState(false);
+  const [topupAmount, setTopupAmount]         = useState(2000000);
+  const [purpose, setPurpose]                 = useState('Home Renovation');
+  const [showForm, setShowForm]               = useState(false);
+  const [submitting, setSubmitting]           = useState(false);
+  const [submitted, setSubmitted]             = useState(false);
 
   const outstandingNum    = Number(outstanding) || 0;
   const propertyValueNum  = Number(propertyValue) || 0;
@@ -209,15 +214,45 @@ export default function CustomerTopup() {
               </div>
             </div>
 
-            <button
-              onClick={() => {
-                toast.success('Application submitted! Your bank will contact you within 48 hours.');
-                setShowForm(false);
-              }}
-              className="w-full py-2.5 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-opacity"
-              style={{ background: 'linear-gradient(135deg, #16A34A, #14B040)' }}>
-              Submit Application
-            </button>
+            {submitted ? (
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-[13px] font-bold text-emerald-800">Application submitted!</p>
+                  <p className="text-[12px] text-emerald-700 mt-0.5">Your bank will contact you within 48 hours to process your top-up request.</p>
+                </div>
+              </div>
+            ) : (
+              <button
+                disabled={submitting}
+                onClick={async () => {
+                  if (!user?.name || !user?.phone) { toast.error('Please complete your profile first'); return; }
+                  setSubmitting(true);
+                  try {
+                    await portalApi.submitLoanApplication({
+                      builderId: 1, // placeholder — top-up isn't project-specific
+                      customerName: user.name,
+                      customerPhone: user.phone,
+                      customerEmail: user.email,
+                      loanAmount: topupAmount,
+                      propertyValue: Number(propertyValue),
+                      employmentType: 'Salaried',
+                      tenureMonths: remainingTenure * 12,
+                    });
+                    setSubmitted(true);
+                    setShowForm(false);
+                    toast.success('Top-up application submitted! Your bank will contact you within 48 hours.');
+                  } catch (e: unknown) {
+                    toast.error(e instanceof Error ? e.message : 'Submission failed — please try again');
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold text-white disabled:opacity-60 hover:opacity-90 transition-opacity"
+                style={{ background: 'linear-gradient(135deg, #16A34A, #14B040)' }}>
+                {submitting ? <><Loader2 size={13} className="animate-spin" /> Submitting…</> : 'Submit Application'}
+              </button>
+            )}
           </div>
         )}
 

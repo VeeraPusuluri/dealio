@@ -12,15 +12,30 @@ import { useFollowUpStore } from '@/stores/useFollowUpStore';
 import CallLogModal from '@/components/shared/CallLogModal';
 import { outcomeColors } from '@/components/shared/CallLogModal';
 import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
-import { Phone, FileText, Search, Download, ChevronRight, Loader2, Building2, X, Mail, MapPin, Clock, User, Calendar, IndianRupee, Tag, MessageSquare, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Phone, FileText, Search, Download, ChevronRight, Loader2, Building2, X, Mail, MapPin, Clock, User, Calendar, IndianRupee, Tag, MessageSquare, ArrowLeft, CheckCircle, Bookmark, RefreshCw, AlertCircle, CheckCircle2, Route } from 'lucide-react';
+import CustomerJourneyTab from '@/components/shared/CustomerJourneyTab';
+
+interface UnitShortlistItem {
+  id: number;
+  projectId: number;
+  projectName: string;
+  customerName: string;
+  customerPhone: string;
+  unitId: string;
+  unitDetails: { bhk?: string; areaSqft?: number; price?: number; floor?: number; facing?: string; };
+  status: 'Pending' | 'Accepted' | 'SuggestOther';
+  builderNote: string | null;
+  createdAt: string;
+}
 import { toast } from 'sonner';
 
-const stages: LeadStage[] = ['New Lead', 'Profile Created', 'Meeting Requested', 'Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Booked', 'Closed'];
+const stages: LeadStage[] = ['New Lead', 'Profile Created', 'Meeting Requested', 'Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Agreement', 'Booked', 'Closed'];
 
 const stageToMilestone: Record<string, string> = {
   'New Lead': 'Enquiry', 'Profile Created': 'Enquiry',
   'Meeting Requested': 'Site Visit Scheduled', 'Meeting Confirmed': 'Site Visit Scheduled',
-  'Meeting Done': 'Site Visit Done', 'Negotiation': 'Negotiation', 'Booked': 'Booked', 'Closed': 'Possession Given',
+  'Meeting Done': 'Site Visit Done', 'Negotiation': 'Negotiation',
+  'Agreement': 'Agreement', 'Booked': 'Booked', 'Closed': 'Possession Given',
 };
 
 // Map backend enum values to display labels
@@ -32,6 +47,8 @@ const STAGE_MAP: Record<string, LeadStage> = {
   MEETING_CONFIRMED: 'Meeting Confirmed',
   MEETING_DONE: 'Meeting Done',
   NEGOTIATION: 'Negotiation',
+  AGREEMENT: 'Agreement',
+  Agreement: 'Agreement',
   BOOKED: 'Booked',
   CLOSED: 'Closed',
 };
@@ -44,6 +61,7 @@ const STAGE_ENUM: Record<string, string> = {
   'Meeting Confirmed': 'MEETING_CONFIRMED',
   'Meeting Done': 'MEETING_DONE',
   'Negotiation': 'NEGOTIATION',
+  'Agreement': 'Agreement',
   'Booked': 'BOOKED',
   'Closed': 'CLOSED',
 };
@@ -78,7 +96,7 @@ interface ApiDeal {
   cpId?: number | null;
 }
 
-const VALID_STAGES = ['New Lead', 'Profile Created', 'Meeting Requested', 'Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Booked', 'Closed'];
+const VALID_STAGES = ['New Lead', 'Profile Created', 'Meeting Requested', 'Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Agreement', 'Booked', 'Closed'];
 
 function dealToLead(d: ApiDeal) {
   const stage = VALID_STAGES.includes(d.status) ? d.status as LeadStage : 'New Lead';
@@ -124,8 +142,9 @@ const NEXT_STAGES: Record<string, LeadStage[]> = {
   'Profile Created': ['Meeting Requested', 'Negotiation', 'Closed'],
   'Meeting Requested': ['Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Closed'],
   'Meeting Confirmed': ['Meeting Done', 'Negotiation', 'Closed'],
-  'Meeting Done': ['Negotiation', 'Booked', 'Closed'],
-  'Negotiation': ['Booked', 'Closed'],
+  'Meeting Done': ['Negotiation', 'Agreement', 'Booked', 'Closed'],
+  'Negotiation': ['Agreement', 'Booked', 'Closed'],
+  'Agreement': ['Booked', 'Closed'],
   'Booked': ['Closed'],
   'Closed': [],
 };
@@ -140,6 +159,7 @@ const BuilderLeads = () => {
   const [stageModal, setStageModal] = useState<{ id: string; numericId: number; name: string; currentStage: LeadStage } | null>(null);
   const [updatingStage, setUpdatingStage] = useState(false);
   const [drawerLead, setDrawerLead] = useState<ReturnType<typeof apiLeadToRow> | null>(null);
+  const [drawerTab, setDrawerTab] = useState<'details' | 'journey'>('journey');
 
   const loadLeads = async () => {
     let builderId = builderApi.getCachedBuilderId();
@@ -194,6 +214,41 @@ const BuilderLeads = () => {
   };
 
   const leads = apiLeads;
+
+  const [activeTab, setActiveTab] = useState<'leads' | 'shortlists'>('leads');
+  const [shortlists, setShortlists] = useState<UnitShortlistItem[]>([]);
+  const [shortlistsLoading, setShortlistsLoading] = useState(false);
+  const [respondingId, setRespondingId] = useState<number | null>(null);
+  const [responseNote, setResponseNote] = useState('');
+  const [respondModal, setRespondModal] = useState<UnitShortlistItem | null>(null);
+
+  const loadShortlists = async () => {
+    const builderId = builderApi.getCachedBuilderId();
+    if (!builderId) return;
+    setShortlistsLoading(true);
+    try {
+      const data = await builderApi.getBuilderShortlists(builderId);
+      setShortlists((data as UnitShortlistItem[]) || []);
+    } catch { toast.error('Failed to load shortlists'); }
+    finally { setShortlistsLoading(false); }
+  };
+
+  useEffect(() => { if (activeTab === 'shortlists') loadShortlists(); }, [activeTab]);
+
+  const handleRespond = async (status: 'Accepted' | 'SuggestOther') => {
+    if (!respondModal) return;
+    const builderId = builderApi.getCachedBuilderId();
+    if (!builderId) return;
+    setRespondingId(respondModal.id);
+    try {
+      await builderApi.respondToShortlist(builderId, respondModal.id, status, responseNote || undefined);
+      setShortlists(prev => prev.map(s => s.id === respondModal.id ? { ...s, status, builderNote: responseNote || null } : s));
+      toast.success(status === 'Accepted' ? 'Unit accepted! Customer notified.' : 'Suggestion sent to customer.');
+      setRespondModal(null);
+      setResponseNote('');
+    } catch { toast.error('Failed to update'); }
+    finally { setRespondingId(null); }
+  };
 
   const [search, setSearch] = useState('');
   const [projectFilter, setProjectFilter] = useState('All');
@@ -266,8 +321,18 @@ const BuilderLeads = () => {
           </button>
         </div>
 
+        {/* ── Tabs ── */}
+        <div className="flex gap-1 bg-muted/50 rounded-xl p-1 w-fit flex-shrink-0">
+          {(['leads', 'shortlists'] as const).map(t => (
+            <button key={t} onClick={() => setActiveTab(t)}
+              className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-all capitalize flex items-center gap-1.5 ${activeTab === t ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+              {t === 'leads' ? <><User size={12} /> Leads</> : <><Bookmark size={12} /> Unit Shortlists {shortlists.filter(s => s.status === 'Pending').length > 0 && <span className="w-4 h-4 rounded-full bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center">{shortlists.filter(s => s.status === 'Pending').length}</span>}</>}
+            </button>
+          ))}
+        </div>
+
         {/* ── Stat strip ── */}
-        {!loading && leads.length > 0 && (
+        {activeTab === 'leads' && !loading && leads.length > 0 && (
           <div className="grid grid-cols-5 gap-2.5 flex-shrink-0">
             {[
               { label: 'Total', value: totalLeads, dot: '#0A7E8C', bg: 'bg-card' },
@@ -287,8 +352,72 @@ const BuilderLeads = () => {
           </div>
         )}
 
+        {/* ── Shortlists panel ── */}
+        {activeTab === 'shortlists' && (
+          <div className="flex-1 overflow-y-auto space-y-3">
+            {shortlistsLoading ? (
+              <div className="flex justify-center py-16"><Loader2 size={24} className="animate-spin text-muted-foreground" /></div>
+            ) : shortlists.length === 0 ? (
+              <div className="flex flex-col items-center py-16 text-center">
+                <Bookmark size={28} className="text-muted-foreground mb-3" />
+                <p className="text-[13px] font-semibold text-foreground">No unit shortlists yet</p>
+                <p className="text-[11px] text-muted-foreground mt-1">When customers shortlist units, they'll appear here.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {shortlists.map(s => {
+                  const isPending = s.status === 'Pending';
+                  return (
+                    <div key={s.id} className="bg-card rounded-2xl border border-border p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-[14px] font-bold text-foreground">Unit {s.unitId}</p>
+                          <p className="text-[11px] text-muted-foreground">{s.projectName}</p>
+                        </div>
+                        <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 ${
+                          s.status === 'Accepted' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                          s.status === 'SuggestOther' ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                          'bg-amber-50 border-amber-200 text-amber-700'
+                        }`}>{s.status === 'Accepted' ? 'Accepted' : s.status === 'SuggestOther' ? 'Suggestion Sent' : 'Pending Review'}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+                        <User size={12} /> <span className="font-medium text-foreground">{s.customerName}</span>
+                        <a href={`tel:${s.customerPhone}`} className="flex items-center gap-1 ml-1 text-teal-600 hover:underline">
+                          <Phone size={11} />{s.customerPhone}
+                        </a>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5 text-[10px]">
+                        {s.unitDetails.bhk && <span className="px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground">{s.unitDetails.bhk}</span>}
+                        {s.unitDetails.areaSqft && <span className="px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground">{s.unitDetails.areaSqft} sqft</span>}
+                        {s.unitDetails.floor && <span className="px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground">Floor {s.unitDetails.floor}</span>}
+                        {s.unitDetails.facing && <span className="px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground">{s.unitDetails.facing}</span>}
+                      </div>
+
+                      {s.builderNote && s.status === 'SuggestOther' && (
+                        <p className="text-[11px] text-blue-700 bg-blue-50 rounded-lg px-3 py-2 border border-blue-100">Your note: {s.builderNote}</p>
+                      )}
+
+                      {isPending && (
+                        <div className="flex gap-2 pt-1">
+                          <button onClick={() => { setRespondModal(s); setResponseNote(''); }}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-semibold text-white hover:opacity-90"
+                            style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
+                            <CheckCircle2 size={13} /> Respond
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Search + filters ── */}
-        <div className="flex gap-2 flex-wrap flex-shrink-0">
+        {activeTab === 'leads' && (<><div className="flex gap-2 flex-wrap flex-shrink-0">
           <div className="relative flex-1 min-w-[220px]">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input value={search} onChange={e => setSearch(e.target.value)}
@@ -316,7 +445,7 @@ const BuilderLeads = () => {
           )}
         </div>
 
-        {/* ── Content ── */}
+        {/* ── Leads Content ── */}
         {loading ? (
           <div className="flex-1 flex justify-center items-center">
             <Loader2 size={28} className="animate-spin text-muted-foreground" />
@@ -360,7 +489,7 @@ const BuilderLeads = () => {
                       return (
                         <div key={lead.id}
                           className="bg-card rounded-xl border border-border p-3 cursor-pointer hover:border-ring/50 hover:shadow-md transition-all duration-150 relative group"
-                          onClick={() => setDrawerLead(lead)}>
+                          onClick={() => { setDrawerLead(lead); setDrawerTab('journey'); }}>
                           {/* Selection checkbox */}
                           <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleSelect(lead.id)}
                             onClick={e => e.stopPropagation()}
@@ -398,6 +527,13 @@ const BuilderLeads = () => {
                               </span>
                             )}
                           </div>
+                          {/* Agreement badge */}
+                          {lead.stage === 'Agreement' && (
+                            <div className="flex items-center gap-1 mt-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                              <FileText size={9} />
+                              Agreement Stage · Awaiting Signature
+                            </div>
+                          )}
                           {/* Footer */}
                           <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
                             <MilestoneChip milestone={milestone} />
@@ -406,8 +542,8 @@ const BuilderLeads = () => {
                                 className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Log Call">
                                 <Phone size={11} />
                               </button>
-                              {(lead.stage === 'Closed' || lead.stage === 'Booked') && (
-                                <button onClick={e => { e.stopPropagation(); setDocModal({ type: lead.stage === 'Closed' ? 'allotment' : 'booking', data: { customer: lead.customerName, project: lead.projectName, unit: lead.unitType, totalPrice: formatCurrency(lead.budget), unitType: lead.unitType, bookingAmount: formatCurrency(lead.budget * 0.1), builder: 'Builder', cp: lead.cpName } }); }}
+                              {(lead.stage === 'Agreement' || lead.stage === 'Closed' || lead.stage === 'Booked') && (
+                                <button onClick={e => { e.stopPropagation(); setDocModal({ type: lead.stage === 'Closed' ? 'allotment' : 'booking', data: { customer: lead.customerName, project: lead.projectName, unit: lead.unitType, totalPrice: formatCurrency(lead.budget), unitType: lead.unitType, bookingAmount: formatCurrency(lead.budget * 0.05), builder: 'Builder', cp: lead.cpName } }); }}
                                   className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Generate Document">
                                   <FileText size={11} />
                                 </button>
@@ -429,6 +565,7 @@ const BuilderLeads = () => {
             })}
           </div>
         )}
+      </>) }
       </div>
 
       {/* ── Lead Detail Drawer ─────────────────────────────────────────────── */}
@@ -455,8 +592,40 @@ const BuilderLeads = () => {
               </button>
             </div>
 
+            {/* Tab bar */}
+            <div className="flex border-b border-border flex-shrink-0">
+              {([['journey', Route, 'Journey'] as const, ['details', User, 'Details'] as const]).map(([key, Icon, label]) => (
+                <button key={key} onClick={() => setDrawerTab(key)}
+                  className={`flex items-center gap-1.5 flex-1 py-2.5 text-[12px] font-semibold transition-all border-b-2 -mb-px ${
+                    drawerTab === key ? 'border-[#0A7E8C] text-[#0A7E8C]' : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}>
+                  <Icon size={12} /> {label}
+                </button>
+              ))}
+            </div>
+
             {/* Scrollable body */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-muted/20">
+
+              {/* ── Journey Tab ── */}
+              {drawerTab === 'journey' && (
+                <CustomerJourneyTab
+                  stage={drawerLead.stage}
+                  customerName={drawerLead.customerName}
+                  projectName={drawerLead.projectName}
+                  dealValue={drawerLead.budget || null}
+                  role="builder"
+                  onCall={drawerLead.phone ? () => { window.open(`tel:${drawerLead.phone}`); } : undefined}
+                  onWhatsApp={drawerLead.phone ? () => { window.open(`https://wa.me/91${drawerLead.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${drawerLead.customerName.split(' ')[0]}! Following up on ${drawerLead.projectName}.`)}`); } : undefined}
+                  onSendQuote={() => {
+                    setDrawerLead(null);
+                    // Navigate to deals page for this customer
+                  }}
+                />
+              )}
+
+              {/* ── Details Tab ── */}
+              {drawerTab === 'details' && <>
 
               {/* Contact */}
               <div className="bg-card rounded-xl border border-border p-4 space-y-2.5">
@@ -568,6 +737,8 @@ const BuilderLeads = () => {
                   </div>
                 </div>
               )}
+
+              </> }
             </div>
 
             {/* Footer actions */}
@@ -628,6 +799,39 @@ const BuilderLeads = () => {
             <button onClick={() => setStageModal(null)} className="w-full text-[13px] text-muted-foreground hover:text-foreground py-1">
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Respond to Shortlist Modal ── */}
+      {respondModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setRespondModal(null)} />
+          <div className="relative bg-card rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-border space-y-4 mx-4">
+            <h3 className="text-[15px] font-bold text-foreground">Respond to Shortlist</h3>
+            <div className="p-3 rounded-xl bg-muted/50 border border-border text-[12px] space-y-1">
+              <p className="font-semibold text-foreground">Unit {respondModal.unitId} — {respondModal.projectName}</p>
+              <p className="text-muted-foreground">By {respondModal.customerName} ({respondModal.customerPhone})</p>
+              {respondModal.unitDetails.bhk && <p className="text-muted-foreground">{respondModal.unitDetails.bhk}{respondModal.unitDetails.areaSqft ? ` · ${respondModal.unitDetails.areaSqft} sqft` : ''}</p>}
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-muted-foreground block mb-1.5">Note to customer (optional)</label>
+              <textarea value={responseNote} onChange={e => setResponseNote(e.target.value)} rows={3}
+                placeholder="e.g. This unit is available and reserved for you. / We suggest Tower B, Floor 8 instead."
+                className="w-full px-3 py-2.5 rounded-xl border border-border bg-muted/40 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none placeholder:text-muted-foreground" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => handleRespond('Accepted')} disabled={!!respondingId}
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] font-semibold text-white disabled:opacity-60 hover:opacity-90"
+                style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
+                {respondingId ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={13} />} Accept Unit
+              </button>
+              <button onClick={() => handleRespond('SuggestOther')} disabled={!!respondingId}
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] font-semibold border border-border text-foreground hover:bg-muted disabled:opacity-60 transition-colors">
+                {respondingId ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={13} />} Suggest Other
+              </button>
+            </div>
+            <button onClick={() => setRespondModal(null)} className="w-full text-[12px] text-muted-foreground hover:text-foreground py-1">Cancel</button>
           </div>
         </div>
       )}

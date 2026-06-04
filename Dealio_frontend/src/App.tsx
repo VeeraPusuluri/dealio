@@ -46,23 +46,21 @@ import CPContentStudio from "./pages/cp/CPContentStudio";
 import CPSocialAnalytics from "./pages/cp/CPSocialAnalytics";
 import CPWhatsAppBroadcast from "./pages/cp/CPWhatsAppBroadcast";
 import CPAIInsights from "./pages/cp/CPAIInsights";
-import CPPipeline from "./pages/cp/CPPipeline";
 import CPContacts from "./pages/cp/CPContacts";
+import CPProjectDetail from "./pages/cp/CPProjectDetail";
 import CPSettings from "./pages/cp/CPSettings";
 
 import CustomerHome from "./pages/customer/CustomerHome";
+import CustomerLoan from "./pages/customer/CustomerLoan";
 import CustomerContact from "./pages/customer/CustomerContact";
 import CustomerProjectDetail from "./pages/customer/CustomerProjectDetail";
 import CustomerSettings from "./pages/customer/CustomerSettings";
 import CustomerProperty from "./pages/customer/CustomerProperty";
 import CustomerJourney from "./pages/customer/CustomerJourney";
-import CustomerEMI from "./pages/customer/CustomerEMI";
 import CustomerMeeting from "./pages/customer/CustomerMeeting";
 import CustomerDocuments from "./pages/customer/CustomerDocuments";
 import CustomerInvestments from "./pages/customer/CustomerInvestments";
 import CustomerTopup from "./pages/customer/CustomerTopup";
-import CustomerLoanStatus from "./pages/customer/CustomerLoanStatus";
-import CustomerLoanEngine from "./pages/customer/CustomerLoanEngine";
 
 import BankOverview from "./pages/bank/BankOverview";
 import BankInbox from "./pages/bank/BankInbox";
@@ -82,6 +80,7 @@ import AdminCPs from "./pages/admin/AdminCPs";
 import AdminProjects from "./pages/admin/AdminProjects";
 import AdminDeals from "./pages/admin/AdminDeals";
 import AdminCampaigns from "./pages/admin/AdminCampaigns";
+import AdminMeetings from "./pages/admin/AdminMeetings";
 import LoanPortal from "./pages/shared/LoanPortal";
 import DealConversation from "./pages/shared/DealConversation";
 import ProjectSharePage from "./pages/shared/ProjectSharePage";
@@ -114,16 +113,19 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user            = useAuthStore((s) => s.user);
   const loading         = useAuthStore((s) => s.loading);
-  const { pathname }    = useLocation();
+  const { pathname, search } = useLocation();
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading…</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   // Redirect to the user's own dashboard if they're accessing a role-specific
   // path that doesn't match their role (e.g. admin landing on /customer).
+  // Exception: standalone=1 allows any authenticated user to view cross-role
+  // pages like the customer project detail (used by builders/CPs as a preview).
   const role = user?.role ?? '';
   const ownBase = ROLE_HOME[role];
-  if (ownBase) {
+  const isStandalonePreview = search.includes('standalone=1');
+  if (ownBase && !isStandalonePreview) {
     const pathRole = pathname.split('/')[1]; // e.g. "customer" from "/customer/..."
     const routeRoles = Object.keys(ROLE_HOME);
     if (routeRoles.includes(pathRole) && pathRole !== role) {
@@ -174,8 +176,10 @@ const App = () => (
           {/* CP */}
           <Route path="/cp" element={<ProtectedRoute><CPOverview /></ProtectedRoute>} />
           <Route path="/cp/projects" element={<ProtectedRoute><CPProjects /></ProtectedRoute>} />
+          <Route path="/cp/projects/:id" element={<ProtectedRoute><CPProjectDetail /></ProtectedRoute>} />
           <Route path="/cp/leads" element={<ProtectedRoute><CPLeads /></ProtectedRoute>} />
-          <Route path="/cp/pipeline" element={<ProtectedRoute><CPPipeline /></ProtectedRoute>} />
+          <Route path="/cp/pipeline" element={<Navigate to="/cp/leads" replace />} />
+          <Route path="/cp/jv" element={<Navigate to="/cp" replace />} />
           <Route path="/cp/commissions" element={<ProtectedRoute><CPCommissions /></ProtectedRoute>} />
           <Route path="/cp/referral" element={<ProtectedRoute><CPReferral /></ProtectedRoute>} />
           <Route path="/cp/brochure" element={<ProtectedRoute><CPBrochure /></ProtectedRoute>} />
@@ -197,11 +201,11 @@ const App = () => (
           <Route path="/customer/projects/:id" element={<ProtectedRoute><CustomerProjectDetail /></ProtectedRoute>} />
           <Route path="/customer/property" element={<ProtectedRoute><CustomerProperty /></ProtectedRoute>} />
           <Route path="/customer/journey" element={<ProtectedRoute><CustomerJourney /></ProtectedRoute>} />
-          <Route path="/customer/loan" element={<ProtectedRoute><LoanPortal /></ProtectedRoute>} />
-          <Route path="/customer/loan-engine" element={<ProtectedRoute><CustomerLoanEngine /></ProtectedRoute>} />
-          <Route path="/customer/loan-status" element={<ProtectedRoute><CustomerLoanStatus /></ProtectedRoute>} />
+          <Route path="/customer/loan" element={<ProtectedRoute><CustomerLoan /></ProtectedRoute>} />
+          <Route path="/customer/loan-engine" element={<Navigate to="/customer/loan?tab=eligibility" replace />} />
+          <Route path="/customer/loan-status" element={<Navigate to="/customer/loan?tab=status" replace />} />
+          <Route path="/customer/emi" element={<Navigate to="/customer/loan?tab=calculator" replace />} />
           <Route path="/customer/documents" element={<ProtectedRoute><CustomerDocuments /></ProtectedRoute>} />
-          <Route path="/customer/emi" element={<ProtectedRoute><CustomerEMI /></ProtectedRoute>} />
           <Route path="/customer/meeting" element={<ProtectedRoute><CustomerMeeting /></ProtectedRoute>} />
           <Route path="/customer/contact" element={<ProtectedRoute><CustomerContact /></ProtectedRoute>} />
           <Route path="/customer/investments" element={<ProtectedRoute><CustomerInvestments /></ProtectedRoute>} />
@@ -233,6 +237,7 @@ const App = () => (
           <Route path="/admin/deals" element={<ProtectedRoute><AdminDeals /></ProtectedRoute>} />
           <Route path="/admin/fraud" element={<ProtectedRoute><AdminFraud /></ProtectedRoute>} />
           <Route path="/admin/campaigns" element={<ProtectedRoute><AdminCampaigns /></ProtectedRoute>} />
+          <Route path="/admin/meetings" element={<ProtectedRoute><AdminMeetings /></ProtectedRoute>} />
 
           {/* Public share page — no auth required */}
           <Route path="/p/:token" element={<ProjectSharePage />} />

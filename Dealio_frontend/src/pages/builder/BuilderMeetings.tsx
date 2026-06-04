@@ -6,11 +6,12 @@ import { useNotificationStore } from '@/stores/useNotificationStore';
 import {
   Calendar, CheckCircle2, Clock, MessageSquare, Phone, Loader2,
   RefreshCw, Building2, XCircle, Users, FileText,
-  ChevronRight, Search, X, ArrowLeft,
+  ChevronRight, Search, X, ArrowLeft, CalendarDays, List,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import DatePickerField from '@/components/shared/DatePickerField';
 import AddToCalendarButton from '@/components/shared/AddToCalendarButton';
+import { AppleCalendar, CalEvent } from '@/components/shared/AppleCalendar';
 
 interface ApiMeeting {
   id: number;
@@ -75,8 +76,17 @@ const ic = 'w-full px-3 py-2.5 rounded-xl border border-border bg-background tex
 
 // ── component ──────────────────────────────────────────────────────────────────
 
+interface DealSummary { id: number; status: string; dealValue?: number | null; customerName: string; projectName: string; createdAt: string; updatedAt: string; }
+
+function toDateStr(iso: string) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString().split('T')[0];
+}
+
 const BuilderMeetings = () => {
   const [meetings,     setMeetings]     = useState<ApiMeeting[]>([]);
+  const [deals,        setDeals]        = useState<DealSummary[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [filter,       setFilter]       = useState('all');
   const [search,       setSearch]       = useState('');
@@ -87,15 +97,20 @@ const BuilderMeetings = () => {
   const [newTime,      setNewTime]      = useState('');
   const [submitting,   setSubmitting]   = useState(false);
   const [mobileDetail, setMobileDetail] = useState(false);
+  const [viewMode,     setViewMode]     = useState<'list' | 'calendar'>('list');
 
   const loadMeetings = useCallback(async () => {
     const bid = builderApi.getCachedBuilderId();
     if (!bid) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await builderApi.getBuilderMeetings(bid);
-      const list = (data as ApiMeeting[]) || [];
+      const [mtgData, dealData] = await Promise.all([
+        builderApi.getBuilderMeetings(bid),
+        builderApi.getBuilderDeals(bid),
+      ]);
+      const list = (mtgData as ApiMeeting[]) || [];
       setMeetings(list);
+      setDeals((dealData as DealSummary[]) || []);
       setSelected(prev => prev ? (list.find(m => m.id === prev.id) ?? null) : null);
       const pendingCount = list.filter(m => m.status === 'Pending').length;
       localStorage.setItem('dealio_pending_meetings', String(pendingCount));
@@ -203,12 +218,43 @@ const BuilderMeetings = () => {
   const selectMeeting = (m: ApiMeeting) => { setSelected(m); setActionType(null); setMobileDetail(true); };
   const meta = selected ? (S[selected.status] ?? S['Pending']) : null;
 
+  // ── Calendar events mapping ──
+  const today = new Date().toISOString().split('T')[0];
+  const calEvents: CalEvent[] = [
+    ...meetings
+      .filter(m => !['Cancelled'].includes(m.status))
+      .map(m => {
+        const dateIso = m.confirmedDate || m.preferredDate;
+        return {
+          id:       `mtg-${m.id}`,
+          title:    m.customerName,
+          subtitle: m.projectName + (m.cpName ? ` · via ${m.cpName}` : ''),
+          date:     toDateStr(dateIso),
+          time:     m.confirmedTime || m.preferredTime || undefined,
+          type:     (m.meetingType === 'Site Visit' ? 'visit' : 'meeting') as CalEvent['type'],
+          status:   m.status,
+          phone:    m.customerPhone,
+        } satisfies CalEvent;
+      }),
+    ...deals
+      .filter(d => d.status === 'Agreement' || d.status === 'Negotiation')
+      .map(d => ({
+        id:       `deal-${d.id}`,
+        title:    d.customerName,
+        subtitle: d.projectName,
+        date:     today,
+        type:     (d.status === 'Agreement' ? 'agreement' : 'negotiation') as CalEvent['type'],
+        status:   d.status,
+      } satisfies CalEvent)),
+  ];
+
   return (
     <DashboardLayout>
       <div className="flex flex-col h-[calc(100vh-7rem)] gap-4">
 
-        {/* ── Stat strip ─────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-4 gap-3 flex-shrink-0">
+        {/* ── Stat strip + view toggle ────────────────────────────────────── */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="grid grid-cols-4 gap-3 flex-1">
           {([
             { label: 'Total',     value: total },
             { label: 'Pending',   value: pending },
@@ -228,9 +274,29 @@ const BuilderMeetings = () => {
               </div>
             );
           })}
+          </div>
+
+          {/* View toggle */}
+          <div className="flex items-center gap-1 bg-muted/60 rounded-xl p-1 flex-shrink-0 self-start mt-0.5">
+            {(['list', 'calendar'] as const).map(v => (
+              <button key={v} onClick={() => setViewMode(v)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${viewMode === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                {v === 'list' ? <List size={13} /> : <CalendarDays size={13} />}
+                {v === 'list' ? 'List' : 'Calendar'}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* ── Split pane ─────────────────────────────────────────────────── */}
+        {/* ── Calendar view ──────────────────────────────────────────────── */}
+        {viewMode === 'calendar' && (
+          <div className="flex-1 overflow-y-auto">
+            <AppleCalendar events={calEvents} loading={loading} accentColor="#0A7E8C" />
+          </div>
+        )}
+
+        {/* ── Split pane (list view) ─────────────────────────────────────── */}
+        {viewMode === 'list' &&
         <div className="flex gap-4 flex-1 min-h-0">
 
           {/* ── Left: list ─────────────────────────────────────────────── */}
@@ -571,7 +637,7 @@ const BuilderMeetings = () => {
               </>
             )}
           </div>
-        </div>
+        </div>}
       </div>
     </DashboardLayout>
   );

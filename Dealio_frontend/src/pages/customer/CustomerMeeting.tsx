@@ -5,10 +5,12 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { customerApi, portalApi, builderApi } from '@/lib/api';
 import { pushNotifTo } from '@/lib/crossNotify';
+
+const RATING_LABEL = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
 import {
   Calendar, MapPin, Clock, Star, Building2, FileText, Users, Loader2,
   RefreshCw, X, ChevronRight, MessageSquare, CheckCircle2, Sparkles,
-  Navigation, Phone, Plus, UserCheck, User,
+  Navigation, Phone, Plus, UserCheck, User, Bookmark, ExternalLink,
 } from 'lucide-react';
 import AddToCalendarButton from '@/components/shared/AddToCalendarButton';
 import { toast } from 'sonner';
@@ -21,6 +23,7 @@ interface ApiMeeting {
   confirmedDate?: string | null; confirmedTime?: string | null;
   status: string; notes?: string | null; builderNotes?: string | null;
   meetingType?: string | null;
+  customerRating?: number | null;
 }
 interface ProjectSummary { id: number; name: string; city: string; }
 interface CPProfile { id: number; fullName: string; phone?: string; email?: string; preferredCity?: string; }
@@ -90,6 +93,7 @@ export default function CustomerMeeting() {
   const [selectedTime, setSelectedTime]         = useState('');
   const [notes, setNotes]                       = useState('');
   const [submitting, setSubmitting]             = useState(false);
+  const [bookedSlots, setBookedSlots]           = useState<string[]>([]);
 
   // Detail drawer
   const [selected, setSelected] = useState<ApiMeeting | null>(null);
@@ -97,6 +101,99 @@ export default function CustomerMeeting() {
   // Rating
   const [ratingId, setRatingId] = useState<number | null>(null);
   const [rating, setRating]     = useState(0);
+
+  // Unit shortlist picker
+  type UnitRow = { id: string; tower: string; floor: number; unit: number; bhk: string; areaSqft?: number; price?: number; status: string; facing?: string; };
+  type FloorPlanDoc = { id: number; fileName: string; fileUrl: string; docType: string; };
+  const [shortlistMeeting, setShortlistMeeting] = useState<ApiMeeting | null>(null);
+  const [unitPickerUnits, setUnitPickerUnits]   = useState<UnitRow[]>([]);
+  const [floorPlanDocs, setFloorPlanDocs]       = useState<FloorPlanDoc[]>([]);
+  const [unitPickerLoading, setUnitPickerLoading] = useState(false);
+  const [selectedUnit, setSelectedUnit]           = useState<UnitRow | null>(null);
+  const [submittingShortlist, setSubmittingShortlist] = useState(false);
+
+  // Post-visit shortlist status (for the selected meeting)
+  type ShortlistStatus = { id: number; unitId: string; status: 'Pending' | 'Accepted' | 'SuggestOther'; builderNote: string | null; dealStatus?: string | null; };
+  const [postVisitShortlist, setPostVisitShortlist] = useState<ShortlistStatus | null | 'none'>('none');
+  const [loadingPostVisit, setLoadingPostVisit] = useState(false);
+
+  const openUnitPicker = async (meeting: ApiMeeting) => {
+    setShortlistMeeting(meeting);
+    setSelectedUnit(null);
+    setFloorPlanDocs([]);
+    setUnitPickerLoading(true);
+    try {
+      const [project, docs] = await Promise.all([
+        builderApi.getProject(meeting.builderId, meeting.projectId) as Promise<{ unitMatrix?: UnitRow[]; totalUnits?: number; availableUnits?: number; configurations?: string[]; towers?: number; floorsPerTower?: number; }>,
+        builderApi.getDocuments(meeting.builderId, meeting.projectId).catch(() => []) as Promise<FloorPlanDoc[]>,
+      ]);
+      const plans = (Array.isArray(docs) ? docs : []).filter(d => d.docType === 'Floor Plan');
+      setFloorPlanDocs(plans);
+      if (project?.unitMatrix && Array.isArray(project.unitMatrix) && project.unitMatrix.length > 0) {
+        setUnitPickerUnits(project.unitMatrix as UnitRow[]);
+      } else {
+        // Generate synthetic units from counts
+        const total = project?.totalUnits ?? 0;
+        const configs = project?.configurations ?? ['2 BHK'];
+        const floors = project?.floorsPerTower ?? Math.max(1, Math.min(Math.ceil(total / 4), 15));
+        const perFloor = Math.max(1, Math.ceil(total / floors));
+        const synthetic: UnitRow[] = [];
+        for (let f = 1; f <= floors && synthetic.length < total; f++) {
+          for (let u = 1; u <= perFloor && synthetic.length < total; u++) {
+            synthetic.push({ id: `A-${f}0${u}`, tower: 'A', floor: f, unit: u, bhk: configs[(u - 1) % configs.length], status: 'Available' });
+          }
+        }
+        setUnitPickerUnits(synthetic);
+      }
+    } catch { toast.error('Could not load units'); setShortlistMeeting(null); }
+    finally { setUnitPickerLoading(false); }
+  };
+
+  const handleShortlistSubmit = async () => {
+    if (!shortlistMeeting || !selectedUnit || !phone) return;
+    setSubmittingShortlist(true);
+    try {
+      await portalApi.shortlistUnit({
+        customerPhone: phone,
+        builderId: shortlistMeeting.builderId,
+        projectId: shortlistMeeting.projectId,
+        unitId: selectedUnit.id,
+        unitDetails: selectedUnit,
+      });
+      toast.success(`Unit ${selectedUnit.id} shortlisted! The builder will review it.`);
+      setPostVisitShortlist({ id: Date.now(), unitId: selectedUnit.id, status: 'Pending', builderNote: null, dealStatus: null });
+      setShortlistMeeting(null);
+      setSelectedUnit(null);
+    } catch { toast.error('Failed to shortlist unit'); }
+    finally { setSubmittingShortlist(false); }
+  };
+
+  const openMeeting = useCallback(async (m: ApiMeeting) => {
+    setSelected(m);
+    setPostVisitShortlist('none');
+    if (!['Completed', 'COMPLETED'].includes(m.status) || !phone) return;
+    setLoadingPostVisit(true);
+    try {
+      const [shortlists, deals] = await Promise.allSettled([
+        portalApi.getMyShortlists(phone),
+        portalApi.getMyDeals(phone),
+      ]);
+      const sl = shortlists.status === 'fulfilled'
+        ? (shortlists.value as Array<{ projectId: number; unitId: string; status: string; builderNote: string | null; id: number }>)
+            .find(s => s.projectId === m.projectId)
+        : undefined;
+      if (sl) {
+        const dealStatus = deals.status === 'fulfilled'
+          ? (deals.value as Array<{ projectId: number; dealStatus: string }>)
+              .find(d => d.projectId === m.projectId)?.dealStatus ?? null
+          : null;
+        setPostVisitShortlist({ id: sl.id, unitId: sl.unitId, status: sl.status as 'Pending' | 'Accepted' | 'SuggestOther', builderNote: sl.builderNote, dealStatus });
+      } else {
+        setPostVisitShortlist(null);
+      }
+    } catch { setPostVisitShortlist(null); }
+    finally { setLoadingPostVisit(false); }
+  }, [phone]);
 
   const fetchMeetings = useCallback(async () => {
     if (!phone) { setLoadingMeetings(false); return; }
@@ -132,6 +229,14 @@ export default function CustomerMeeting() {
       });
     }
   }, [fetchMeetings, location.state]);
+
+  // Fetch already-confirmed slots whenever date + project are both selected
+  useEffect(() => {
+    if (!selectedProject || !selectedDate) { setBookedSlots([]); return; }
+    portalApi.getBookedSlots(selectedProject.builderId, selectedDate)
+      .then(slots => setBookedSlots(slots ?? []))
+      .catch(() => setBookedSlots([]));
+  }, [selectedProject?.builderId, selectedDate]);
 
   const handleCityChange = async (city: string) => {
     setSelectedCity(city);
@@ -539,17 +644,26 @@ export default function CustomerMeeting() {
                         <p className="text-[12px] text-muted-foreground py-2">No available slots on this day — please choose another date.</p>
                       ) : (
                       <div className="flex flex-wrap gap-2">
-                        {displaySlots.map(slot => (
-                          <button key={slot} onClick={() => setSelectedTime(slot)}
+                        {displaySlots.map(slot => {
+                          const isBooked   = bookedSlots.includes(slot);
+                          const isSelected = selectedTime === slot;
+                          return (
+                          <button key={slot}
+                            onClick={() => !isBooked && setSelectedTime(slot)}
+                            disabled={isBooked}
+                            title={isBooked ? 'Already booked — choose another time' : undefined}
                             className={`px-3.5 py-2 rounded-xl text-[12px] font-medium border transition-all flex items-center gap-1.5 ${
-                              selectedTime === slot
-                                ? 'text-white border-transparent'
-                                : 'bg-card border-border text-foreground hover:bg-muted/40'
+                              isBooked
+                                ? 'bg-muted border-border text-muted-foreground opacity-50 cursor-not-allowed line-through'
+                                : isSelected
+                                  ? 'text-white border-transparent'
+                                  : 'bg-card border-border text-foreground hover:bg-muted/40'
                             }`}
-                            style={selectedTime === slot ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : undefined}>
-                            <Clock size={11} /> {slot}
+                            style={isSelected && !isBooked ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : undefined}>
+                            <Clock size={11} /> {slot}{isBooked ? ' · Full' : ''}
                           </button>
-                        ))}
+                          );
+                        })}
                       </div>
                       )}
                     </div>
@@ -658,7 +772,7 @@ export default function CustomerMeeting() {
                   {upcoming.map((m, i) => (
                     <MeetingRow key={m.id} meeting={m}
                       isLast={i === upcoming.length - 1 && completed.length === 0}
-                      onClick={() => setSelected(m)} />
+                      onClick={() => openMeeting(m)} />
                   ))}
                 </>
               )}
@@ -672,7 +786,7 @@ export default function CustomerMeeting() {
                   {completed.map((m, i) => (
                     <MeetingRow key={m.id} meeting={m}
                       isLast={i === completed.length - 1 && cancelled.length === 0}
-                      onClick={() => setSelected(m)} />
+                      onClick={() => openMeeting(m)} />
                   ))}
                 </>
               )}
@@ -686,7 +800,7 @@ export default function CustomerMeeting() {
                   {cancelled.map((m, i) => (
                     <MeetingRow key={m.id} meeting={m}
                       isLast={i === cancelled.length - 1}
-                      onClick={() => setSelected(m)} />
+                      onClick={() => openMeeting(m)} />
                   ))}
                 </>
               )}
@@ -784,45 +898,161 @@ export default function CustomerMeeting() {
                 </div>
               )}
 
-              {/* Post-visit panel — shown when visit is completed */}
-              {['Completed','COMPLETED'].includes(selected.status) && (
-                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 space-y-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-                      <CheckCircle2 size={15} className="text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-[12px] font-bold text-emerald-800">Site Visit Completed</p>
-                      {(selected.confirmedDate || selected.preferredDate) && (
-                        <p className="text-[11px] text-emerald-600 mt-0.5">
-                          {fmtDate(selected.confirmedDate ?? selected.preferredDate)}
-                        </p>
+              {/* ── Post-visit flow tracker ── */}
+              {['Completed','COMPLETED'].includes(selected.status) && (() => {
+                const sl = postVisitShortlist;
+                const dealStage = typeof sl === 'object' && sl !== null ? sl.dealStatus?.toLowerCase() : null;
+                const isNegotiation = dealStage === 'negotiation';
+                const isAgreement   = dealStage === 'agreement';
+                const isBooked      = dealStage === 'booked' || dealStage === 'loan sanctioned' || dealStage === 'closed';
+
+                type StepState = 'done' | 'active' | 'upcoming';
+                const steps: { icon: React.ElementType; label: string; sub: string; state: StepState }[] = [
+                  {
+                    icon: CheckCircle2,
+                    label: 'Site Visit',
+                    sub: fmtDate(selected.confirmedDate ?? selected.preferredDate) ?? 'Completed',
+                    state: 'done',
+                  },
+                  {
+                    icon: Bookmark,
+                    label: 'Unit Shortlisted',
+                    sub: typeof sl === 'object' && sl !== null
+                      ? sl.status === 'Accepted' ? `Unit ${sl.unitId} — accepted`
+                      : sl.status === 'SuggestOther' ? `Unit ${sl.unitId} — see note`
+                      : `Unit ${sl.unitId} — awaiting review`
+                      : sl === null ? 'Not shortlisted yet' : '…',
+                    state: typeof sl === 'object' && sl !== null ? (sl.status === 'Pending' ? 'active' : 'done') : 'active',
+                  },
+                  {
+                    icon: MessageSquare,
+                    label: 'Negotiation',
+                    sub: isNegotiation ? 'In progress' : isAgreement || isBooked ? 'Completed' : 'Waiting for unit acceptance',
+                    state: isNegotiation ? 'active' : isAgreement || isBooked ? 'done' : 'upcoming',
+                  },
+                  {
+                    icon: CheckCircle,
+                    label: 'Agreement',
+                    sub: isAgreement ? 'Confirm acceptance in Journey' : isBooked ? 'Confirmed' : 'Awaiting negotiation',
+                    state: isAgreement ? 'active' : isBooked ? 'done' : 'upcoming',
+                  },
+                ];
+
+                const stepColors: Record<StepState, { ring: string; icon: string; dot: string }> = {
+                  done:     { ring: 'border-emerald-300 bg-emerald-50',  icon: 'text-emerald-600', dot: 'bg-emerald-500' },
+                  active:   { ring: 'border-[#0A7E8C] bg-teal-50/60',   icon: 'text-[#0A7E8C]',  dot: 'bg-[#0A7E8C]' },
+                  upcoming: { ring: 'border-border bg-muted/20',         icon: 'text-muted-foreground', dot: 'bg-muted-foreground/30' },
+                };
+
+                return (
+                  <div className="space-y-3">
+                    {/* Step tracker */}
+                    <div className="bg-card rounded-2xl border border-border p-4 space-y-1">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-3">Your Journey — {selected.projectName}</p>
+                      {loadingPostVisit ? (
+                        <div className="flex justify-center py-4"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div>
+                      ) : (
+                        <div className="space-y-2">
+                          {steps.map((step, i) => {
+                            const c = stepColors[step.state];
+                            const Icon = step.icon;
+                            return (
+                              <div key={step.label} className="flex items-start gap-3">
+                                {/* Connector column */}
+                                <div className="flex flex-col items-center shrink-0" style={{ width: 32 }}>
+                                  <div className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center shrink-0 ${c.ring}`}>
+                                    <Icon size={14} className={c.icon} />
+                                  </div>
+                                  {i < steps.length - 1 && (
+                                    <div className={`w-0.5 flex-1 mt-1 mb-0 min-h-[16px] rounded-full ${step.state === 'done' ? 'bg-emerald-300' : 'bg-border'}`} />
+                                  )}
+                                </div>
+                                {/* Text */}
+                                <div className="flex-1 pb-3 min-w-0">
+                                  <p className={`text-[12px] font-semibold leading-tight ${step.state === 'upcoming' ? 'text-muted-foreground' : 'text-foreground'}`}>{step.label}</p>
+                                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{step.sub}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       )}
                     </div>
-                  </div>
-                  {selected.builderNotes && (
-                    <div className="pl-10">
-                      <p className="text-[10px] font-semibold text-emerald-700 mb-1">Builder's Notes</p>
-                      <p className="text-[12px] text-emerald-800 leading-relaxed">{selected.builderNotes}</p>
-                    </div>
-                  )}
-                </div>
-              )}
 
-              {['Completed','COMPLETED'].includes(selected.status) && (
-                <a
-                  href={`/customer/projects`}
-                  className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:border-ring hover:bg-muted/30 transition-all group">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: '#0A7E8C15', color: '#0A7E8C' }}>
-                    <Building2 size={16} />
+                    {/* Builder's note when SuggestOther */}
+                    {typeof sl === 'object' && sl !== null && sl.status === 'SuggestOther' && (
+                      <div className="rounded-xl p-3.5 border border-blue-100 bg-blue-50 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <MessageSquare size={13} className="text-blue-600 shrink-0" />
+                          <p className="text-[11px] font-bold text-blue-700">Builder's Suggestion</p>
+                        </div>
+                        <p className="text-[12px] text-blue-800 leading-relaxed">{sl.builderNote ?? 'Please choose a different unit.'}</p>
+                        <button
+                          onClick={() => { setSelected(null); openUnitPicker(selected); }}
+                          className="w-full py-2 rounded-xl text-[12px] font-semibold text-white hover:opacity-90"
+                          style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
+                          Pick Another Unit
+                        </button>
+                      </div>
+                    )}
+
+                    {/* No shortlist yet → primary CTA */}
+                    {sl === null && (
+                      <button
+                        onClick={() => { setSelected(null); openUnitPicker(selected); }}
+                        className="w-full flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:border-ring hover:bg-muted/30 transition-all group text-left">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: '#0A7E8C15', color: '#0A7E8C' }}>
+                          <Bookmark size={16} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-foreground">Shortlist a Unit</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">Browse units from {selected.projectName} and save your favourite</p>
+                        </div>
+                        <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+                      </button>
+                    )}
+
+                    {/* Shortlist pending → waiting state */}
+                    {typeof sl === 'object' && sl !== null && sl.status === 'Pending' && (
+                      <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 flex items-center gap-3">
+                        <Clock size={14} className="text-amber-600 shrink-0" />
+                        <div>
+                          <p className="text-[12px] font-semibold text-amber-800">Waiting for builder review</p>
+                          <p className="text-[11px] text-amber-600 mt-0.5">You shortlisted Unit {sl.unitId}. The builder will respond shortly.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Shortlist accepted + deal active → go to Journey */}
+                    {typeof sl === 'object' && sl !== null && sl.status === 'Accepted' && (
+                      <div className="space-y-2">
+                        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 flex items-center gap-3">
+                          <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                          <div>
+                            <p className="text-[12px] font-semibold text-emerald-800">Unit {sl.unitId} accepted!</p>
+                            <p className="text-[11px] text-emerald-600 mt-0.5">
+                              {isAgreement ? 'Agreement stage — confirm acceptance in your Journey.' : isBooked ? 'Property booked! View your Journey.' : 'Negotiation started. Track progress in your Journey.'}
+                            </p>
+                          </div>
+                        </div>
+                        <a href="/customer/journey"
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-semibold text-white hover:opacity-90"
+                          style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
+                          View My Journey <ChevronRight size={13} />
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Builder notes (completed visit) */}
+                    {selected.builderNotes && (
+                      <div className="rounded-xl p-3.5 border" style={{ backgroundColor: '#0A7E8C08', borderColor: '#0A7E8C25' }}>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] mb-1.5" style={{ color: '#0A7E8C' }}>Builder's Visit Notes</p>
+                        <p className="text-[12px] text-foreground leading-relaxed">{selected.builderNotes}</p>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-foreground group-hover:opacity-80">Shortlist a Unit</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">Browse & save units from {selected.projectName}</p>
-                  </div>
-                  <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-                </a>
-              )}
+                );
+              })()}
 
               {['Confirmed','CONFIRMED','Rescheduled','RESCHEDULED'].includes(selected.status) && (
                 <>
@@ -868,11 +1098,22 @@ export default function CustomerMeeting() {
                 </>
               ) : ['Completed','COMPLETED'].includes(selected.status) ? (
                 <div className="space-y-2">
+                  {selected.customerRating ? (
+                    <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-50 border border-amber-200">
+                      <div className="flex">
+                        {[1,2,3,4,5].map(s => (
+                          <Star key={s} size={16} className={s <= selected.customerRating! ? 'text-amber-400 fill-amber-400' : 'text-gray-200'} />
+                        ))}
+                      </div>
+                      <span className="text-[12px] font-semibold text-amber-700">{RATING_LABEL[selected.customerRating]}</span>
+                    </div>
+                  ) : (
                   <button onClick={() => { setRatingId(selected.id); setRating(0); setSelected(null); }}
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold text-white hover:opacity-90"
                     style={{ background: 'linear-gradient(135deg,#F59E0B,#D97706)' }}>
                     <Star size={14} /> Rate Your Experience
                   </button>
+                  )}
                   <a href="/customer/journey"
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold border border-border text-foreground hover:bg-muted transition-colors">
                     <CheckCircle2 size={14} /> View My Journey
@@ -906,7 +1147,18 @@ export default function CustomerMeeting() {
                 </button>
               ))}
             </div>
-            <button onClick={() => { toast.success('Thank you for your feedback!'); setRatingId(null); setRating(0); }}
+            <button
+              onClick={async () => {
+                try {
+                  await portalApi.rateMeeting(ratingId, rating);
+                  setMeetings(prev => prev.map(m => m.id === ratingId ? { ...m, customerRating: rating } : m));
+                  toast.success('Thank you for your feedback!');
+                } catch {
+                  toast.error('Failed to save rating');
+                } finally {
+                  setRatingId(null); setRating(0);
+                }
+              }}
               disabled={rating === 0}
               className="w-full py-2.5 rounded-xl text-[13px] font-semibold text-white disabled:opacity-50 hover:opacity-90"
               style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
@@ -915,6 +1167,214 @@ export default function CustomerMeeting() {
           </div>
         </div>
       )}
+
+      {/* Unit Shortlist Picker Modal */}
+      {shortlistMeeting && (() => {
+        // Build tower → { floors sorted desc, units per floor }
+        const towers = [...new Set(unitPickerUnits.map(u => u.tower))].sort();
+        const allFloors = [...new Set(unitPickerUnits.map(u => u.floor))].sort((a, b) => b - a);
+
+        const unitStyle = (u: UnitRow) => {
+          const isSelected = selectedUnit?.id === u.id;
+          const st = (u.status ?? '').toLowerCase();
+          if (isSelected) return { bg: 'bg-teal-600 border-teal-600 text-white', clickable: true };
+          if (st === 'available') return { bg: 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100 cursor-pointer', clickable: true };
+          if (st === 'booked')   return { bg: 'bg-amber-50 border-amber-200 text-amber-600 cursor-not-allowed opacity-70', clickable: false };
+          if (st === 'sold')     return { bg: 'bg-red-50 border-red-200 text-red-500 cursor-not-allowed opacity-60', clickable: false };
+          return { bg: 'bg-muted border-border text-muted-foreground cursor-not-allowed opacity-60', clickable: false };
+        };
+
+        const fmtPrice = (p?: number) => {
+          if (!p) return null;
+          if (p >= 10_000_000) return `₹${(p / 10_000_000).toFixed(1)}Cr`;
+          if (p >= 100_000)    return `₹${(p / 100_000).toFixed(0)}L`;
+          return `₹${p.toLocaleString('en-IN')}`;
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShortlistMeeting(null)} />
+            <div className="relative bg-card w-full max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl border border-border flex flex-col max-h-[92vh] overflow-hidden">
+
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+                <div>
+                  <h3 className="font-bold text-[15px] text-foreground">Unit Matrix</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{shortlistMeeting.projectName} · tap an available unit to shortlist</p>
+                </div>
+                <button onClick={() => setShortlistMeeting(null)} className="p-2 rounded-xl hover:bg-muted text-muted-foreground"><X size={16} /></button>
+              </div>
+
+              {/* Legend */}
+              <div className="px-5 py-2.5 border-b border-border bg-muted/20 flex gap-4 shrink-0 flex-wrap">
+                {[
+                  { label: 'Available', cls: 'bg-emerald-100 border-emerald-300' },
+                  { label: 'Booked',    cls: 'bg-amber-100 border-amber-300' },
+                  { label: 'Sold',      cls: 'bg-red-100 border-red-300' },
+                  { label: 'Selected',  cls: 'bg-teal-600 border-teal-600' },
+                ].map(({ label, cls }) => (
+                  <div key={label} className="flex items-center gap-1.5">
+                    <div className={`w-3.5 h-3.5 rounded border ${cls}`} />
+                    <span className="text-[10px] text-muted-foreground">{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Floor Plans — shown when builder has uploaded them */}
+              {floorPlanDocs.length > 0 && (
+                <div className="px-5 py-3 border-b border-border bg-muted/10 shrink-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2.5">
+                    Floor Plans
+                  </p>
+                  <div className="flex gap-2.5 overflow-x-auto pb-1">
+                    {floorPlanDocs.map(doc => {
+                      const isImage = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(doc.fileUrl ?? '');
+                      return (
+                        <a
+                          key={doc.id}
+                          href={doc.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 flex flex-col items-center gap-1.5 p-2 rounded-xl border border-border bg-card hover:border-teal-300 hover:bg-teal-50/40 transition-all group w-28"
+                        >
+                          {isImage ? (
+                            <img
+                              src={doc.fileUrl}
+                              alt={doc.fileName}
+                              className="w-24 h-16 object-cover rounded-lg border border-border bg-muted"
+                            />
+                          ) : (
+                            <div className="w-24 h-16 rounded-lg border border-border bg-muted flex items-center justify-center">
+                              <FileText size={22} className="text-muted-foreground group-hover:text-teal-600 transition-colors" />
+                            </div>
+                          )}
+                          <p className="text-[9px] text-muted-foreground text-center truncate w-full leading-tight group-hover:text-teal-700">
+                            {doc.fileName}
+                          </p>
+                          <span className="flex items-center gap-1 text-[9px] text-teal-600 font-semibold">
+                            <ExternalLink size={9} /> Open
+                          </span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Matrix body */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {unitPickerLoading ? (
+                  <div className="flex justify-center py-16"><Loader2 size={24} className="animate-spin text-muted-foreground" /></div>
+                ) : unitPickerUnits.length === 0 ? (
+                  <div className="text-center py-16 text-muted-foreground text-[13px]">No units configured for this project.</div>
+                ) : (
+                  <div className="space-y-6">
+                    {towers.map(tower => {
+                      const towerUnits = unitPickerUnits.filter(u => u.tower === tower);
+                      const towerFloors = [...new Set(towerUnits.map(u => u.floor))].sort((a, b) => b - a);
+                      return (
+                        <div key={tower}>
+                          {towers.length > 1 && (
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted px-2 py-0.5 rounded">Tower {tower}</div>
+                              <div className="flex-1 h-px bg-border" />
+                            </div>
+                          )}
+
+                          {/* Floor rows: highest floor first */}
+                          <div className="space-y-1.5">
+                            {towerFloors.map(floor => {
+                              const floorUnits = towerUnits.filter(u => u.floor === floor).sort((a, b) => a.unit - b.unit);
+                              return (
+                                <div key={floor} className="flex items-start gap-2">
+                                  {/* Floor label */}
+                                  <div className="w-10 shrink-0 text-right">
+                                    <span className="text-[10px] font-semibold text-muted-foreground leading-none">{floor === 0 ? 'G' : `F${floor}`}</span>
+                                  </div>
+                                  {/* Units in this floor */}
+                                  <div className="flex gap-1.5 flex-wrap">
+                                    {floorUnits.map(u => {
+                                      const { bg, clickable } = unitStyle(u);
+                                      const isSelected = selectedUnit?.id === u.id;
+                                      return (
+                                        <button
+                                          key={u.id}
+                                          disabled={!clickable}
+                                          onClick={() => clickable && setSelectedUnit(isSelected ? null : u)}
+                                          title={`${u.id} · ${u.bhk}${u.areaSqft ? ` · ${u.areaSqft} sqft` : ''}${u.facing ? ` · ${u.facing}` : ''}${u.price ? ` · ${fmtPrice(u.price)}` : ''}`}
+                                          className={`w-14 h-14 rounded-lg border text-center flex flex-col items-center justify-center transition-all ${bg}`}>
+                                          <span className={`text-[10px] font-bold leading-tight ${isSelected ? 'text-white' : ''}`}>{u.id}</span>
+                                          <span className={`text-[9px] leading-tight mt-0.5 ${isSelected ? 'text-teal-100' : 'text-muted-foreground'}`}>{u.bhk}</span>
+                                          {u.price && <span className={`text-[8px] leading-tight ${isSelected ? 'text-teal-200' : 'text-muted-foreground'}`}>{fmtPrice(u.price)}</span>}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Unit detail panel */}
+              {selectedUnit && (
+                <div className="border-t border-border shrink-0" style={{ background: 'linear-gradient(to bottom, #f0fdfa, #fff)' }}>
+                  {/* Unit identity row */}
+                  <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: '#0A7E8C18' }}>
+                        <Bookmark size={15} style={{ color: '#0A7E8C' }} />
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold text-foreground">Unit {selectedUnit.id}</p>
+                        <p className="text-[11px] text-muted-foreground">Tower {selectedUnit.tower} · Floor {selectedUnit.floor === 0 ? 'Ground' : selectedUnit.floor}</p>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                      Available
+                    </span>
+                  </div>
+
+                  {/* Attributes grid */}
+                  <div className="grid grid-cols-3 gap-2 px-5 pb-3">
+                    {[
+                      { label: 'Configuration', value: selectedUnit.bhk },
+                      { label: 'Area',           value: selectedUnit.areaSqft ? `${selectedUnit.areaSqft} sqft` : '—' },
+                      { label: 'Price',          value: fmtPrice(selectedUnit.price) ?? '—' },
+                      { label: 'Facing',         value: selectedUnit.facing ?? '—' },
+                      { label: 'Floor',          value: selectedUnit.floor === 0 ? 'Ground' : `Floor ${selectedUnit.floor}` },
+                      { label: 'Tower',          value: `Tower ${selectedUnit.tower}` },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="bg-white rounded-xl border border-border px-3 py-2.5">
+                        <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+                        <p className="text-[13px] font-semibold text-foreground mt-0.5">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* CTA */}
+                  <div className="px-5 pb-4">
+                    <button
+                      onClick={handleShortlistSubmit}
+                      disabled={submittingShortlist}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-semibold text-white disabled:opacity-60 hover:opacity-90 transition-opacity"
+                      style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
+                      {submittingShortlist
+                        ? <><Loader2 size={13} className="animate-spin" /> Submitting…</>
+                        : <><Bookmark size={13} /> Shortlist Unit {selectedUnit.id}</>}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </DashboardLayout>
   );
 }

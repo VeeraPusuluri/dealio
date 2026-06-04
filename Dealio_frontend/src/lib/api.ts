@@ -167,6 +167,33 @@ export const builderApi = {
   getBuilderNotifications: () =>
     builderReq('/builder/notifications'),
 
+  getBuilderLoans: (builderId: number | string) =>
+    builderReq(`/builder/${builderId}/loans`),
+
+  createBuilderLoan: (builderId: number | string, data: object) =>
+    builderReq(`/builder/${builderId}/loans`, { method: 'POST', body: JSON.stringify(data) }),
+
+  updateLoanStatus: (builderId: number | string, loanId: number, status: string, note?: string, sender?: string, senderRole?: string) =>
+    builderReq(`/builder/${builderId}/loans/${loanId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, note, sender, senderRole }),
+    }),
+
+  addLoanNote: (builderId: number | string, loanId: number, type: string, content: string, sender: string, senderRole: string) =>
+    builderReq(`/builder/${builderId}/loans/${loanId}/notes`, {
+      method: 'POST',
+      body: JSON.stringify({ type, content, sender, senderRole }),
+    }),
+
+  getBuilderShortlists: (builderId: number | string) =>
+    builderReq(`/builder/${builderId}/shortlists`),
+
+  respondToShortlist: (builderId: number | string, shortlistId: number, status: 'Accepted' | 'SuggestOther', builderNote?: string) =>
+    builderReq(`/builder/${builderId}/shortlists/${shortlistId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, builderNote }),
+    }),
+
   createLeadFromShare: (projectId: number | string, data: { cpUserId?: string | number | null; customerName: string; customerPhone: string; stage?: string }) =>
     builderReq(`/builder/projects/${projectId}/leads/from-share`, {
       method: 'POST',
@@ -245,6 +272,50 @@ export const builderApi = {
     if (!res.ok) throw new Error((json?.message as string) || `Upload failed: ${res.status}`);
     return json?.data !== undefined ? json.data : json;
   },
+
+  getDeal: (builderId: number | string, dealId: number | string) =>
+    builderReq(`/builder/${builderId}/deals/${dealId}`),
+
+  addDealDocument: (builderId: number | string, dealId: number | string, data: { name: string; docType: string; fileUrl?: string; sharedWithCp?: boolean; sharedWithCustomer?: boolean }) =>
+    builderReq(`/builder/${builderId}/deals/${dealId}/documents`, { method: 'POST', body: JSON.stringify(data) }),
+
+  uploadDealDocument: async (builderId: number | string, dealId: number | string, file: File, docType: string, sharedWithCp: boolean, sharedWithCustomer: boolean) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('docType', docType);
+    formData.append('sharedWithCp', String(sharedWithCp));
+    formData.append('sharedWithCustomer', String(sharedWithCustomer));
+    let res: Response;
+    try {
+      res = await fetch(`${BUILDER_BASE}/builder/${builderId}/deals/${dealId}/upload`, {
+        method: 'POST',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: formData,
+      });
+    } catch {
+      throw new Error('Cannot reach the server.');
+    }
+    if (res.status === 204) return null;
+    let json: Record<string, unknown>;
+    try { json = await res.json(); } catch {
+      throw new Error(`Server error (HTTP ${res.status})`);
+    }
+    if (!res.ok) throw new Error((json?.message as string) || `Upload failed: ${res.status}`);
+    return json?.data !== undefined ? json.data : json;
+  },
+
+  shareDealDocument: (builderId: number | string, dealId: number | string, docId: number, data: { sharedWithCp?: boolean; sharedWithCustomer?: boolean }) =>
+    builderReq(`/builder/${builderId}/deals/${dealId}/documents/${docId}/share`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  sendDealMessage: (builderId: number | string, dealId: number | string, message: string) =>
+    builderReq(`/builder/${builderId}/deals/${dealId}/messages`, { method: 'POST', body: JSON.stringify({ message }) }),
+
+  setPaymentSchedule: (builderId: number | string, dealId: number | string, schedule: unknown[]) =>
+    builderReq(`/builder/${builderId}/deals/${dealId}/payment-schedule`, { method: 'PATCH', body: JSON.stringify({ schedule }) }),
+
+  assignCPToDeal: (builderId: number | string, dealId: number | string, cpUserId: number | null) =>
+    builderReq(`/builder/${builderId}/deals/${dealId}/assign-cp`, { method: 'PATCH', body: JSON.stringify({ cpUserId }) }),
 
   uploadProjectImage: async (builderId: number | string, projectId: number | string, file: File): Promise<string> => {
     const token = getToken();
@@ -348,10 +419,10 @@ export const cpApi = {
   getMeetings: (cpUserId: string | number) =>
     cpReq(`/cp/${cpUserId}/meetings`),
 
-  addMeetingNote: (cpUserId: string | number, meetingId: number | string, notes: string) =>
+  addMeetingNote: (cpUserId: string | number, meetingId: number | string, notes: string, rating?: number) =>
     cpReq(`/cp/${cpUserId}/meetings/${meetingId}/notes`, {
       method: 'PATCH',
-      body: JSON.stringify({ notes }),
+      body: JSON.stringify({ notes, ...(rating !== undefined ? { cpRating: rating } : {}) }),
     }),
 
   sendPhoneOtp: (phone: string) =>
@@ -382,6 +453,18 @@ export const cpApi = {
     nextFollowUp?: string; nextFollowUpTime?: string;
   }) =>
     cpReq(`/cp/${cpUserId}/call-logs`, { method: 'POST', body: JSON.stringify(data) }),
+
+  getCPDeal: (cpUserId: number | string, dealId: number | string) =>
+    cpReq(`/cp/${cpUserId}/deals/${dealId}`),
+
+  agreeDeal: (cpUserId: number | string, dealId: number | string) =>
+    cpReq(`/cp/${cpUserId}/deals/${dealId}/agree`, { method: 'PATCH' }),
+
+  sendCPDealMessage: (cpUserId: number | string, dealId: number | string, message: string) =>
+    cpReq(`/cp/${cpUserId}/deals/${dealId}/messages`, { method: 'POST', body: JSON.stringify({ message }) }),
+
+  getCommissions: (cpUserId: string | number) =>
+    cpReq(`/cp/${cpUserId}/commissions`),
 
   uploadDocument: async (cpUserId: string | number, file: File, docType: 'aadhaar' | 'pan' | 'rera') => {
     const token = getToken();
@@ -467,6 +550,9 @@ export const portalApi = {
   getMyMeetings: (phone: string) =>
     builderReq(`/portal/customer/meetings?phone=${encodeURIComponent(phone)}`),
 
+  getBookedSlots: (builderId: number | string, date: string): Promise<string[]> =>
+    builderReq(`/portal/customer/booked-slots?builderId=${builderId}&date=${encodeURIComponent(date)}`) as Promise<string[]>,
+
   bookMeeting: (data: {
     builderId: number; projectId?: number; customerName: string; customerPhone: string;
     preferredDate: string; preferredTime: string; meetingType?: string; notes?: string;
@@ -477,12 +563,30 @@ export const portalApi = {
   getMyDeals: (phone: string) =>
     builderReq(`/portal/customer/deals?phone=${encodeURIComponent(phone)}`),
 
+  rateMeeting: (meetingId: number, rating: number) =>
+    builderReq(`/portal/customer/meetings/${meetingId}/rating`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rating }),
+    }),
+
+  shortlistUnit: (data: {
+    customerPhone: string; builderId: number; projectId: number;
+    cpId?: number | null; unitId: string; unitDetails: object;
+  }) =>
+    builderReq('/portal/customer/shortlist', { method: 'POST', body: JSON.stringify(data) }),
+
+  getMyShortlists: (phone: string) =>
+    builderReq(`/portal/customer/shortlist?phone=${encodeURIComponent(phone)}`),
+
   submitLoanApplication: (data: {
     builderId: number; projectId?: number; customerName: string; customerPhone: string;
     customerEmail?: string; loanAmount: number; propertyValue: number;
     employmentType?: string; tenureMonths: number;
   }) =>
     builderReq('/portal/customer/applications', { method: 'POST', body: JSON.stringify(data) }),
+
+  confirmDeal: (dealId: number, phone: string) =>
+    builderReq(`/builder/customer/deals/${dealId}/confirm`, { method: 'PATCH', body: JSON.stringify({ phone }) }),
 };
 
 const adminReq = (path: string, options?: RequestInit) => request(BUILDER_BASE, `/admin${path}`, options);
@@ -555,4 +659,21 @@ export const adminApi = {
 
   updateContactStatus: (id: number, status: 'new' | 'in_progress' | 'resolved') =>
     adminReq(`/contact/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+
+  getLoanCases: (params?: { status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    return adminReq(`/loan-cases${qs.toString() ? `?${qs}` : ''}`);
+  },
+
+  updateLoanCaseStatus: (id: number, data: { status: string; bank?: string; officerName?: string; officerPhone?: string; interestRate?: number; emi?: number }) =>
+    adminReq(`/loan-cases/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  getMeetings: (params?: { status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    return adminReq(`/meetings${qs.toString() ? `?${qs}` : ''}`);
+  },
 };

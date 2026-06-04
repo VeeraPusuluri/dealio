@@ -1325,7 +1325,8 @@ const CustomerProjectDetail = () => {
                     }
                 </button>
             )}
-            <div style={{background:T.bg, minHeight:'100vh', margin: isStandalone ? 0 : '-24px -24px 0', fontFamily:T.sans, zoom:0.85}}>
+            <div style={{overflow:'hidden', margin: isStandalone ? 0 : '-24px -24px 0'}}>
+            <div style={{background:T.bg, minHeight:'100vh', fontFamily:T.sans, zoom:1}}>
 
                 {/* ══ HERO ════════════════════════════════════════════════════════ */}
                 <HeroCarousel
@@ -1356,8 +1357,8 @@ const CustomerProjectDetail = () => {
                     mono={T.mono}
                 />
 
-                {/* zoom wrapper for all content below the hero */}
-                <div style={{zoom:0.85}}>
+                {/* content below the hero */}
+                <div>
 
 
 
@@ -2358,7 +2359,7 @@ const CustomerProjectDetail = () => {
 
                 {/* ══ VIRTUAL TOURS ════════════════════════════════════════════ */}
                 {tours.length > 0 && (
-                <section style={{margin:'160px 0 0',background:'#0A1628',position:'relative' as const,overflow:'hidden'}}>
+                <section style={{margin:'160px 0 0',background:'#0A1628',position:'relative' as const,overflow:'clip'}}>
                     {/* Grid texture */}
                     <div style={{position:'absolute' as const,inset:0,pointerEvents:'none',backgroundImage:'linear-gradient(rgba(255,255,255,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.018) 1px,transparent 1px)',backgroundSize:'52px 52px'}}/>
                     {/* Ambient glow */}
@@ -2523,9 +2524,9 @@ const CustomerProjectDetail = () => {
                 </section>
 
                 {/* ══ ENQUIRY FORM ═════════════════════════════════════════════ */}
-                <section style={{maxWidth:1280,margin:'80px auto 0',padding:'0 40px'}}>
+                <section style={{margin:'80px 0 0',background:T.bgCream,borderTop:`1px solid ${T.line}`,borderBottom:`1px solid ${T.line}`}}>
                 <AnimateIn>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:56,alignItems:'start',background:T.bgCream,borderRadius:28,padding:'56px 60px',border:`1px solid ${T.line}`}}>
+                <div style={{maxWidth:1280,margin:'0 auto',padding:'72px 48px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:56,alignItems:'start'}}>
 
                         {/* Left — copy */}
                         <div>
@@ -2687,7 +2688,8 @@ const CustomerProjectDetail = () => {
 
                 </div>{/* end content zoom wrapper */}
 
-            </div>
+            </div>{/* end zoom div */}
+            </div>{/* end overflow clip wrapper */}
         </Wrapper>
     );
 };

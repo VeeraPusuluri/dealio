@@ -105,8 +105,7 @@ const getRoleNavSections = (role: UserRole, badges: Record<string, number>): Nav
             {
                 title: 'Sales',
                 items: [
-                    {label: 'Leads', path: '/cp/leads', icon: Users},
-                    {label: 'Pipeline', path: '/cp/pipeline', icon: Columns},
+                    {label: 'Leads & Pipeline', path: '/cp/leads', icon: Users},
                     {label: 'Follow-ups', path: '/cp/followups', icon: ClipboardList},
                     {label: 'Meetings & Share', path: '/cp/meetings', icon: Calendar},
                 ],
@@ -167,10 +166,7 @@ const getRoleNavSections = (role: UserRole, badges: Record<string, number>): Nav
             {
                 title: 'Finance',
                 items: [
-                    {label: 'Loan Engine', path: '/customer/loan-engine', icon: Calculator},
-                    {label: 'Loan', path: '/customer/loan', icon: CreditCard},
-                    {label: 'Loan Status', path: '/customer/loan-status', icon: BarChart3},
-                    {label: 'EMI Calculator', path: '/customer/emi', icon: Calculator},
+                    {label: 'Home Loan', path: '/customer/loan', icon: CreditCard},
                     {label: 'Loan Top-up', path: '/customer/topup', icon: Wallet},
                 ],
             },
@@ -255,6 +251,7 @@ const getRoleNavSections = (role: UserRole, badges: Record<string, number>): Nav
                     {label: 'Revenue', path: '/admin/revenue', icon: BarChart3},
                     {label: 'Commissions', path: '/admin/commissions', icon: HandCoins},
                     {label: 'Deals', path: '/admin/deals', icon: Briefcase},
+                    {label: 'Meetings', path: '/admin/meetings', icon: Calendar},
                 ],
             },
             {
@@ -369,6 +366,7 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
     }, []);
 
     useNotificationStream(`${CUSTOMER_BASE}/customer/subscribe`, role === 'customer', sseKey);
+    useNotificationStream(`${BUILDER_BASE}/portal/customer/notifications/stream`, role === 'customer', sseKey);
     useNotificationStream(`${BUILDER_BASE}/builder/notifications/stream`, role === 'builder', 0);
     useNotificationStream(`${BUILDER_BASE}/cp/notifications/stream`, role === 'cp', 0);
 
@@ -584,219 +582,300 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
 
             {/* ── Main Content ── */}
             <div className="flex-1 flex flex-col min-w-0">
-                {/* ── Customer top nav bar — category tabs with dropdowns ── */}
-                {isCustomer && (
-                    <nav
-                        className="flex-shrink-0 relative z-[60]"
-                        style={{
-                            background: 'linear-gradient(135deg, #0a1628 0%, #0d1f3c 55%, #0a1e2e 100%)',
-                            borderBottom: '1px solid rgba(255,255,255,0.07)',
-                            height: 46,
-                        }}
-                    >
-                        {/* Top shimmer accent */}
-                        <div className="absolute top-0 left-0 right-0 h-px pointer-events-none" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(22,163,74,0.45) 35%, rgba(56,189,248,0.25) 65%, transparent 100%)' }} />
+                {/* ── Apple-style customer top nav ── */}
+                {isCustomer && (() => {
+                    const NAV_LINKS = [
+                        { label: 'Home',      path: '/customer' },
+                        { label: 'Property',  path: '/customer/property' },
+                        { label: 'Journey',   path: '/customer/journey' },
+                        { label: 'Meetings',  path: '/customer/meeting' },
+                        { label: 'Documents', path: '/customer/documents' },
+                        { label: 'Loan',      path: '/customer/loan' },
+                    ];
+                    const MORE_ITEMS: NavItem[] = [
+                        { label: 'Loan Top-up',   path: '/customer/topup',         icon: Wallet },
+                        { label: 'Investments',   path: '/customer/investments',   icon: TrendingUp },
+                        { label: 'Possession',    path: '/customer/possession',    icon: ListChecks },
+                        { label: 'Snagging',      path: '/customer/snagging',      icon: AlertTriangle },
+                        { label: 'Conversations', path: '/customer/conversations', icon: MessageSquare },
+                        { label: 'Settings',      path: '/customer/settings',      icon: Settings },
+                    ];
+                    const moreOpen = openNavSection === '__more__';
+                    const moreActive = MORE_ITEMS.some(i =>
+                        i.path === '/customer' ? location.pathname === i.path : location.pathname.startsWith(i.path)
+                    );
+                    return (
+                        <>
+                            <style>{`
+                                .apnav-link {
+                                    display: inline-flex; align-items: center; gap: 4px;
+                                    height: 44px; padding: 0 11px;
+                                    border: none; background: transparent; cursor: pointer;
+                                    font-size: 12px; font-weight: 400; letter-spacing: -0.01em;
+                                    color: rgba(210,210,215,0.7);
+                                    transition: color 0.12s;
+                                    white-space: nowrap; position: relative;
+                                    -webkit-font-smoothing: antialiased;
+                                    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+                                }
+                                .apnav-link:hover { color: #f5f5f7; }
+                                .apnav-link.active { color: #f5f5f7; font-weight: 500; }
+                                .apnav-link.active::after {
+                                    content: ''; position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
+                                    width: 3px; height: 3px; border-radius: 50%;
+                                    background: rgba(255,255,255,0.55);
+                                }
+                                .apnav-icon-btn {
+                                    width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+                                    border: none; background: transparent; cursor: pointer; border-radius: 8px; flex-shrink: 0;
+                                    color: rgba(210,210,215,0.62); transition: background 0.12s, color 0.12s; position: relative;
+                                }
+                                .apnav-icon-btn:hover { background: rgba(255,255,255,0.08); color: #f5f5f7; }
+                                .apnav-more-drop {
+                                    position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+                                    min-width: 192px;
+                                    background: rgba(30,30,34,0.97);
+                                    backdrop-filter: saturate(180%) blur(24px);
+                                    -webkit-backdrop-filter: saturate(180%) blur(24px);
+                                    border: 1px solid rgba(255,255,255,0.1);
+                                    border-radius: 13px;
+                                    box-shadow: 0 20px 44px rgba(0,0,0,0.55), 0 4px 12px rgba(0,0,0,0.3);
+                                    padding: 4px; z-index: 9999;
+                                    animation: apnav-drop-c 0.18s cubic-bezier(0.25,0.46,0.45,0.94) both;
+                                    transform-origin: top center;
+                                }
+                                @keyframes apnav-drop-c {
+                                    from { opacity:0; transform: translateX(-50%) scale(0.97) translateY(-5px); }
+                                    to   { opacity:1; transform: translateX(-50%) scale(1) translateY(0); }
+                                }
+                                .apnav-more-item {
+                                    display: flex; align-items: center; gap: 9px;
+                                    width: 100%; padding: 7px 11px; border-radius: 8px;
+                                    border: none; background: transparent; cursor: pointer;
+                                    font-size: 12px; text-align: left; color: rgba(210,210,215,0.68);
+                                    transition: background 0.1s, color 0.1s; white-space: nowrap;
+                                    -webkit-font-smoothing: antialiased;
+                                    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+                                }
+                                .apnav-more-item:hover { background: rgba(255,255,255,0.07); color: #f5f5f7; }
+                                .apnav-more-item.active { color: #f5f5f7; background: rgba(255,255,255,0.05); }
+                                .apnav-prof-drop {
+                                    position: absolute; right: 0; top: calc(100% + 8px); width: 230px;
+                                    background: rgba(30,30,34,0.97);
+                                    backdrop-filter: saturate(180%) blur(24px);
+                                    -webkit-backdrop-filter: saturate(180%) blur(24px);
+                                    border: 1px solid rgba(255,255,255,0.1); border-radius: 13px;
+                                    box-shadow: 0 20px 44px rgba(0,0,0,0.55); overflow: hidden; z-index: 9999;
+                                    animation: apnav-drop-r 0.18s cubic-bezier(0.25,0.46,0.45,0.94) both;
+                                    transform-origin: top right;
+                                }
+                                @keyframes apnav-drop-r {
+                                    from { opacity:0; transform: scale(0.97) translateY(-5px); }
+                                    to   { opacity:1; transform: scale(1) translateY(0); }
+                                }
+                                .apnav-prof-action {
+                                    display: flex; align-items: center; gap: 10px;
+                                    width: 100%; padding: 8px 12px;
+                                    border: none; background: transparent; cursor: pointer;
+                                    font-size: 12px; text-align: left; color: rgba(210,210,215,0.78);
+                                    transition: background 0.1s, color 0.1s;
+                                    -webkit-font-smoothing: antialiased;
+                                    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+                                }
+                                .apnav-prof-action:hover { background: rgba(255,255,255,0.07); color: #f5f5f7; }
+                                .apnav-prof-action.danger { color: rgba(255,69,58,0.82); }
+                                .apnav-prof-action.danger:hover { background: rgba(255,69,58,0.08); color: #ff453a; }
+                                .apnav-search-input {
+                                    height: 28px; padding: 0 8px 0 27px;
+                                    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+                                    border-radius: 7px; font-size: 12px; color: #f5f5f7; outline: none; width: 148px;
+                                    transition: background 0.15s, border-color 0.15s;
+                                    -webkit-font-smoothing: antialiased;
+                                    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+                                }
+                                .apnav-search-input::placeholder { color: rgba(210,210,215,0.28); }
+                                .apnav-search-input:focus { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.18); }
+                                .apnav-search-results {
+                                    position: absolute; top: calc(100% + 8px); right: 0; width: 280px;
+                                    background: rgba(30,30,34,0.97);
+                                    backdrop-filter: saturate(180%) blur(24px);
+                                    -webkit-backdrop-filter: saturate(180%) blur(24px);
+                                    border: 1px solid rgba(255,255,255,0.1); border-radius: 13px;
+                                    box-shadow: 0 20px 44px rgba(0,0,0,0.55);
+                                    padding: 4px; z-index: 9999;
+                                    animation: apnav-drop-r 0.15s ease both;
+                                }
+                                .apnav-search-item {
+                                    display: flex; align-items: center; gap: 10px;
+                                    width: 100%; padding: 7px 10px; border-radius: 8px;
+                                    border: none; cursor: pointer; text-align: left;
+                                    background: transparent; transition: background 0.1s;
+                                    -webkit-font-smoothing: antialiased;
+                                }
+                                .apnav-search-item.sel { background: rgba(255,255,255,0.07); }
+                            `}</style>
 
-                        <style>{`
-                            .ctnav-tab {
-                                position: relative;
-                                display: flex; align-items: center; gap: 6px;
-                                height: 46px; padding: 0 14px;
-                                border: none; background: transparent; cursor: pointer;
-                                font-size: 12.5px; font-weight: 500; letter-spacing: 0.015em;
-                                color: rgba(255,255,255,0.42);
-                                transition: color 0.15s, background 0.15s;
-                                white-space: nowrap; flex-shrink: 0;
-                            }
-                            .ctnav-tab:hover { color: rgba(255,255,255,0.82); background: rgba(255,255,255,0.04); }
-                            .ctnav-tab.section-active { color: #fff; }
-                            .ctnav-tab.section-active::after {
-                                content: ''; position: absolute; bottom: 0; left: 12px; right: 12px;
-                                height: 2px; border-radius: 2px 2px 0 0;
-                                background: linear-gradient(90deg, #16a34a, #22d3a0);
-                                box-shadow: 0 0 8px rgba(22,163,74,0.6);
-                            }
-                            .ctnav-chevron {
-                                width: 14px; height: 14px;
-                                transition: transform 0.2s cubic-bezier(0.4,0,0.2,1);
-                                opacity: 0.45;
-                            }
-                            .ctnav-tab.open .ctnav-chevron,
-                            .ctnav-tab.section-active .ctnav-chevron { opacity: 0.8; }
-                            .ctnav-tab.open .ctnav-chevron { transform: rotate(180deg); }
-                            .ctnav-sep {
-                                width: 1px; height: 20px; flex-shrink: 0; align-self: center;
-                                background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.1), transparent);
-                            }
-                            .ctnav-dropdown {
-                                position: absolute; top: calc(100% + 8px); left: 0;
-                                min-width: 210px;
-                                background: linear-gradient(160deg, #111f38 0%, #0d1a2e 100%);
-                                border: 1px solid rgba(255,255,255,0.11);
-                                border-radius: 14px;
-                                box-shadow: 0 24px 60px rgba(0,0,0,0.6), 0 8px 20px rgba(0,0,0,0.35), 0 0 0 0.5px rgba(255,255,255,0.04) inset, 0 1px 0 rgba(255,255,255,0.08) inset;
-                                padding: 6px;
-                                z-index: 9999;
-                                backdrop-filter: blur(20px) saturate(1.4);
-                                animation: ctnav-drop 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards;
-                                transform-origin: top left;
-                            }
-                            @keyframes ctnav-drop {
-                                0%   { opacity: 0; transform: translateY(-10px) scaleY(0.88) scaleX(0.95); }
-                                60%  { opacity: 1; }
-                                100% { opacity: 1; transform: translateY(0) scaleY(1) scaleX(1); }
-                            }
-                            .ctnav-item {
-                                animation: ctnav-item-in 0.18s cubic-bezier(0.4,0,0.2,1) both;
-                            }
-                            @keyframes ctnav-item-in {
-                                from { opacity: 0; transform: translateX(-6px); }
-                                to   { opacity: 1; transform: translateX(0); }
-                            }
-                            .ctnav-item {
-                                display: flex; align-items: center; gap: 9px;
-                                width: 100%; padding: 8px 10px; border-radius: 8px;
-                                border: none; background: transparent; cursor: pointer;
-                                font-size: 12.5px; font-weight: 500; text-align: left;
-                                color: rgba(255,255,255,0.5);
-                                transition: background 0.12s, color 0.12s, transform 0.12s;
-                                white-space: nowrap;
-                            }
-                            .ctnav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); transform: translateX(2px); }
-                            .ctnav-item.item-active {
-                                background: linear-gradient(135deg, rgba(22,163,74,0.2), rgba(22,163,74,0.1));
-                                color: #4ade80;
-                                border: 1px solid rgba(22,163,74,0.2);
-                            }
-                            .ctnav-item-icon {
-                                width: 26px; height: 26px; border-radius: 6px; flex-shrink: 0;
-                                display: flex; align-items: center; justify-content: center;
-                                background: rgba(255,255,255,0.05);
-                                transition: background 0.12s;
-                            }
-                            .ctnav-item.item-active .ctnav-item-icon {
-                                background: rgba(22,163,74,0.2);
-                            }
-                            .ctnav-item:hover .ctnav-item-icon { background: rgba(255,255,255,0.09); }
-                        `}</style>
+                            <nav style={{
+                                flexShrink: 0, position: 'relative', zIndex: 60, height: 44,
+                                background: 'rgba(22,22,26,0.92)',
+                                backdropFilter: 'saturate(180%) blur(20px)',
+                                WebkitBackdropFilter: 'saturate(180%) blur(20px)',
+                                borderBottom: '1px solid rgba(255,255,255,0.07)',
+                            }}>
+                                <div style={{
+                                    display: 'grid', gridTemplateColumns: '180px 1fr 260px',
+                                    alignItems: 'center', height: '100%', padding: '0 20px',
+                                }}>
+                                    {/* Left: Logo */}
+                                    <button onClick={() => navigate('/customer')} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>
+                                        <div style={{ width: 26, height: 26, borderRadius: 6, flexShrink: 0, background: 'linear-gradient(145deg,#0B1B2E,#0E2542,#112E50)', boxShadow: '0 0 0 1px rgba(28,216,238,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
+                                                <path fillRule="evenodd" clipRule="evenodd" d="M3 2 H9 C16 2 18 6 18 10 C18 14 16 18 9 18 H3 Z M6 5.5 H9 C13.5 5.5 15 7.5 15 10 C15 12.5 13.5 14.5 9 14.5 H6 Z" fill="white" fillOpacity="0.94"/>
+                                                <rect x="3" y="7.8" width="3" height="1.4" rx="0.5" fill="#FF8930" fillOpacity="0.88"/>
+                                                <rect x="3" y="11.4" width="3" height="1.4" rx="0.5" fill="#FF8930" fillOpacity="0.60"/>
+                                                <circle cx="16.2" cy="5.8" r="1.4" fill="#1CD8EE" fillOpacity="0.92"/>
+                                            </svg>
+                                        </div>
+                                        <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.04em', background: 'linear-gradient(135deg,#fff 0%,#c7f0fb 50%,#3ECDE2 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', WebkitFontSmoothing: 'antialiased' }}>dealio</span>
+                                    </button>
 
-                        <div className="flex items-stretch h-full px-2 relative">
-                            {/* Logo */}
-                            <div
-                                className="flex items-center gap-3 pl-2 pr-5 mr-4 cursor-pointer flex-shrink-0"
-                                style={{ borderRight: '1px solid rgba(255,255,255,0.08)' }}
-                                onClick={() => navigate('/customer')}
-                            >
-                                <div
-                                    className="w-7 h-7 flex items-center justify-center flex-shrink-0"
-                                    style={{
-                                        borderRadius: 7,
-                                        background: 'linear-gradient(145deg, #0B1B2E 0%, #0E2542 60%, #112E50 100%)',
-                                        boxShadow: '0 1px 3px rgba(0,0,0,0.3), 0 0 0 1.5px rgba(28,216,238,0.22), inset 0 1px 0 rgba(255,255,255,0.06)',
-                                    }}
-                                >
-                                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                                        <path fillRule="evenodd" clipRule="evenodd"
-                                            d="M3 2 H9 C16 2 18 6 18 10 C18 14 16 18 9 18 H3 Z M6 5.5 H9 C13.5 5.5 15 7.5 15 10 C15 12.5 13.5 14.5 9 14.5 H6 Z"
-                                            fill="white" fillOpacity="0.94"/>
-                                        <rect x="3" y="7.8"  width="3" height="1.4" rx="0.5" fill="#FF8930" fillOpacity="0.88"/>
-                                        <rect x="3" y="11.4" width="3" height="1.4" rx="0.5" fill="#FF8930" fillOpacity="0.60"/>
-                                        <circle cx="16.2" cy="5.8" r="1.4" fill="#1CD8EE" fillOpacity="0.92"/>
-                                    </svg>
-                                </div>
-                                {/* Redesigned wordmark */}
-                                <div className="flex flex-col leading-none select-none" style={{ gap: 1 }}>
-                                    <span
-                                        className="font-black tracking-tight"
-                                        style={{
-                                            fontSize: 16,
-                                            letterSpacing: '-0.045em',
-                                            background: 'linear-gradient(135deg, #ffffff 0%, #c7f0fb 60%, #3ECDE2 100%)',
-                                            WebkitBackgroundClip: 'text',
-                                            WebkitTextFillColor: 'transparent',
-                                            backgroundClip: 'text',
-                                            lineHeight: 1,
-                                        }}
-                                    >
-                                        dealio
-                                    </span>
-                                    <span
-                                        style={{
-                                            fontSize: 8,
-                                            fontWeight: 600,
-                                            letterSpacing: '0.18em',
-                                            textTransform: 'uppercase',
-                                            color: 'rgba(255,255,255,0.28)',
-                                            lineHeight: 1,
-                                        }}
-                                    >
-                                        property
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Centered tabs */}
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <div className="flex items-stretch h-full pointer-events-auto">
-                                    {navSections.filter(s => s.title !== 'System').map((section, si) => {
-                                        const sectionActive = section.items.some(item =>
-                                            item.path === `/${user.role}`
-                                                ? location.pathname === item.path
-                                                : location.pathname.startsWith(item.path)
-                                        );
-                                        const isOpen = openNavSection === section.title;
-                                        const SectionIcon = section.items[0]?.icon;
-
-                                        return (
-                                            <div key={section.title} className="flex items-stretch">
-                                                {si > 0 && <div className="ctnav-sep" />}
-                                                <div className="relative">
-                                                    <button
-                                                        className={`ctnav-tab${sectionActive ? ' section-active' : ''}${isOpen ? ' open' : ''}`}
-                                                        onClick={() => setOpenNavSection(isOpen ? null : section.title)}
-                                                    >
-                                                        {SectionIcon && <SectionIcon size={13} strokeWidth={sectionActive ? 2.5 : 1.8} />}
-                                                        {section.title}
-                                                        <svg className="ctnav-chevron" viewBox="0 0 16 16" fill="none">
-                                                            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                                        </svg>
-                                                    </button>
-
-                                                    {isOpen && (
-                                                        <div className="ctnav-dropdown">
-                                                            {section.items.map((item, idx) => {
-                                                                const isActive = item.path === `/${user.role}`
-                                                                    ? location.pathname === item.path
-                                                                    : location.pathname.startsWith(item.path);
-                                                                return (
-                                                                    <button
-                                                                        key={item.path}
-                                                                        className={`ctnav-item${isActive ? ' item-active' : ''}`}
-                                                                        style={{ animationDelay: `${idx * 35}ms` }}
-                                                                        onClick={() => { navigate(item.path); setOpenNavSection(null); }}
-                                                                    >
-                                                                        <span className="ctnav-item-icon">
-                                                                            <item.icon size={13} strokeWidth={isActive ? 2.5 : 1.8} />
-                                                                        </span>
-                                                                        {item.label}
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
+                                    {/* Center: Nav Links */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        {NAV_LINKS.map(item => {
+                                            const isActive = item.path === '/customer' ? location.pathname === item.path : location.pathname.startsWith(item.path);
+                                            return (
+                                                <button key={item.path} className={`apnav-link${isActive ? ' active' : ''}`} onClick={() => navigate(item.path)}>
+                                                    {item.label}
+                                                </button>
+                                            );
+                                        })}
+                                        <div style={{ position: 'relative' }}>
+                                            <button className={`apnav-link${moreActive || moreOpen ? ' active' : ''}`} onClick={() => setOpenNavSection(moreOpen ? null : '__more__')}>
+                                                More
+                                                <svg style={{ width: 10, height: 10, opacity: 0.48, transition: 'transform 0.18s', transform: moreOpen ? 'rotate(180deg)' : undefined }} viewBox="0 0 16 16" fill="none">
+                                                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
+                                            </button>
+                                            {moreOpen && (
+                                                <div className="apnav-more-drop">
+                                                    {MORE_ITEMS.map(item => {
+                                                        const isActive = item.path === '/customer' ? location.pathname === item.path : location.pathname.startsWith(item.path);
+                                                        return (
+                                                            <button key={item.path} className={`apnav-more-item${isActive ? ' active' : ''}`} onClick={() => { navigate(item.path); setOpenNavSection(null); }}>
+                                                                <item.icon size={12} strokeWidth={1.5} style={{ opacity: 0.42, flexShrink: 0 }}/>
+                                                                {item.label}
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Right: Search + Bell + Avatar */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+                                        {/* Search */}
+                                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                            <Search size={13} style={{ position: 'absolute', left: 8, color: 'rgba(210,210,215,0.36)', pointerEvents: 'none', zIndex: 1 }}/>
+                                            <input
+                                                ref={searchRef}
+                                                value={searchQuery}
+                                                onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); setSearchIndex(0); }}
+                                                onFocus={() => setSearchOpen(true)}
+                                                onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                                                onKeyDown={handleSearchKeyDown}
+                                                className="apnav-search-input"
+                                                placeholder="Search… ⌘K"
+                                            />
+                                            {searchQuery && (
+                                                <button onClick={() => { setSearchQuery(''); setSearchOpen(false); }} style={{ position: 'absolute', right: 7, color: 'rgba(210,210,215,0.38)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, lineHeight: 1 }}>✕</button>
+                                            )}
+                                            {searchOpen && searchResults.length > 0 && (
+                                                <div className="apnav-search-results">
+                                                    {searchResults.map((item, i) => (
+                                                        <button key={item.path} className={`apnav-search-item${i === searchIndex ? ' sel' : ''}`}
+                                                            onMouseDown={() => { navigate(item.path); setSearchQuery(''); setSearchOpen(false); }}
+                                                            onMouseEnter={() => setSearchIndex(i)}>
+                                                            <div style={{ width: 26, height: 26, borderRadius: 6, background: i === searchIndex ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                                <item.icon size={12} style={{ color: 'rgba(210,210,215,0.65)' }}/>
+                                                            </div>
+                                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                                <div style={{ fontSize: 12, fontWeight: 500, color: '#f5f5f7' }}>{item.label}</div>
+                                                                <div style={{ fontSize: 10.5, color: 'rgba(210,210,215,0.36)', marginTop: 1 }}>{item.section}</div>
+                                                            </div>
+                                                            {i === searchIndex && <kbd style={{ fontSize: 10, color: 'rgba(210,210,215,0.32)', background: 'rgba(255,255,255,0.06)', padding: '2px 5px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.1)' }}>↵</kbd>}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {searchOpen && searchQuery.trim().length > 0 && searchResults.length === 0 && (
+                                                <div className="apnav-search-results" style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                                    <p style={{ fontSize: 12, color: 'rgba(210,210,215,0.48)' }}>No results for "<span style={{ color: '#f5f5f7' }}>{searchQuery}</span>"</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Bell */}
+                                        <button className="apnav-icon-btn" onClick={() => setShowNotifications(true)}>
+                                            <Bell size={15} strokeWidth={1.5}/>
+                                            {unreadCount > 0 && <span style={{ position: 'absolute', top: 6, right: 6, width: 6, height: 6, borderRadius: '50%', background: '#ff453a', border: '1.5px solid rgba(22,22,26,0.92)' }}/>}
+                                        </button>
+
+                                        {/* Avatar */}
+                                        <div style={{ position: 'relative' }}>
+                                            <button
+                                                onClick={() => setShowDropdown(!showDropdown)}
+                                                style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px 4px 4px', borderRadius: 20, transition: 'background 0.12s', marginLeft: 2 }}
+                                                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'}
+                                                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'none'}
+                                            >
+                                                <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, background: user.avatar ? 'transparent' : `linear-gradient(135deg, ${color} 0%, ${color}bb 100%)`, boxShadow: `0 0 0 1.5px ${color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', fontSize: 10, fontWeight: 700, color: '#fff' }}>
+                                                    {user.avatar ? <img src={user.avatar} alt="av" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : initials}
+                                                </div>
+                                                <ChevronDown size={11} style={{ color: 'rgba(210,210,215,0.42)', transition: 'transform 0.18s', transform: showDropdown ? 'rotate(180deg)' : undefined }}/>
+                                            </button>
+
+                                            {showDropdown && (
+                                                <div className="apnav-prof-drop">
+                                                    <div style={{ padding: '14px 14px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                            <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: user.avatar ? 'transparent' : `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: `0 2px 10px ${color}40` }}>
+                                                                {user.avatar ? <img src={user.avatar} alt="av" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : initials}
+                                                            </div>
+                                                            <div style={{ minWidth: 0 }}>
+                                                                <div style={{ fontSize: 13, fontWeight: 600, color: '#f5f5f7', WebkitFontSmoothing: 'antialiased', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
+                                                                <div style={{ fontSize: 11, color: 'rgba(210,210,215,0.38)', marginTop: 2 }}>{roleLabels[user.role]}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ padding: '5px 5px 7px' }}>
+                                                        <button className="apnav-prof-action" onClick={() => { setShowDropdown(false); navigate(`/${user.role}/settings`); }}>
+                                                            <span style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Settings size={12} style={{ color: 'rgba(210,210,215,0.52)' }}/></span>
+                                                            Settings
+                                                        </button>
+                                                        <button className="apnav-prof-action" onClick={() => { setShowDropdown(false); logout(); navigate('/login'); }}>
+                                                            <span style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><RoleIcon size={12} style={{ color: 'rgba(210,210,215,0.52)' }}/></span>
+                                                            Switch Role
+                                                        </button>
+                                                        <div style={{ margin: '4px 7px', borderTop: '1px solid rgba(255,255,255,0.07)' }}/>
+                                                        <button className="apnav-prof-action danger" onClick={() => { logout(); navigate('/login'); setShowDropdown(false); }}>
+                                                            <span style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,69,58,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><LogOut size={12} style={{ color: 'rgba(255,69,58,0.62)' }}/></span>
+                                                            Sign Out
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    </nav>
-                )}
+                            </nav>
+                        </>
+                    );
+                })()}
                 {openNavSection && <div className="fixed inset-0 z-30" onClick={() => setOpenNavSection(null)} />}
 
-                {/* Header */}
-                <header className="h-14 bg-card border-b border-border flex items-center px-5 gap-4 flex-shrink-0 relative z-50">
+                {/* Header — hidden for customer (search/bell/avatar live in the apple nav above) */}
+                {!isCustomer && <header className="h-14 bg-card border-b border-border flex items-center px-5 gap-4 flex-shrink-0 relative z-50">
                     <h1 className="text-[15px] font-semibold text-card-foreground tracking-tight">{currentTitle}</h1>
                     <div className="flex-1"/>
 
@@ -964,7 +1043,7 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                             </div>
                         )}
                     </div>
-                </header>
+                </header>}
 
                 <main className="flex-1 overflow-y-auto p-6">{children}</main>
             </div>

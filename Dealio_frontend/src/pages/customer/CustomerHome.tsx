@@ -10,6 +10,7 @@ import {
   Navigation, LocateFixed, CheckCircle2,
 } from 'lucide-react';
 import ProjectPlaceholder from '@/components/shared/ProjectPlaceholder';
+import CustomerPipelineWidget from '@/components/shared/CustomerPipelineWidget';
 
 /* ─── Types ──────────────────────────────────────────────────────── */
 interface ProjectSummary {
@@ -321,7 +322,17 @@ const CustomerHome = () => {
     setLoading(true);
     setError('');
     builderApi.getPublicProjects(city || undefined)
-      .then(data => setProjects((data as ProjectSummary[]) || []))
+      .then(async (data) => {
+        const list = (data as ProjectSummary[]) || [];
+        // If city filter returned nothing, fall back to all projects so the
+        // page never goes blank due to a geo-detected city with no listings yet
+        if (list.length === 0 && city) {
+          const fallback = await builderApi.getPublicProjects(undefined).catch(() => []);
+          setProjects((fallback as ProjectSummary[]) || []);
+        } else {
+          setProjects(list);
+        }
+      })
       .catch(() => setError('Could not load projects. Please try again.'))
       .finally(() => setLoading(false));
   }, []);
@@ -617,6 +628,11 @@ const CustomerHome = () => {
             </button>
           </div>
         </div>
+
+        {/* ══ PIPELINE WIDGET ══ */}
+        {user?.phone && (
+          <CustomerPipelineWidget phone={user.phone} />
+        )}
 
         {/* ══ TABS + SEARCH ══ */}
         {/* Search + sort sit outside the scrollable tabs row so the dropdown is never clipped */}
