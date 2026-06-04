@@ -134,7 +134,7 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
 
 // ─── Deal Detail Drawer ───────────────────────────────────────────────────────
 
-function DealDrawer({
+export function DealDrawer({
   dealSummary,
   builderId,
   userId,
@@ -985,9 +985,9 @@ function DealDrawer({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-const BuilderDealsPage = () => {
+export function BuilderDealsPanel({ builderId: externalBid, embedded }: { builderId?: string | null; embedded?: boolean } = {}) {
   const user = useAuthStore(s => s.user);
-  const [builderId, setBuilderId] = useState<string | null>(null);
+  const [builderId, setBuilderId] = useState<string | null>(externalBid ?? null);
   const [deals, setDeals] = useState<DealSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
@@ -1007,6 +1007,7 @@ const BuilderDealsPage = () => {
   }, []);
 
   useEffect(() => {
+    if (externalBid) { setBuilderId(externalBid); loadDeals(externalBid); return; }
     if (!user?.id) return;
     (async () => {
       let bid = builderApi.getCachedBuilderId();
@@ -1024,7 +1025,7 @@ const BuilderDealsPage = () => {
       setBuilderId(bid);
       await loadDeals(bid);
     })();
-  }, [user?.id, loadDeals]);
+  }, [user?.id, externalBid, loadDeals]);
 
   const filtered = filter === 'all' ? deals : deals.filter(d => d.status === filter);
 
@@ -1038,12 +1039,12 @@ const BuilderDealsPage = () => {
 
   const selClass = 'px-3 py-2 rounded-xl bg-card border border-border text-[12px] text-foreground outline-none focus:ring-2 focus:ring-ring/20 transition-all';
 
-  return (
-    <DashboardLayout>
+  const inner = (
+    <>
       <div className="flex flex-col gap-4">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between flex-shrink-0">
+        {!embedded && <div className="flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-[17px] font-bold text-foreground leading-tight">Deal Management</h2>
             <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -1058,7 +1059,17 @@ const BuilderDealsPage = () => {
             <option value="Booked">Booked</option>
             <option value="Closed">Closed</option>
           </select>
-        </div>
+        </div>}
+        {embedded && <div className="flex items-center justify-between flex-shrink-0">
+          <p className="text-[12px] text-muted-foreground">{deals.length} deal{deals.length !== 1 ? 's' : ''}</p>
+          <select value={filter} onChange={e => setFilter(e.target.value)} className={selClass}>
+            <option value="all">All</option>
+            <option value="Negotiation">Negotiation</option>
+            <option value="Agreement">Agreement</option>
+            <option value="Booked">Booked</option>
+            <option value="Closed">Closed</option>
+          </select>
+        </div>}
 
         {/* ── Stats Row ── */}
         {!loading && deals.length > 0 && (
@@ -1168,8 +1179,10 @@ const BuilderDealsPage = () => {
           onRefreshList={() => { if (builderId) loadDeals(builderId); }}
         />
       )}
-    </DashboardLayout>
+    </>
   );
-};
+  return embedded ? inner : <DashboardLayout>{inner}</DashboardLayout>;
+}
 
+const BuilderDealsPage = () => <BuilderDealsPanel />;
 export default BuilderDealsPage;

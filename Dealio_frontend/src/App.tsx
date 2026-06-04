@@ -19,6 +19,7 @@ import AddProjectWizard from "./pages/builder/AddProjectWizard";
 import EditProjectWizard from "./pages/builder/EditProjectWizard";
 import BuilderUnits from "./pages/builder/BuilderUnits";
 import BuilderLeads from "./pages/builder/BuilderLeads";
+import BuilderPipeline from "./pages/builder/BuilderPipeline";
 import BuilderCPPerformance from "./pages/builder/BuilderCPPerformance";
 import BuilderDocuments from "./pages/builder/BuilderDocuments";
 import BuilderBroadcast from "./pages/builder/BuilderBroadcast";
@@ -81,6 +82,7 @@ import AdminProjects from "./pages/admin/AdminProjects";
 import AdminDeals from "./pages/admin/AdminDeals";
 import AdminCampaigns from "./pages/admin/AdminCampaigns";
 import AdminMeetings from "./pages/admin/AdminMeetings";
+import AdminAddProject from "./pages/admin/AdminAddProject";
 import LoanPortal from "./pages/shared/LoanPortal";
 import DealConversation from "./pages/shared/DealConversation";
 import ProjectSharePage from "./pages/shared/ProjectSharePage";
@@ -155,13 +157,14 @@ const App = () => (
           <Route path="/builder/projects/:id/edit" element={<ProtectedRoute><AddProjectWizard /></ProtectedRoute>} />
           <Route path="/builder/projects/:id" element={<ProtectedRoute><BuilderProjectDetail /></ProtectedRoute>} />
           <Route path="/builder/units" element={<ProtectedRoute><BuilderUnits /></ProtectedRoute>} />
-          <Route path="/builder/leads" element={<ProtectedRoute><BuilderLeads /></ProtectedRoute>} />
+          <Route path="/builder/pipeline" element={<ProtectedRoute><BuilderPipeline /></ProtectedRoute>} />
+          <Route path="/builder/leads" element={<Navigate to="/builder/pipeline?tab=leads" replace />} />
           <Route path="/builder/cp-performance" element={<ProtectedRoute><BuilderCPPerformance /></ProtectedRoute>} />
           <Route path="/builder/documents" element={<ProtectedRoute><BuilderDocuments /></ProtectedRoute>} />
           <Route path="/builder/broadcast" element={<ProtectedRoute><BuilderBroadcast /></ProtectedRoute>} />
           <Route path="/builder/loan" element={<ProtectedRoute><LoanPortal /></ProtectedRoute>} />
-          <Route path="/builder/meetings" element={<ProtectedRoute><BuilderMeetings /></ProtectedRoute>} />
-          <Route path="/builder/deals" element={<ProtectedRoute><BuilderDealsPage /></ProtectedRoute>} />
+          <Route path="/builder/meetings" element={<Navigate to="/builder/pipeline?tab=meetings" replace />} />
+          <Route path="/builder/deals" element={<Navigate to="/builder/pipeline?tab=deals" replace />} />
           <Route path="/builder/ai" element={<ProtectedRoute><BuilderAIPricing /></ProtectedRoute>} />
           <Route path="/builder/analytics" element={<ProtectedRoute><BuilderAnalytics /></ProtectedRoute>} />
           <Route path="/builder/virtual-tours" element={<ProtectedRoute><BuilderVirtualTours /></ProtectedRoute>} />
@@ -231,6 +234,7 @@ const App = () => (
           <Route path="/admin/builders" element={<ProtectedRoute><AdminBuilders /></ProtectedRoute>} />
           <Route path="/admin/cps" element={<ProtectedRoute><AdminCPs /></ProtectedRoute>} />
           <Route path="/admin/projects" element={<ProtectedRoute><AdminProjects /></ProtectedRoute>} />
+          <Route path="/admin/projects/new" element={<ProtectedRoute><AdminAddProject /></ProtectedRoute>} />
           <Route path="/admin/customers" element={<ProtectedRoute><AdminCustomers /></ProtectedRoute>} />
           <Route path="/admin/revenue" element={<ProtectedRoute><AdminRevenue /></ProtectedRoute>} />
           <Route path="/admin/commissions" element={<ProtectedRoute><AdminCommissions /></ProtectedRoute>} />

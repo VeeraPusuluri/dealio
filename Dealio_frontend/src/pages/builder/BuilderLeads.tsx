@@ -47,10 +47,19 @@ const STAGE_MAP: Record<string, LeadStage> = {
   MEETING_CONFIRMED: 'Meeting Confirmed',
   MEETING_DONE: 'Meeting Done',
   NEGOTIATION: 'Negotiation',
+  Negotiation: 'Negotiation',
   AGREEMENT: 'Agreement',
   Agreement: 'Agreement',
   BOOKED: 'Booked',
+  Booked: 'Booked',
   CLOSED: 'Closed',
+  Closed: 'Closed',
+  // post-booking statuses → show under 'Closed' column
+  'Loan Application Created': 'Closed',
+  'Loan Sanctioned':          'Closed',
+  'Loan Disbursed':           'Closed',
+  'Registration Done':        'Closed',
+  'Possession Given':         'Closed',
 };
 
 // Map display label back to backend enum
@@ -96,7 +105,8 @@ interface ApiDeal {
   cpId?: number | null;
 }
 
-const VALID_STAGES = ['New Lead', 'Profile Created', 'Meeting Requested', 'Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Agreement', 'Booked', 'Closed'];
+const VALID_STAGES = ['New Lead', 'Profile Created', 'Meeting Requested', 'Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Agreement', 'Booked', 'Closed',
+  'Loan Application Created', 'Loan Sanctioned', 'Loan Disbursed', 'Registration Done', 'Possession Given'];
 
 function dealToLead(d: ApiDeal) {
   const stage = VALID_STAGES.includes(d.status) ? d.status as LeadStage : 'New Lead';
@@ -149,7 +159,7 @@ const NEXT_STAGES: Record<string, LeadStage[]> = {
   'Closed': [],
 };
 
-const BuilderLeads = () => {
+export function BuilderLeadsPanel({ builderId: externalBid, embedded }: { builderId?: string | null; embedded?: boolean } = {}) {
   const navigate = useNavigate();
   const { callLogs } = useFollowUpStore();
   const [apiLeads, setApiLeads] = useState<ReturnType<typeof apiLeadToRow>[]>([]);
@@ -162,7 +172,7 @@ const BuilderLeads = () => {
   const [drawerTab, setDrawerTab] = useState<'details' | 'journey'>('journey');
 
   const loadLeads = async () => {
-    let builderId = builderApi.getCachedBuilderId();
+    let builderId = externalBid ?? builderApi.getCachedBuilderId();
     if (!builderId) {
       try {
         const { user } = useAuthStore.getState();
@@ -300,16 +310,16 @@ const BuilderLeads = () => {
 
   const sel = 'px-3 py-1.5 rounded-xl bg-card border border-border text-[12px] text-foreground outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all';
 
-  return (
-    <DashboardLayout>
-      <div className="flex flex-col gap-4 h-[calc(100vh-7rem)]">
+  const inner = (
+    <>
+      <div className={`flex flex-col gap-4 ${embedded ? 'h-full' : 'h-[calc(100vh-7rem)]'}`}>
 
         {/* ── Top bar ── */}
         <div className="flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+            {!embedded && <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft size={16} />
-            </button>
+            </button>}
             <div>
               <h2 className="text-[17px] font-bold text-foreground leading-tight">Leads & Pipeline</h2>
               <p className="text-[11px] text-muted-foreground">{totalLeads} lead{totalLeads !== 1 ? 's' : ''} across {stages.length} stages</p>
@@ -835,8 +845,10 @@ const BuilderLeads = () => {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
-};
+  return embedded ? inner : <DashboardLayout>{inner}</DashboardLayout>;
+}
 
+const BuilderLeads = () => <BuilderLeadsPanel />;
 export default BuilderLeads;

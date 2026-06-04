@@ -29,14 +29,20 @@ const SOURCE_BONUS: Record<string, number> = {
 // ── Pipeline stage progression (max 30) ────────────────────────────────────
 // Strongest real-world predictor — how far has the lead progressed?
 const STAGE_SCORE: Record<string, number> = {
-  'New Lead':           2,
-  'Profile Created':    6,
-  'Meeting Requested':  11,
-  'Meeting Confirmed':  17,
-  'Meeting Done':       22,
-  'Negotiation':        28,
-  'Booked':             30,
-  'Closed':             30,
+  'New Lead':                  2,
+  'Profile Created':           6,
+  'Meeting Requested':         11,
+  'Meeting Confirmed':         17,
+  'Meeting Done':              22,
+  'Negotiation':               26,
+  'Agreement':                 29,  // agreement signed — highest intent before booking
+  'Booked':                    30,
+  'Loan Application Created':  30,
+  'Loan Sanctioned':           30,
+  'Loan Disbursed':            30,
+  'Registration Done':         30,
+  'Possession Given':          30,
+  'Closed':                    30,
 };
 
 export function calculateLeadScore(lead: Lead & {
@@ -93,6 +99,8 @@ export function calculateLeadScore(lead: Lead & {
   else if (lead.siteVisitWilling === 'Yes Within a Week') engagement = 11;
   else if (lead.siteVisitWilling === 'Maybe')          engagement = 6;
   else if (lead.siteVisitWilling === 'No')             engagement = 0;
+  else if (['Agreement', 'Booked', 'Loan Application Created', 'Loan Sanctioned', 'Loan Disbursed', 'Registration Done', 'Possession Given', 'Closed'].includes(lead.stage)) engagement = 15;
+  else if (lead.stage === 'Negotiation')               engagement = 15;
   else if (lead.stage === 'Meeting Done')              engagement = 15;
   else if (lead.stage === 'Meeting Confirmed')         engagement = 11;
   else if (lead.meetingDate)                           engagement = 8;

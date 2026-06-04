@@ -84,7 +84,7 @@ function toDateStr(iso: string) {
   return d.toISOString().split('T')[0];
 }
 
-const BuilderMeetings = () => {
+export function BuilderMeetingsPanel({ builderId: externalBid, embedded }: { builderId?: string | null; embedded?: boolean } = {}) {
   const [meetings,     setMeetings]     = useState<ApiMeeting[]>([]);
   const [deals,        setDeals]        = useState<DealSummary[]>([]);
   const [loading,      setLoading]      = useState(true);
@@ -100,7 +100,7 @@ const BuilderMeetings = () => {
   const [viewMode,     setViewMode]     = useState<'list' | 'calendar'>('list');
 
   const loadMeetings = useCallback(async () => {
-    const bid = builderApi.getCachedBuilderId();
+    const bid = externalBid ?? builderApi.getCachedBuilderId();
     if (!bid) { setLoading(false); return; }
     setLoading(true);
     try {
@@ -248,9 +248,8 @@ const BuilderMeetings = () => {
       } satisfies CalEvent)),
   ];
 
-  return (
-    <DashboardLayout>
-      <div className="flex flex-col h-[calc(100vh-7rem)] gap-4">
+  const inner = (
+      <div className={`flex flex-col ${embedded ? 'h-full' : 'h-[calc(100vh-7rem)]'} gap-4`}>
 
         {/* ── Stat strip + view toggle ────────────────────────────────────── */}
         <div className="flex items-center gap-3 flex-shrink-0">
@@ -639,8 +638,9 @@ const BuilderMeetings = () => {
           </div>
         </div>}
       </div>
-    </DashboardLayout>
   );
-};
+  return embedded ? inner : <DashboardLayout>{inner}</DashboardLayout>;
+}
 
+const BuilderMeetings = () => <BuilderMeetingsPanel />;
 export default BuilderMeetings;

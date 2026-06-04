@@ -44,9 +44,7 @@ const getRoleNavSections = (role: UserRole, badges: Record<string, number>): Nav
             {
                 title: 'Sales',
                 items: [
-                    {label: 'Leads & Meetings', path: '/builder/leads', icon: Users},
-                    {label: 'Deals', path: '/builder/deals', icon: Briefcase},
-                    {label: 'Meeting Requests', path: '/builder/meetings', icon: Calendar, badge: badges.meetings},
+                    {label: 'Pipeline', path: '/builder/pipeline', icon: Users, badge: badges.meetings},
                 ],
             },
             {

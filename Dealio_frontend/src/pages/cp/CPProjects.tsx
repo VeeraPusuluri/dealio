@@ -1585,6 +1585,11 @@ const CPProjects = () => {
   const [search, setSearch]             = useState('');
   const [sortKey, setSortKey]           = useState<SortKey>('recent');
   const [sortOpen, setSortOpen]         = useState(false);
+  const [showFilters, setShowFilters]   = useState(false);
+  const [cityFilter, setCityFilter]     = useState<string[]>([]);
+  const [configFilter, setConfigFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [priceFilter, setPriceFilter]   = useState<'all' | 'under50' | '50to1cr' | '1to2cr' | 'above2cr'>('all');
 
   useEffect(() => {
     builderApi.getPublicProjects()
@@ -1653,6 +1658,26 @@ const CPProjects = () => {
     if (filterTab === 'backed')  list = list.filter(p => bookmarks.has(p.id));
     if (filterTab === 'newDeals') list = list.filter(p => ['NEW_LAUNCH', 'PRE_LAUNCH'].includes(p.status));
 
+    if (cityFilter.length > 0)
+      list = list.filter(p => cityFilter.includes(p.city));
+
+    if (configFilter.length > 0)
+      list = list.filter(p => p.configurations?.some(c => configFilter.some(f => c.toLowerCase().includes(f.toLowerCase()))));
+
+    if (statusFilter.length > 0)
+      list = list.filter(p => statusFilter.includes(p.status));
+
+    if (priceFilter !== 'all') {
+      list = list.filter(p => {
+        const price = p.priceMin ?? p.priceMax ?? 0;
+        if (priceFilter === 'under50')  return price < 5_000_000;
+        if (priceFilter === '50to1cr')  return price >= 5_000_000 && price < 10_000_000;
+        if (priceFilter === '1to2cr')   return price >= 10_000_000 && price < 20_000_000;
+        if (priceFilter === 'above2cr') return price >= 20_000_000;
+        return true;
+      });
+    }
+
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(p =>
@@ -1673,7 +1698,7 @@ const CPProjects = () => {
     });
 
     return list;
-  }, [projects, filterTab, bookmarks, search, sortKey, leadsByProject]);
+  }, [projects, filterTab, bookmarks, search, sortKey, leadsByProject, cityFilter, configFilter, statusFilter, priceFilter]);
 
   if (error) return (
     <DashboardLayout>
@@ -1709,10 +1734,23 @@ const CPProjects = () => {
             </h1>
           </div>
           <div className="flex items-center gap-2 shrink-0 mt-1">
-            <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 text-sm font-medium text-slate-600 hover:bg-gray-50 transition-colors">
+            <button
+              onClick={() => setShowFilters(v => !v)}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-sm font-medium transition-colors ${
+                showFilters || cityFilter.length > 0 || configFilter.length > 0 || statusFilter.length > 0 || priceFilter !== 'all'
+                  ? 'bg-teal-50 border-teal-300 text-teal-700'
+                  : 'border-gray-200 text-slate-600 hover:bg-gray-50'
+              }`}>
               <Filter size={13} /> Filters
+              {(cityFilter.length + configFilter.length + statusFilter.length + (priceFilter !== 'all' ? 1 : 0)) > 0 && (
+                <span className="ml-0.5 min-w-[16px] h-4 px-1 rounded-full bg-teal-600 text-white text-[10px] font-bold flex items-center justify-center">
+                  {cityFilter.length + configFilter.length + statusFilter.length + (priceFilter !== 'all' ? 1 : 0)}
+                </span>
+              )}
             </button>
-            <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold text-white transition-colors hover:opacity-90"
+            <button
+              onClick={() => navigate('/cp/leads')}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold text-white transition-colors hover:opacity-90"
               style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
               + Add a lead
             </button>
@@ -1775,6 +1813,137 @@ const CPProjects = () => {
             </button>
           ))}
         </div>
+
+        {/* ══ FILTER PANEL ══ */}
+        {showFilters && (() => {
+          const allCities  = [...new Set(projects.map(p => p.city).filter(Boolean))] as string[];
+          const allConfigs = [...new Set(projects.flatMap(p => p.configurations ?? []))].sort();
+          const allStatuses = [...new Set(projects.map(p => p.status).filter(Boolean))] as string[];
+          const activeCount = cityFilter.length + configFilter.length + statusFilter.length + (priceFilter !== 'all' ? 1 : 0);
+
+          const toggle = <T extends string>(arr: T[], setArr: React.Dispatch<React.SetStateAction<T[]>>, val: T) =>
+            setArr(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
+
+          return (
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-4 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Filter size={13} className="text-teal-600" />
+                  <span className="text-[13px] font-bold text-slate-700">Filters</span>
+                  {activeCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-[10px] font-bold border border-teal-100">
+                      {activeCount} active
+                    </span>
+                  )}
+                </div>
+                {activeCount > 0 && (
+                  <button
+                    onClick={() => { setCityFilter([]); setConfigFilter([]); setStatusFilter([]); setPriceFilter('all'); }}
+                    className="text-[11px] text-red-500 hover:text-red-700 font-medium transition-colors flex items-center gap-1">
+                    <X size={10} /> Clear all
+                  </button>
+                )}
+              </div>
+
+              <div className="px-5 py-4 space-y-4">
+                {/* City */}
+                {allCities.length > 0 && (
+                  <div className="flex items-start gap-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mt-1 w-16 shrink-0">City</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {allCities.map(city => (
+                        <button key={city} onClick={() => toggle(cityFilter, setCityFilter, city)}
+                          className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-all ${
+                            cityFilter.includes(city)
+                              ? 'text-white border-transparent shadow-sm'
+                              : 'bg-gray-50 border-gray-200 text-slate-600 hover:border-teal-200 hover:text-teal-700 hover:bg-teal-50'
+                          }`}
+                          style={cityFilter.includes(city) ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : {}}>
+                          {city}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="border-t border-gray-100" />
+
+                {/* BHK / Config */}
+                {allConfigs.length > 0 && (
+                  <div className="flex items-start gap-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mt-1 w-16 shrink-0">BHK</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {allConfigs.map(c => (
+                        <button key={c} onClick={() => toggle(configFilter, setConfigFilter, c)}
+                          className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-all ${
+                            configFilter.includes(c)
+                              ? 'text-white border-transparent shadow-sm'
+                              : 'bg-gray-50 border-gray-200 text-slate-600 hover:border-teal-200 hover:text-teal-700 hover:bg-teal-50'
+                          }`}
+                          style={configFilter.includes(c) ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : {}}>
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="border-t border-gray-100" />
+
+                {/* Status */}
+                <div className="flex items-start gap-4">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mt-1 w-16 shrink-0">Status</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { key: 'ACTIVE',             label: 'Selling'        },
+                      { key: 'UNDER_CONSTRUCTION', label: 'Under Const.'  },
+                      { key: 'READY_TO_MOVE',      label: 'Ready to Move' },
+                      { key: 'NEW_LAUNCH',         label: 'New Launch'    },
+                      { key: 'PRE_LAUNCH',         label: 'Pre-Launch'    },
+                      { key: 'CLOSING_SOON',       label: 'Closing Soon'  },
+                    ].filter(s => allStatuses.includes(s.key)).map(s => (
+                      <button key={s.key} onClick={() => toggle(statusFilter, setStatusFilter, s.key)}
+                        className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-all ${
+                          statusFilter.includes(s.key)
+                            ? 'text-white border-transparent shadow-sm'
+                            : 'bg-gray-50 border-gray-200 text-slate-600 hover:border-teal-200 hover:text-teal-700 hover:bg-teal-50'
+                        }`}
+                        style={statusFilter.includes(s.key) ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : {}}>
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-100" />
+
+                {/* Price range */}
+                <div className="flex items-start gap-4">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mt-1 w-16 shrink-0">Price</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {([
+                      ['all',      'Any price'   ],
+                      ['under50',  'Under ₹50L'  ],
+                      ['50to1cr',  '₹50L – ₹1Cr' ],
+                      ['1to2cr',   '₹1Cr – ₹2Cr' ],
+                      ['above2cr', 'Above ₹2Cr'  ],
+                    ] as const).map(([key, label]) => (
+                      <button key={key} onClick={() => setPriceFilter(key)}
+                        className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-all ${
+                          priceFilter === key
+                            ? 'text-white border-transparent shadow-sm'
+                            : 'bg-gray-50 border-gray-200 text-slate-600 hover:border-teal-200 hover:text-teal-700 hover:bg-teal-50'
+                        }`}
+                        style={priceFilter === key ? { background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' } : {}}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ══ TABS + SEARCH ══ */}
         <div className="flex items-center gap-0 border-b border-gray-200 overflow-x-auto scrollbar-none">

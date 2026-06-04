@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { toast } from 'sonner';
 import {
   Plus, Phone, MessageSquare, Search, Loader2, X,
-  Calendar, CalendarCheck, ArrowLeft, IndianRupee,
+  Calendar, CalendarCheck, CalendarDays, ArrowLeft, IndianRupee,
   TrendingUp, Building2, ChevronDown, CheckCircle2,
   Send, FileText, ExternalLink, Zap, RefreshCw, Route,
 } from 'lucide-react';
@@ -329,6 +329,10 @@ const DealPanel = ({ lead, dealDetail, loading, cpUserId, onClose, onRefresh }: 
                   {agreeing ? <><Loader2 size={14} className="animate-spin" /> Marking…</> : <><Zap size={14} /> Mark Deal Agreed</>}
                 </button>
               )}
+              <a href="/cp/followups"
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors">
+                <CalendarDays size={13} /> Schedule Follow-up
+              </a>
               <div className="pt-2 border-t border-slate-100">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2">Quick Contact</p>
                 <div className="flex gap-2">
@@ -592,7 +596,10 @@ const CPLeads = () => {
         ) : (
           <div className="flex gap-3 overflow-x-auto pb-4">
             {STAGES.map(stage => {
-              const stageLeads = filtered.filter(l => l.status.toLowerCase() === stage.toLowerCase());
+              // Normalise post-booking statuses into 'Closed' column so they remain visible
+          const POST_BOOKING = ['loan application created', 'loan sanctioned', 'loan disbursed', 'registration done', 'possession given'];
+          const normaliseStatus = (s: string) => POST_BOOKING.includes(s.toLowerCase()) ? 'closed' : s.toLowerCase();
+          const stageLeads = filtered.filter(l => normaliseStatus(l.status) === stage.toLowerCase());
               const style = STAGE_COLOR[stage] ?? { bg: 'bg-slate-50', text: 'text-slate-600', dot: '#94a3b8' };
               return (
                 <div key={stage} className="min-w-[230px] flex-shrink-0">

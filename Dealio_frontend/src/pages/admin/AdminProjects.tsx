@@ -3,7 +3,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { adminApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Search, Loader2, Star, ArrowLeft } from 'lucide-react';
+import { Building2, Search, Loader2, Star, ArrowLeft, Plus } from 'lucide-react';
 
 interface ApiProject {
   id: number;
@@ -74,6 +74,12 @@ const AdminProjects = () => {
             <h2 className="text-[15px] font-bold text-slate-800">Project Management</h2>
             <p className="text-xs text-slate-400 mt-0.5">{projects.length} projects across all builders</p>
           </div>
+          <button
+            onClick={() => navigate('/admin/projects/new')}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold text-white hover:opacity-90 transition-opacity shrink-0"
+            style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
+            <Plus size={13} /> Add Project
+          </button>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
