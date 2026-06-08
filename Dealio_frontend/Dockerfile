@@ -28,9 +28,8 @@ RUN npm run build
 FROM nginx:1.27-alpine AS runner
 
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
-# Cloud Run requires the container to listen on 8080
-EXPOSE 8080
-
-CMD ["nginx", "-g", "daemon off;"]
+# Railway provides $PORT at runtime; envsubst replaces ${PORT} in the template.
+# Only substitute PORT to avoid clobbering nginx's own $uri, $request_uri, etc.
+CMD ["/bin/sh", "-c", "envsubst '${PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
