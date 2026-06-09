@@ -36,6 +36,7 @@ import BuilderSettings from "./pages/builder/BuilderSettings";
 import CPOverview from "./pages/cp/CPOverview";
 import CPProjects from "./pages/cp/CPProjects";
 import CPLeads from "./pages/cp/CPLeads";
+import CPPipeline from "./pages/cp/CPPipeline";
 import CPCommissions from "./pages/cp/CPCommissions";
 import CPReferral from "./pages/cp/CPReferral";
 import CPBrochure from "./pages/cp/CPBrochure";
@@ -59,6 +60,7 @@ import CustomerSettings from "./pages/customer/CustomerSettings";
 import CustomerProperty from "./pages/customer/CustomerProperty";
 import CustomerJourney from "./pages/customer/CustomerJourney";
 import CustomerMeeting from "./pages/customer/CustomerMeeting";
+import DealRoomPage from "./pages/shared/DealRoomPage";
 import CustomerDocuments from "./pages/customer/CustomerDocuments";
 import CustomerInvestments from "./pages/customer/CustomerInvestments";
 import CustomerTopup from "./pages/customer/CustomerTopup";
@@ -165,6 +167,7 @@ const App = () => (
           <Route path="/builder/loan" element={<ProtectedRoute><LoanPortal /></ProtectedRoute>} />
           <Route path="/builder/meetings" element={<Navigate to="/builder/pipeline?tab=meetings" replace />} />
           <Route path="/builder/deals" element={<Navigate to="/builder/pipeline?tab=deals" replace />} />
+          <Route path="/builder/deals/:dealId" element={<ProtectedRoute><DealRoomPage /></ProtectedRoute>} />
           <Route path="/builder/ai" element={<ProtectedRoute><BuilderAIPricing /></ProtectedRoute>} />
           <Route path="/builder/analytics" element={<ProtectedRoute><BuilderAnalytics /></ProtectedRoute>} />
           <Route path="/builder/virtual-tours" element={<ProtectedRoute><BuilderVirtualTours /></ProtectedRoute>} />
@@ -181,7 +184,8 @@ const App = () => (
           <Route path="/cp/projects" element={<ProtectedRoute><CPProjects /></ProtectedRoute>} />
           <Route path="/cp/projects/:id" element={<ProtectedRoute><CPProjectDetail /></ProtectedRoute>} />
           <Route path="/cp/leads" element={<ProtectedRoute><CPLeads /></ProtectedRoute>} />
-          <Route path="/cp/pipeline" element={<Navigate to="/cp/leads" replace />} />
+          <Route path="/cp/pipeline" element={<ProtectedRoute><CPPipeline /></ProtectedRoute>} />
+          <Route path="/cp/deals/:dealId" element={<ProtectedRoute><DealRoomPage /></ProtectedRoute>} />
           <Route path="/cp/jv" element={<Navigate to="/cp" replace />} />
           <Route path="/cp/commissions" element={<ProtectedRoute><CPCommissions /></ProtectedRoute>} />
           <Route path="/cp/referral" element={<ProtectedRoute><CPReferral /></ProtectedRoute>} />
@@ -204,6 +208,7 @@ const App = () => (
           <Route path="/customer/projects/:id" element={<ProtectedRoute><CustomerProjectDetail /></ProtectedRoute>} />
           <Route path="/customer/property" element={<ProtectedRoute><CustomerProperty /></ProtectedRoute>} />
           <Route path="/customer/journey" element={<ProtectedRoute><CustomerJourney /></ProtectedRoute>} />
+          <Route path="/customer/deals/:dealId" element={<ProtectedRoute><DealRoomPage /></ProtectedRoute>} />
           <Route path="/customer/loan" element={<ProtectedRoute><CustomerLoan /></ProtectedRoute>} />
           <Route path="/customer/loan-engine" element={<Navigate to="/customer/loan?tab=eligibility" replace />} />
           <Route path="/customer/loan-status" element={<Navigate to="/customer/loan?tab=status" replace />} />

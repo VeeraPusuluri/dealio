@@ -13,6 +13,8 @@ interface SSEEvent {
   city?: string;
   timestamp?: string;
   link?: string;
+  /** Persisted Notification row id — used to dedupe the live event against hydration. */
+  notificationId?: number;
 }
 
 function isMeetingEvent(title = '') {
@@ -40,10 +42,11 @@ function handleFrame(raw: string) {
     const notifType = routeNotifType(data.type ?? '');
 
     useNotificationStore.getState().addNotification({
-      type:    notifType,
+      type:     notifType,
       title,
       message,
-      link:    data.link,
+      link:     data.link,
+      serverId: data.notificationId,
     });
 
     // Signal meeting list pages to re-fetch

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type * as LeafletType from 'leaflet';
-import { MapPin, ExternalLink, Loader2, School, Hospital, Plane, ShoppingBag, ShoppingCart, Train, Newspaper } from 'lucide-react';
+import { MapPin, ExternalLink, Loader2, School, Hospital, Plane, ShoppingBag, ShoppingCart, Train } from 'lucide-react';
 import { builderApi } from '@/lib/api';
 
 type LeafletModule = typeof LeafletType;
@@ -24,13 +24,6 @@ interface NearbyPlace {
   lat: number;
   lng: number;
   distanceKm: number;
-}
-
-interface NewsItem {
-  title: string;
-  source: string;
-  date: string;
-  url?: string;
 }
 
 const CATEGORY_META: Record<NearbyPlace['category'], { label: string; icon: typeof School; color: string }> = {
@@ -253,25 +246,6 @@ async function fetchNearby(center: Coords, signal: AbortSignal): Promise<NearbyP
 }
 
 // ── Overpass query for nearby real estate developments ────────────────────────
-// ── Fetch local real-estate news (Google News RSS via rss2json) ───────────────
-async function fetchLocalNews(locality: string, signal: AbortSignal): Promise<NewsItem[]> {
-  const q = encodeURIComponent(`${locality} real estate`);
-  const rssUrl = encodeURIComponent(`https://news.google.com/rss/search?q=${q}&hl=en-IN&gl=IN&ceid=IN:en`);
-  const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}&count=3`, { signal });
-  if (!res.ok) throw new Error('fetch failed');
-  const data = await res.json() as {
-    status: string;
-    items?: Array<{ title: string; author: string; pubDate: string; link: string }>;
-  };
-  if (data.status !== 'ok' || !data.items?.length) throw new Error('no items');
-  return data.items.map(item => ({
-    title: item.title,
-    source: item.author || 'News',
-    date: new Date(item.pubDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-    url: item.link,
-  }));
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = false, showMapLabel = true, showNearby = true }: Props) => {
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
@@ -284,9 +258,6 @@ const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = fa
 
   const [nearbyLocality, setNearbyLocality]       = useState<string | null>(null);
 
-  const [newsItems, setNewsItems]   = useState<NewsItem[]>([]);
-  const [newsLoading, setNewsLoading] = useState(false);
-  const [newsFetched, setNewsFetched] = useState(false);
   const [geocodedCoords, setGeocodedCoords] = useState<Coords | null>(null);
 
   // ── Leaflet — loaded dynamically so a load failure never crashes the page ──
@@ -450,32 +421,6 @@ const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = fa
     return () => { controller.abort(); clearTimeout(timer); };
   }, [coords?.lat, coords?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Fetch local news once locality is known ───────────────────────────────
-  useEffect(() => {
-    const area = nearbyLocality || city;
-    if (!area || newsFetched) return;
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      setNewsLoading(true);
-      try {
-        const items = await fetchLocalNews(area, controller.signal);
-        setNewsItems(items);
-      } catch {
-        /* network/CORS — leave empty */
-      } finally {
-        setNewsLoading(false);
-        setNewsFetched(true);
-      }
-    }, 1200);
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [nearbyLocality, city]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Reset news when coords change
-  useEffect(() => {
-    setNewsItems([]);
-    setNewsFetched(false);
-  }, [coords?.lat, coords?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // ── Derived data ──────────────────────────────────────────────────────────
   const totalNearby = useMemo(
     () => (Object.values(categorized) as NearbyPlace[][]).reduce((s, a) => s + a.length, 0),
@@ -568,10 +513,6 @@ const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = fa
                     </button>
                   );
                 })}
-                <button type="button"
-                  className="ml-auto flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-gray-700">
-                  <Newspaper size={11} /> News
-                </button>
               </div>
             )}
 
@@ -579,39 +520,6 @@ const GoogleMapsLocationField = ({ value, onChange, address, city, readOnly = fa
             {coords && (
               <div className="relative">
                 <div ref={leafletDivRef} style={{ height: 380, width: '100%', zIndex: 0 }} />
-
-                {/* IN THE NEWS overlay — bottom-left */}
-                <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 1000, width: 280 }}
-                  className="bg-white/96 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-                  <div className="px-3.5 py-2.5 border-b border-gray-100 flex items-center justify-between">
-                    <span className="text-[10px] font-bold tracking-widest uppercase text-gray-600 flex items-center gap-1.5">
-                      <Newspaper size={10} className="text-teal-500" /> In The News
-                    </span>
-                    {newsLoading && <Loader2 size={10} className="text-teal-500 animate-spin" />}
-                  </div>
-                  <div className="overflow-y-auto" style={{ maxHeight: 180 }}>
-                    {!newsLoading && newsItems.length === 0 && newsFetched && (
-                      <p className="text-[11px] text-gray-400 px-3.5 py-3">No local news found.</p>
-                    )}
-                    {!newsLoading && newsItems.length === 0 && !newsFetched && (
-                      <div className="flex items-center justify-center py-6">
-                        <Loader2 size={13} className="text-gray-300 animate-spin" />
-                      </div>
-                    )}
-                    {newsItems.map((item, i) => (
-                      <a key={i}
-                        href={item.url || `https://news.google.com/search?q=${encodeURIComponent((nearbyLocality || city || '') + ' real estate')}`}
-                        target="_blank" rel="noreferrer"
-                        className="flex gap-2.5 px-3.5 py-2.5 border-b border-gray-50 hover:bg-teal-50/50 transition-colors group">
-                        <span className="text-[10px] font-bold text-gray-300 shrink-0 mt-0.5 w-4">{String(i + 1).padStart(2, '0')}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-medium text-gray-800 leading-snug line-clamp-2 group-hover:text-teal-700">{item.title}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{item.source} · {item.date}</p>
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                </div>
 
                 {/* Address overlay — bottom-right */}
                 <div style={{ position: 'absolute', bottom: 12, right: 12, zIndex: 1000, maxWidth: 220 }}

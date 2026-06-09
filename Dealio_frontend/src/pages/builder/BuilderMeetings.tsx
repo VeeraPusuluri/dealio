@@ -93,6 +93,7 @@ export function BuilderMeetingsPanel({ builderId: externalBid, embedded }: { bui
   const [selected,     setSelected]     = useState<ApiMeeting | null>(null);
   const [actionType,   setActionType]   = useState<string | null>(null);
   const [notes,        setNotes]        = useState('');
+  const [moveToNegotiation, setMoveToNegotiation] = useState(false);
   const [newDate,      setNewDate]      = useState('');
   const [newTime,      setNewTime]      = useState('');
   const [submitting,   setSubmitting]   = useState(false);
@@ -166,6 +167,22 @@ export function BuilderMeetingsPanel({ builderId: externalBid, embedded }: { bui
       setSelected(updated);
       toast.success({ confirm: 'Meeting confirmed!', reschedule: 'Rescheduled!', complete: 'Marked as completed', followup: 'Follow-up flagged', reject: 'Request rejected' }[actionType] ?? 'Updated');
 
+      // ── Optionally advance the customer's deal straight to Negotiation ────
+      if (actionType === 'complete' && moveToNegotiation) {
+        const matchingDeal = deals.find(d =>
+          d.customerName === selected.customerName &&
+          d.projectName === selected.projectName &&
+          d.status === 'Meeting Done'
+        );
+        if (matchingDeal) {
+          try {
+            await builderApi.updateBuilderDealStatus(bid, matchingDeal.id, 'Negotiation');
+            setDeals(prev => prev.map(d => d.id === matchingDeal.id ? { ...d, status: 'Negotiation' } : d));
+            toast.success(`${selected.customerName}'s deal moved to Negotiation`);
+          } catch { toast.error("Couldn't move deal to Negotiation"); }
+        }
+      }
+
       const selfMsgs: Record<string, string> = {
         Confirmed:            `Meeting with ${selected.customerName} confirmed for ${selected.preferredDate} at ${selected.preferredTime}`,
         Rescheduled:          `Meeting with ${selected.customerName} rescheduled`,
@@ -211,7 +228,7 @@ export function BuilderMeetingsPanel({ builderId: externalBid, embedded }: { bui
     } catch { toast.error('Failed to update'); }
     finally {
       setSubmitting(false); setActionType(null);
-      setNotes(''); setNewDate(''); setNewTime('');
+      setNotes(''); setNewDate(''); setNewTime(''); setMoveToNegotiation(false);
     }
   };
 
@@ -534,7 +551,7 @@ export function BuilderMeetingsPanel({ builderId: externalBid, embedded }: { bui
                         <p className="text-[13px] font-bold text-foreground">
                           {{ confirm: 'Confirm Meeting', reschedule: 'Propose New Time', complete: 'Mark Completed', followup: 'Flag Follow-up', reject: 'Reject Request' }[actionType]}
                         </p>
-                        <button onClick={() => setActionType(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                        <button onClick={() => { setActionType(null); setMoveToNegotiation(false); }} className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                           <X size={14} />
                         </button>
                       </div>
@@ -567,8 +584,19 @@ export function BuilderMeetingsPanel({ builderId: externalBid, embedded }: { bui
                             : 'Add a note for the customer…'}
                           className={`${ic} resize-none`} />
                       </div>
+                      {actionType === 'complete' && (
+                        <label className="flex items-start gap-2.5 p-3 rounded-xl border border-teal-100 bg-teal-50/60 cursor-pointer">
+                          <input type="checkbox" checked={moveToNegotiation}
+                            onChange={e => setMoveToNegotiation(e.target.checked)}
+                            className="mt-0.5 w-4 h-4 rounded border-border text-teal-600 focus:ring-teal-500/30" />
+                          <span className="text-[12px] leading-snug text-foreground">
+                            <span className="font-semibold">Also move {selected.customerName.split(' ')[0]}'s deal to Negotiation</span>
+                            <span className="block text-[11px] text-muted-foreground mt-0.5">Optional — skips the &quot;Meeting Done&quot; stage and advances them straight to negotiation.</span>
+                          </span>
+                        </label>
+                      )}
                       <div className="flex gap-2">
-                        <button onClick={() => setActionType(null)}
+                        <button onClick={() => { setActionType(null); setMoveToNegotiation(false); }}
                           className="flex-1 py-2.5 rounded-xl text-[12px] font-medium border border-border text-muted-foreground hover:bg-muted transition-colors">
                           Cancel
                         </button>

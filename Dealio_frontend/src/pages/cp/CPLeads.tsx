@@ -11,7 +11,7 @@ import {
   Send, FileText, ExternalLink, Zap, RefreshCw, Route,
 } from 'lucide-react';
 import CustomerJourneyTab from '@/components/shared/CustomerJourneyTab';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import DatePickerField from '@/components/shared/DatePickerField';
 
 interface CPLead {
@@ -150,9 +150,18 @@ const DealPanel = ({ lead, dealDetail, loading, cpUserId, onClose, onRefresh }: 
             </p>
             <p className="text-xs text-slate-500 truncate">{lead.projectName}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 shrink-0">
-            <X size={15} />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <Link
+              to={`/cp/deals/${lead.id}`}
+              title="Open the shared Deal Room"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-teal-700 hover:bg-teal-50 transition-colors"
+            >
+              <ExternalLink size={12} /> Deal Room
+            </Link>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
+              <X size={15} />
+            </button>
+          </div>
         </div>
 
         {/* Commission badge */}

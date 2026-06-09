@@ -32,6 +32,29 @@ interface Project {
 
 const TAG_OPTIONS = ['Hot Lead', 'Warm Lead', 'Family', 'Friend', 'Colleague', 'Client'];
 
+interface CustomerStage {
+  status: string;
+  projectName: string;
+}
+
+const STAGE_BADGE: Record<string, string> = {
+  'New Lead':           'bg-slate-500/20 text-slate-300 border border-slate-500/20',
+  'Profile Created':    'bg-teal-500/20 text-teal-300 border border-teal-500/20',
+  'Meeting Requested':  'bg-indigo-500/20 text-indigo-300 border border-indigo-500/20',
+  'Meeting Confirmed':  'bg-violet-500/20 text-violet-300 border border-violet-500/20',
+  'Meeting Done':       'bg-pink-500/20 text-pink-300 border border-pink-500/20',
+  'Negotiation':        'bg-amber-500/20 text-amber-300 border border-amber-500/20',
+  'Agreement':          'bg-blue-500/20 text-blue-300 border border-blue-500/20',
+  'Pending Booking':    'bg-cyan-500/20 text-cyan-300 border border-cyan-500/20',
+  'Booked':             'bg-emerald-500/20 text-emerald-300 border border-emerald-500/20',
+  'Closed':             'bg-green-500/20 text-green-300 border border-green-500/20',
+};
+
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  return digits.slice(-10);
+}
+
 const glassInp = 'w-full mt-1 px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500/50 focus:bg-white/8 transition-all';
 
 function ContactAvatar({ name }: { name: string }) {
@@ -66,6 +89,7 @@ const CPContacts = () => {
   const { user } = useAuthStore();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [stageByPhone, setStageByPhone] = useState<Record<string, CustomerStage>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -84,9 +108,15 @@ const CPContacts = () => {
     Promise.all([
       cpApi.getContacts(user.id) as Promise<Contact[]>,
       builderApi.getPublicProjects() as Promise<Project[]>,
-    ]).then(([c, p]) => {
+      cpApi.getLeads(user.id) as Promise<Array<{ customerPhone: string; status: string; projectName: string }>>,
+    ]).then(([c, p, leads]) => {
       setContacts(c ?? []);
       setProjects((p ?? []).slice(0, 20));
+      const stages: Record<string, CustomerStage> = {};
+      (leads ?? []).forEach(l => {
+        if (l.customerPhone) stages[normalizePhone(l.customerPhone)] = { status: l.status, projectName: l.projectName };
+      });
+      setStageByPhone(stages);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [user?.id]);
 
@@ -278,7 +308,9 @@ const CPContacts = () => {
           </div>
         ) : (
           <div className="grid gap-3">
-            {filtered.map(contact => (
+            {filtered.map(contact => {
+              const stage = stageByPhone[normalizePhone(contact.phone)];
+              return (
               <div
                 key={contact.id}
                 className="bg-white/[0.06] backdrop-blur-sm rounded-2xl border border-white/10 p-4 hover:border-orange-500/30 hover:bg-white/10 transition-all duration-200"
@@ -291,6 +323,11 @@ const CPContacts = () => {
                       {contact.tags && contact.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => (
                         <TagChip key={tag} tag={tag} />
                       ))}
+                      {stage && (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${STAGE_BADGE[stage.status] ?? 'bg-white/10 text-slate-300 border border-white/10'}`}>
+                          {stage.status}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 mt-1 text-xs text-slate-400 flex-wrap">
                       <span className="flex items-center gap-1"><Phone size={11} /> {contact.phone}</span>
@@ -299,6 +336,11 @@ const CPContacts = () => {
                         <span className="flex items-center gap-1 text-sky-400 font-medium"><Home size={11} /> {contact.bhkPreference}</span>
                       )}
                     </div>
+                    {stage && (
+                      <p className="flex items-center gap-1 text-xs text-orange-300/80 mt-1">
+                        <Building2 size={11} /> Currently in <span className="font-semibold">{stage.status}</span> for {stage.projectName}
+                      </p>
+                    )}
                     {contact.notes && (
                       <p className="text-xs text-slate-500 mt-1 italic truncate">{contact.notes}</p>
                     )}
@@ -335,7 +377,8 @@ const CPContacts = () => {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

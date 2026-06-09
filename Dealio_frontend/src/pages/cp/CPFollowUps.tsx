@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { cpApi } from '@/lib/api';
@@ -175,8 +175,9 @@ function ScheduleForm({
 }
 
 /* ── Page ─────────────────────────────────────────────────────────── */
-export default function CPFollowUps() {
+export default function CPFollowUps({ embedded }: { embedded?: boolean } = {}) {
   const { user } = useAuthStore();
+  const Wrapper = embedded ? Fragment : DashboardLayout;
   const cpUserId = user?.id ?? '';
 
   const [leads,     setLeads]     = useState<CPLead[]>([]);
@@ -264,8 +265,8 @@ export default function CPFollowUps() {
   ];
 
   return (
-    <DashboardLayout>
-      <div className="space-y-5 pb-8">
+    <Wrapper>
+      <div className={embedded ? 'space-y-5' : 'space-y-5 pb-8'}>
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -456,6 +457,6 @@ export default function CPFollowUps() {
           </>
         )}
       </div>
-    </DashboardLayout>
+    </Wrapper>
   );
 }

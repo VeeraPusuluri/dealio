@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { builderApi, customerApi } from '@/lib/api';
@@ -53,6 +54,7 @@ interface DealDetail {
   commissionAmount?: number | null;
   cpAgreed: boolean;
   customerConfirmed: boolean;
+  commissionStatus?: string | null;
   paymentSchedule?: PayInstallment[] | null;
   messages: DealMsg[];
   dealDocuments: DealDoc[];
@@ -73,8 +75,12 @@ interface DealSummary {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const STAGES = ['Meeting Done', 'Negotiation', 'Agreement', 'Booked', 'Closed'] as const;
+const STAGES = ['Meeting Done', 'Negotiation', 'Agreement', 'Pending Booking', 'Booked', 'Closed'] as const;
 type DealStage = typeof STAGES[number];
+
+function dealStageIndexOf(status: string): number {
+  return STAGES.indexOf(status as DealStage);
+}
 
 function fmtCurrency(v?: number | null): string {
   if (v == null) return '—';
@@ -88,19 +94,21 @@ function fmtDate(s: string) {
 }
 
 const STAGE_COLORS: Record<string, string> = {
-  'Meeting Done': '#0A7E8C',
-  'Negotiation':  '#D97706',
-  'Agreement':    '#2563EB',
-  'Booked':       '#059669',
-  'Closed':       '#7C3AED',
+  'Meeting Done':    '#0A7E8C',
+  'Negotiation':     '#D97706',
+  'Agreement':       '#2563EB',
+  'Pending Booking': '#0891B2',
+  'Booked':          '#059669',
+  'Closed':          '#7C3AED',
 };
 
 const STAGE_BG: Record<string, string> = {
-  'Meeting Done': 'bg-teal-50 text-teal-700 border-teal-200',
-  'Negotiation':  'bg-amber-50 text-amber-700 border-amber-200',
-  'Agreement':    'bg-blue-50 text-blue-700 border-blue-200',
-  'Booked':       'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'Closed':       'bg-violet-50 text-violet-700 border-violet-200',
+  'Meeting Done':    'bg-teal-50 text-teal-700 border-teal-200',
+  'Negotiation':     'bg-amber-50 text-amber-700 border-amber-200',
+  'Agreement':       'bg-blue-50 text-blue-700 border-blue-200',
+  'Pending Booking': 'bg-cyan-50 text-cyan-700 border-cyan-200',
+  'Booked':          'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'Closed':          'bg-violet-50 text-violet-700 border-violet-200',
 };
 
 const TIER_STYLES: Record<string, string> = {
@@ -115,7 +123,7 @@ const TIER_DOT: Record<string, string> = {
   Platinum: '#4F46E5',
 };
 
-const DOC_TYPES = ['Pricing Quote', 'Sale Agreement', 'Allotment Letter', 'Other'] as const;
+const DOC_TYPES = ['Pricing Quote', 'Sale Agreement', 'Allotment Letter', 'Sale Deed', 'Registration Copy', 'Other'] as const;
 
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
 
@@ -163,6 +171,7 @@ export function DealDrawer({
   const [addingDoc, setAddingDoc] = useState(false);
   const [showDocForm, setShowDocForm] = useState(false);
   const [togglingDoc, setTogglingDoc] = useState<number | null>(null);
+  const [acceptingAgreement, setAcceptingAgreement] = useState(false);
 
   const openQuoteForm = () => {
     setDocForm({ docType: 'Pricing Quote', sharedWithCp: false, sharedWithCustomer: true });
@@ -223,6 +232,22 @@ export function DealDrawer({
       toast.error((e as Error).message || 'Failed to update stage');
     } finally {
       setStageUpdating(false);
+    }
+  };
+
+  // ── Accept signed agreement → move deal to Pending Booking ──
+  const handleAcceptAgreement = async () => {
+    if (!detail || acceptingAgreement) return;
+    setAcceptingAgreement(true);
+    try {
+      await builderApi.acceptSignedAgreement(builderId, detail.id);
+      await loadDetail();
+      onRefreshList();
+      toast.success('Agreement accepted — deal moved to Pending Booking');
+    } catch (e: unknown) {
+      toast.error((e as Error).message || 'Failed to accept agreement');
+    } finally {
+      setAcceptingAgreement(false);
     }
   };
 
@@ -366,9 +391,18 @@ export function DealDrawer({
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 ml-2">
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+            <Link
+              to={`/builder/deals/${dealSummary.id}`}
+              title="Open the shared Deal Room"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-[#0A7E8C] hover:bg-[#0A7E8C12] transition-colors"
+            >
+              <ExternalLink size={13} /> Deal Room
+            </Link>
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Tab Bar */}
@@ -821,6 +855,25 @@ export function DealDrawer({
                               Send to Customer
                             </label>
                           </div>
+
+                          {doc.docType === 'Signed Agreement' && doc.uploadedByRole === 'customer' && (
+                            detail.status === 'Agreement' ? (
+                              <button
+                                onClick={handleAcceptAgreement}
+                                disabled={acceptingAgreement}
+                                className="flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white shadow-sm hover:opacity-90 transition-opacity disabled:opacity-60"
+                                style={{ backgroundColor: '#0A7E8C' }}
+                              >
+                                {acceptingAgreement
+                                  ? <><Loader2 size={11} className="animate-spin" /> Accepting…</>
+                                  : <><CheckCircle2 size={11} /> Accept Agreement &amp; Move to Pending Booking</>}
+                              </button>
+                            ) : (dealStageIndexOf(detail.status) > dealStageIndexOf('Agreement')) && (
+                              <span className="inline-flex items-center gap-1.5 mt-3 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <CheckCircle2 size={11} /> Agreement accepted
+                              </span>
+                            )
+                          )}
                         </div>
                       </div>
                     ))}
@@ -961,6 +1014,21 @@ export function DealDrawer({
                       </div>
                     </div>
 
+                    {/* Payout eligibility status */}
+                    {(() => {
+                      const released = detail.commissionStatus === 'Released';
+                      const eligible = !released && (detail.status === 'Booked' || detail.status === 'Closed') && detail.cpAgreed && detail.customerConfirmed;
+                      if (!released && !eligible) return null;
+                      return (
+                        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[12px] font-semibold ${
+                          released ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-amber-50 border-amber-200 text-amber-700'
+                        }`}>
+                          {released ? <CheckCircle2 size={13} /> : <Clock size={13} />}
+                          {released ? 'Commission paid out' : 'Eligible for payout'}
+                        </div>
+                      );
+                    })()}
+
                     {/* Release Button */}
                     <button
                       onClick={handleReleaseCommission}
@@ -1056,6 +1124,7 @@ export function BuilderDealsPanel({ builderId: externalBid, embedded }: { builde
             <option value="Meeting Done">Meeting Done</option>
             <option value="Negotiation">Negotiation</option>
             <option value="Agreement">Agreement</option>
+            <option value="Pending Booking">Pending Booking</option>
             <option value="Booked">Booked</option>
             <option value="Closed">Closed</option>
           </select>
@@ -1066,6 +1135,7 @@ export function BuilderDealsPanel({ builderId: externalBid, embedded }: { builde
             <option value="all">All</option>
             <option value="Negotiation">Negotiation</option>
             <option value="Agreement">Agreement</option>
+            <option value="Pending Booking">Pending Booking</option>
             <option value="Booked">Booked</option>
             <option value="Closed">Closed</option>
           </select>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { cpApi, builderApi, portalApi } from '@/lib/api';
@@ -81,8 +81,9 @@ function timeAgo(s: string) {
 
 const STEPS = ['Select City', 'Select Project', 'Customer Details'] as const;
 
-const CPMeetingRequests = () => {
+const CPMeetingRequests = ({ embedded }: { embedded?: boolean } = {}) => {
   const { user } = useAuthStore();
+  const Wrapper = embedded ? Fragment : DashboardLayout;
   const cpUserId = user?.id ?? '';
 
   const [tab, setTab] = useState<'meetings' | 'sharing'>('meetings');
@@ -211,8 +212,8 @@ const CPMeetingRequests = () => {
   const confirmed = meetings.filter(m => m.status === 'Confirmed' || m.status === 'Rescheduled').length;
 
   return (
-    <DashboardLayout>
-      <div className="space-y-5 pb-8">
+    <Wrapper>
+      <div className={embedded ? 'space-y-5' : 'space-y-5 pb-8'}>
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -696,7 +697,7 @@ const CPMeetingRequests = () => {
           )}
         </DialogContent>
       </Dialog>
-    </DashboardLayout>
+    </Wrapper>
   );
 };
 

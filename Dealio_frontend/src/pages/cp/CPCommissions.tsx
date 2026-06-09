@@ -5,8 +5,9 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { cpApi } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { DollarSign, TrendingUp, Clock, CheckCircle, Wallet } from 'lucide-react';
+import { DollarSign, TrendingUp, Clock, CheckCircle, Wallet, Receipt } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
 
 interface CommissionEntry {
   id: number;
@@ -30,6 +31,7 @@ const CPCommissions = () => {
   const [entries, setEntries] = useState<CommissionEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'overview' | 'history'>('overview');
+  const [statementFor, setStatementFor] = useState<CommissionEntry | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -90,6 +92,7 @@ const CPCommissions = () => {
                     {tab === 'history' && <th className="px-4 py-3 font-medium text-right">Net</th>}
                     <th className="px-4 py-3 font-medium">Date</th>
                     <th className="px-4 py-3 font-medium">Status</th>
+                    {tab === 'history' && <th className="px-4 py-3 font-medium">Invoice</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -114,7 +117,19 @@ const CPCommissions = () => {
                         </td>
                       )}
                       <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(c.createdAt)}</td>
-                      <td className="px-4 py-3"><StatusBadge status={c.commissionStatus || 'Pending'} /></td>
+                      <td className="px-4 py-3"><StatusBadge status={c.commissionStatus === 'Released' ? 'Paid' : (c.commissionStatus || 'Pending')} /></td>
+                      {tab === 'history' && (
+                        <td className="px-4 py-3">
+                          {c.commissionStatus === 'Released' && (
+                            <button
+                              onClick={() => setStatementFor(c)}
+                              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold border border-border text-card-foreground hover:bg-muted transition-colors"
+                            >
+                              <Receipt size={12} /> Statement
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -170,6 +185,25 @@ const CPCommissions = () => {
           </div>
         </div>
       </div>
+
+      {statementFor && (
+        <DocumentPreviewModal
+          open={!!statementFor}
+          onClose={() => setStatementFor(null)}
+          type="commission"
+          data={{
+            cpName: user?.name || '',
+            project: statementFor.projectName,
+            customer: statementFor.customerName,
+            saleValue: formatCurrency(statementFor.dealValue ?? 0),
+            commissionPct: `${statementFor.commissionPercent}%`,
+            grossComm: formatCurrency(statementFor.commissionAmount),
+            tds: formatCurrency(Math.round(statementFor.commissionAmount * TDS_RATE)),
+            netPayable: formatCurrency(statementFor.commissionAmount - Math.round(statementFor.commissionAmount * TDS_RATE)),
+            date: statementFor.commissionReleasedAt ? formatDate(statementFor.commissionReleasedAt) : formatDate(statementFor.createdAt),
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 };

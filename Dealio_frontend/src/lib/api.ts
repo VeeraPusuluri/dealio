@@ -41,7 +41,7 @@ async function request(base: string, path: string, options: RequestInit = {}) {
     throw new Error((json?.message as string) || `Request failed: ${res.status}`);
   }
 
-  // Unwrap Spring Boot ApiResponse wrapper { ok, message, data }
+  // Unwrap the backend's ApiResponse envelope { ok, message, data }
   return json?.data !== undefined ? json.data : json;
 }
 
@@ -163,6 +163,9 @@ export const builderApi = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+
+  acceptSignedAgreement: (builderId: number | string, dealId: number | string) =>
+    builderReq(`/builder/${builderId}/deals/${dealId}/accept-agreement`, { method: 'PATCH' }),
 
   getBuilderNotifications: () =>
     builderReq('/builder/notifications'),
@@ -369,6 +372,19 @@ export const customerApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
+};
+
+// Role-aware notification read-sync. All three routers expose the same PATCH shape on
+// the single backend; the caller's role picks the path prefix.
+function notifPrefix(role?: string): string {
+  return role === 'cp' ? '/cp' : role === 'customer' ? '/customer' : '/builder';
+}
+
+export const notificationsApi = {
+  markRead: (role: string | undefined, id: number) =>
+    builderReq(`${notifPrefix(role)}/notifications/${id}/read`, { method: 'PATCH' }).catch(() => {}),
+  markAllRead: (role: string | undefined) =>
+    builderReq(`${notifPrefix(role)}/notifications/read-all`, { method: 'PATCH' }).catch(() => {}),
 };
 
 export interface CPContactPayload {
@@ -587,6 +603,41 @@ export const portalApi = {
 
   confirmDeal: (dealId: number, phone: string) =>
     builderReq(`/builder/customer/deals/${dealId}/confirm`, { method: 'PATCH', body: JSON.stringify({ phone }) }),
+
+  acceptNegotiation: (dealId: number, phone: string) =>
+    builderReq(`/portal/customer/deals/${dealId}/accept-negotiation`, { method: 'PATCH', body: JSON.stringify({ phone }) }),
+
+  uploadSignedAgreement: async (dealId: number, phone: string, file: File) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('phone', phone);
+    let res: Response;
+    try {
+      res = await fetch(`${BUILDER_BASE}/portal/customer/deals/${dealId}/signed-agreement`, {
+        method: 'POST',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: formData,
+      });
+    } catch {
+      throw new Error('Cannot reach the server.');
+    }
+    let json: Record<string, unknown>;
+    try { json = await res.json(); } catch {
+      throw new Error(`Server error (HTTP ${res.status})`);
+    }
+    if (!res.ok) throw new Error((json?.message as string) || `Upload failed: ${res.status}`);
+    return json?.data !== undefined ? json.data : json;
+  },
+
+  sendDealMessage: (dealId: number, phone: string, recipientRole: 'builder' | 'cp', message: string) =>
+    builderReq(`/portal/customer/deals/${dealId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ phone, recipientRole, message }),
+    }),
+
+  requestPricing: (data: { builderId: number; projectId: number; customerPhone: string; unitId: string; unitDetails: object; note?: string }) =>
+    builderReq('/portal/customer/pricing-requests', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 const adminReq = (path: string, options?: RequestInit) => request(BUILDER_BASE, `/admin${path}`, options);

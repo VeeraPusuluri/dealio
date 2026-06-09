@@ -8,6 +8,7 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { useNavigate } from 'react-router-dom';
 import { DollarSign, Users, AlertTriangle, CheckCircle, Search, X, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNotificationStore } from '@/stores/useNotificationStore';
 
 interface CommissionDeal {
   id: number;
@@ -49,8 +50,7 @@ const AdminCommissions = () => {
     const cpName = d.cp?.user?.fullName || '';
     if (search && !cpName.toLowerCase().includes(search.toLowerCase())) return false;
     if (statusFilter !== 'All') {
-      if (statusFilter === 'Pending' && d.commissionStatus !== 'Pending') return false;
-      if (statusFilter === 'Released' && d.commissionStatus !== 'Released') return false;
+      if (statusFilter !== (d.commissionStatus || 'Pending')) return false;
     }
     if (projectFilter !== 'All' && d.project?.name !== projectFilter) return false;
     return true;
@@ -70,13 +70,28 @@ const AdminCommissions = () => {
     else setSelected(new Set(queueItems.map(d => d.id)));
   };
 
+  const handleMarkProcessing = (dealId: number) => {
+    setDeals(prev => prev.map(d => d.id === dealId ? { ...d, commissionStatus: 'Processing' } : d));
+    toast.success('Commission moved to processing');
+  };
+
   const handleRelease = async (dealId: number) => {
     try {
-      await adminApi.updateDealMilestone(dealId, deals.find(d => d.id === dealId)?.status || 'Booked');
+      const deal = deals.find(d => d.id === dealId);
+      await adminApi.updateDealMilestone(dealId, deal?.status || 'Booked');
       // Update commissionStatus locally — in production this would be a dedicated endpoint
       setDeals(prev => prev.map(d => d.id === dealId ? { ...d, commissionStatus: 'Released', commissionReleasedAt: new Date().toISOString() } : d));
       setReleaseModal(null);
       toast.success('Commission released successfully');
+      if (deal) {
+        useNotificationStore.getState().addNotification({
+          type: 'success',
+          title: 'Commission paid out',
+          message: `₹${(commissionAmount(deal) / 100000).toFixed(1)}L released for ${deal.project?.name || 'your deal'} — invoice & statement are ready to download.`,
+          role: 'cp',
+          link: '/cp/commissions',
+        });
+      }
     } catch {
       toast.error('Failed to release commission');
     }
@@ -122,7 +137,7 @@ const AdminCommissions = () => {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by CP name..." className="w-full pl-9 pr-4 py-2 rounded-lg bg-muted text-sm outline-none text-foreground" />
           </div>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 rounded-lg bg-muted text-sm text-foreground outline-none">
-            <option>All</option><option>Pending</option><option>Released</option>
+            <option>All</option><option>Pending</option><option>Processing</option><option>Released</option>
           </select>
           <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="px-3 py-2 rounded-lg bg-muted text-sm text-foreground outline-none">
             <option>All</option>
@@ -183,9 +198,12 @@ const AdminCommissions = () => {
                     <td className="px-4 py-3 text-right text-muted-foreground">{(COMMISSION_RATE * 100).toFixed(0)}%</td>
                     <td className="px-4 py-3 text-right font-semibold text-card-foreground">{formatCurrency(commissionAmount(d))}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(d.createdAt)}</td>
-                    <td className="px-4 py-3"><StatusBadge status={d.commissionStatus || 'Pending'} /></td>
+                    <td className="px-4 py-3"><StatusBadge status={d.commissionStatus === 'Released' ? 'Paid' : (d.commissionStatus || 'Pending')} /></td>
                     <td className="px-4 py-3 flex gap-1">
-                      {d.commissionStatus !== 'Released' && (
+                      {(!d.commissionStatus || d.commissionStatus === 'Pending') && (
+                        <button onClick={() => handleMarkProcessing(d.id)} className="px-3 py-1 rounded text-xs font-semibold bg-blue-600 text-white hover:opacity-90">Start Processing</button>
+                      )}
+                      {d.commissionStatus === 'Processing' && (
                         <button onClick={() => setReleaseModal(d)} className="px-3 py-1 rounded text-xs font-semibold bg-green-600 text-white hover:opacity-90">Release</button>
                       )}
                       <button onClick={() => setDealDrawer(d)} className="px-3 py-1 rounded text-xs font-semibold bg-muted text-card-foreground hover:opacity-90">View</button>
@@ -235,7 +253,7 @@ const AdminCommissions = () => {
                 <div><p className="text-muted-foreground">Deal Status</p><StatusBadge status={dealDrawer.status} /></div>
                 <div><p className="text-muted-foreground">Sale Value</p><p className="font-bold text-card-foreground">{formatCurrency(dealDrawer.dealValue ?? 0)}</p></div>
                 <div><p className="text-muted-foreground">Commission (3%)</p><p className="font-bold text-card-foreground">{formatCurrency(commissionAmount(dealDrawer))}</p></div>
-                <div><p className="text-muted-foreground">Commission Status</p><StatusBadge status={dealDrawer.commissionStatus || 'Pending'} /></div>
+                <div><p className="text-muted-foreground">Commission Status</p><StatusBadge status={dealDrawer.commissionStatus === 'Released' ? 'Paid' : (dealDrawer.commissionStatus || 'Pending')} /></div>
                 {dealDrawer.commissionReleasedAt && (
                   <div><p className="text-muted-foreground">Released On</p><p className="text-card-foreground">{formatDate(dealDrawer.commissionReleasedAt)}</p></div>
                 )}

@@ -147,7 +147,7 @@ const Home = () => {
                   </Link>
                   <Link to="/login?tab=signup">
                     <button className="px-4 py-2 rounded-xl text-sm font-bold text-white shadow-lg shadow-[#E87722]/25 hover:-translate-y-px active:translate-y-0 transition-all"
-                      style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #E87722 60%, #D4691C 100%)' }}>
+                      style={{ background: 'linear-gradient(135deg, #EFAE54 0%, #E0833A 55%, #C8621D 100%)' }}>
                       Get Started
                     </button>
                   </Link>
@@ -172,7 +172,7 @@ const Home = () => {
                   <button className="w-full py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-[#1B3A5C]">Sign In</button>
                 </Link>
                 <Link to="/login?tab=signup" className="flex-1">
-                  <button className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg,#E87722,#D4691C)' }}>Get Started</button>
+                  <button className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg,#E0833A,#C8621D)' }}>Get Started</button>
                 </Link>
               </div>
             </div>
@@ -197,29 +197,29 @@ const Home = () => {
           <div className="relative max-w-7xl mx-auto px-5 sm:px-8 pt-20 pb-16 md:pt-28 md:pb-24">
             <div className="max-w-3xl mx-auto text-center">
 
-              <div className="hero-badge inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/15 bg-white/8 backdrop-blur-sm text-white/85 text-xs font-semibold mb-8 shadow-inner">
-                <Sparkles size={12} style={{ color: '#F5A623' }} />
+              <div className="hero-badge inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-white/15 bg-white/[0.06] backdrop-blur-sm text-white/80 text-xs font-medium mb-8 tracking-wide">
+                <Sparkles size={12} style={{ color: '#F0D8A8' }} />
                 India's unified real-estate operating system
-                <span className="ml-0.5 px-2 py-0.5 rounded-full text-white text-[10px] font-bold"
-                  style={{ background: 'linear-gradient(135deg,#E87722,#D4691C)' }}>New</span>
+                <span className="ml-0.5 px-2 py-0.5 rounded-full text-[#1B3A5C] text-[10px] font-bold tracking-wider"
+                  style={{ background: 'linear-gradient(135deg,#F0D8A8,#D4AF6A)' }}>NEW</span>
               </div>
 
-              <h1 className="hero-title text-4xl sm:text-5xl md:text-6xl lg:text-[70px] font-black text-white leading-[1.04] tracking-tight mb-6">
+              <h1 className="hero-title text-4xl sm:text-5xl md:text-6xl lg:text-[72px] font-extrabold text-white leading-[1.08] tracking-tight mb-6">
                 One platform.<br />
-                <span style={{ background: 'linear-gradient(90deg,#FCD34D,#F59E0B,#E87722)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                <span style={{ background: 'linear-gradient(90deg,#F0D8A8,#E8A33D,#D4691C)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                   Every stakeholder
                 </span><br />
                 in your deal.
               </h1>
 
-              <p className="hero-sub text-white/65 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+              <p className="hero-sub text-white/60 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed font-light">
                 Dealio connects builders, channel partners, customers, banks and NRIs — so every transaction closes faster, with zero leakage.
               </p>
 
               <div className="hero-cta flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
                 <Link to="/login?tab=signup">
                   <button className="group flex items-center gap-2.5 px-7 py-4 rounded-2xl font-bold text-sm text-white shadow-2xl shadow-[#E87722]/30 hover:-translate-y-0.5 active:translate-y-0 transition-all"
-                    style={{ background: 'linear-gradient(135deg,#F59E0B 0%,#E87722 55%,#D4691C 100%)' }}>
+                    style={{ background: 'linear-gradient(135deg,#EFAE54 0%,#E0833A 55%,#C8621D 100%)' }}>
                     Create free account
                     <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
                   </button>
@@ -250,8 +250,10 @@ const Home = () => {
                   { icon: Zap,        label: 'Leads today',       value: '2,318', delta: 'Live',          color: '#F5A623' },
                 ].map((item, i) => (
                   <div key={item.label}
-                    className="float-card group bg-white/8 border border-white/12 backdrop-blur-sm rounded-2xl p-4 sm:p-5 hover:bg-white/14 hover:border-white/20 transition-colors duration-200"
+                    className="float-card group relative bg-white/[0.06] border border-white/12 backdrop-blur-sm rounded-2xl p-4 sm:p-5 hover:bg-white/[0.1] hover:border-white/20 transition-colors duration-200 overflow-hidden"
                     style={{ animationDelay: `${i * 0.4}s` }}>
+                    <div className="absolute top-0 left-5 right-5 h-px opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{ background: `linear-gradient(90deg, transparent, ${item.color}, transparent)` }} />
                     <div className="flex items-start justify-between mb-3">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center"
                         style={{ backgroundColor: item.color + '28' }}>
@@ -313,7 +315,7 @@ const Home = () => {
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0A7E8C]/10 text-[#0A7E8C] text-xs font-bold uppercase tracking-widest mb-4">
                 Role-based portals
               </span>
-              <h2 className="text-3xl sm:text-4xl md:text-[44px] font-black text-[#1B3A5C] leading-tight tracking-tight">
+              <h2 className="text-3xl sm:text-4xl md:text-[44px] font-extrabold text-[#1B3A5C] leading-tight tracking-tight">
                 Built for every role<br className="hidden sm:block" /> in the deal
               </h2>
               <p className="mt-3 text-slate-500 text-base leading-relaxed">
@@ -354,7 +356,7 @@ const Home = () => {
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#E87722]/10 text-[#E87722] text-xs font-bold uppercase tracking-widest mb-5">
                 Platform features
               </span>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-[#1B3A5C] leading-tight tracking-tight">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#1B3A5C] leading-tight tracking-tight">
                 Everything you need,<br className="hidden sm:block" /> nothing you don't
               </h2>
               <p className="mt-4 text-slate-500 text-lg leading-relaxed">
@@ -399,7 +401,7 @@ const Home = () => {
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/75 text-xs font-bold uppercase tracking-widest mb-5">
                 Real stories
               </span>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white leading-tight tracking-tight">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-tight">
                 Trusted by India's top<br className="hidden sm:block" /> real-estate professionals
               </h2>
             </div>
@@ -453,7 +455,7 @@ const Home = () => {
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/75 text-xs font-bold uppercase tracking-widest mb-7">
                   <Sparkles size={11} style={{ color: '#F5A623' }} /> Free to get started
                 </div>
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white leading-tight tracking-tight mb-4">
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-tight mb-4">
                   Ready to close<br /> deals faster?
                 </h2>
                 <p className="text-white/60 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
@@ -462,7 +464,7 @@ const Home = () => {
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                   <Link to="/login?tab=signup">
                     <button className="group flex items-center gap-2.5 px-8 py-4 rounded-2xl font-bold text-sm text-white shadow-2xl shadow-[#E87722]/30 hover:-translate-y-0.5 active:translate-y-0 transition-all"
-                      style={{ background: 'linear-gradient(135deg,#F59E0B 0%,#E87722 55%,#D4691C 100%)' }}>
+                      style={{ background: 'linear-gradient(135deg,#EFAE54 0%,#E0833A 55%,#C8621D 100%)' }}>
                       Get started free
                       <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
                     </button>

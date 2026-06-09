@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import JourneyTimeline from '@/components/shared/JourneyTimeline';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { portalApi } from '@/lib/api';
+import { portalApi, builderApi } from '@/lib/api';
 import {
   Loader2, AlertCircle, ListChecks, FileText, Clock, CheckCircle2,
-  TrendingUp, Handshake, ExternalLink, MessageSquare,
+  TrendingUp, Handshake, ExternalLink, MessageSquare, Sparkles, ArrowRight,
+  Bookmark, Tag, X, Upload,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -16,6 +18,7 @@ interface DealDoc {
   name: string;
   docType: string;
   fileUrl?: string | null;
+  uploadedByRole?: string;
   createdAt: string;
 }
 
@@ -48,6 +51,7 @@ interface CustomerDeal {
 
 interface ApiMeeting {
   id: number;
+  builderId?: number;
   projectId: number;
   projectName: string;
   preferredDate: string;
@@ -84,6 +88,7 @@ const DEAL_STAGE_ORDER = [
   'meeting done',
   'negotiation',
   'agreement',
+  'pending booking',
   'booked',
   'loan sanctioned',
   'closed',
@@ -138,6 +143,14 @@ function buildJourney(deals: CustomerDeal[], meetings: ApiMeeting[]): JourneySte
       notes: deal.customerConfirmed ? 'Accepted by you' : 'Awaiting your acceptance',
     });
 
+  if (dealIdx >= dealStageIndex('pending booking'))
+    steps.push({
+      label: `Booking in Progress${suffix}`,
+      date: dealDate,
+      status: dealIdx >= dealStageIndex('booked') ? 'completed' : 'in-progress',
+      notes: 'Builder accepted your signed agreement — your booking is being confirmed.',
+    });
+
   if (dealIdx >= dealStageIndex('booked'))
     steps.push({
       label: `Unit Booked${suffix}`,
@@ -161,7 +174,11 @@ function buildJourney(deals: CustomerDeal[], meetings: ApiMeeting[]): JourneySte
       steps.push({ label: 'Loan Disbursed', status: 'completed' });
   }
 
-  if (dealIdx >= dealStageIndex('loan sanctioned') || dealIdx >= dealStageIndex('closed')) {
+  if (dealIdx >= dealStageIndex('closed')) {
+    steps.push({ label: 'Registration Scheduled', date: dealDate, status: 'completed', notes: 'Sale Deed & Registration Receipt available in your document vault' });
+    steps.push({ label: 'Keys Handover Date', date: dealDate, status: 'completed', notes: 'Welcome home — interior vendors are ready to help you set up' });
+    steps.push({ label: 'Journey Complete', status: 'completed' });
+  } else if (dealIdx >= dealStageIndex('loan sanctioned')) {
     steps.push({ label: 'Registration Pending', status: 'in-progress', notes: 'Documents being prepared' });
     steps.push({ label: 'Possession', status: 'upcoming' });
   } else {
@@ -177,27 +194,69 @@ function buildJourney(deals: CustomerDeal[], meetings: ApiMeeting[]): JourneySte
 function ActiveDealCard({
   deal,
   phone,
+  customerName,
   onConfirmed,
+  onNegotiationAccepted,
+  onMessageSent,
 }: {
   deal: CustomerDeal;
   phone: string;
+  customerName: string;
   onConfirmed: () => void;
+  onNegotiationAccepted: () => void;
+  onMessageSent: (msg: DealMessage) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
-  const isNegotiation = deal.dealStatus.toLowerCase() === 'negotiation';
-  const isAgreement   = deal.dealStatus.toLowerCase() === 'agreement';
+  const [accepting,  setAccepting]  = useState(false);
+  const [agreementFile, setAgreementFile] = useState<File | null>(null);
+  const [uploadingAgreement, setUploadingAgreement] = useState(false);
+  const [submittedAgreement, setSubmittedAgreement] = useState<DealDoc | null>(null);
+  const [recipient,  setRecipient]  = useState<'builder' | 'cp'>('builder');
+  const [replyText,  setReplyText]  = useState('');
+  const [sending,    setSending]    = useState(false);
+  const isNegotiation   = deal.dealStatus.toLowerCase() === 'negotiation';
+  const isAgreement     = deal.dealStatus.toLowerCase() === 'agreement';
+  const isPendingBooking = deal.dealStatus.toLowerCase() === 'pending booking';
+
+  async function handleSendMessage() {
+    const text = replyText.trim();
+    if (!text || sending) return;
+    setSending(true);
+    try {
+      await portalApi.sendDealMessage(deal.dealId, phone, recipient, text);
+      onMessageSent({
+        id: Date.now(),
+        senderName: customerName || 'You',
+        senderRole: 'customer',
+        message: text,
+        createdAt: new Date().toISOString(),
+      });
+      setReplyText('');
+      toast.success(`Message sent to ${recipient === 'builder' ? 'the builder' : 'your channel partner'}`);
+    } catch (err) {
+      toast.error((err as Error).message || 'Could not send message. Please try again.');
+    } finally {
+      setSending(false);
+    }
+  }
 
   const cardCls = isNegotiation
     ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200'
+    : isPendingBooking
+    ? 'bg-gradient-to-br from-cyan-50 to-teal-50 border-cyan-200'
     : 'bg-gradient-to-br from-blue-50 to-teal-50 border-blue-200';
 
   const badgeCls = isNegotiation
     ? 'bg-amber-100 text-amber-800 border border-amber-300'
+    : isPendingBooking
+    ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
     : 'bg-blue-100 text-blue-800 border border-blue-300';
 
-  const stageLabel  = isNegotiation ? 'Negotiation in progress' : 'Agreement reached';
+  const stageLabel  = isNegotiation ? 'Negotiation in progress' : isPendingBooking ? 'Booking in progress' : 'Agreement reached';
   const stageNote   = isNegotiation
     ? 'Your channel partner is coordinating with the builder on pricing and terms.'
+    : isPendingBooking
+    ? 'The builder accepted your signed agreement — your booking is now being confirmed.'
     : 'The builder has shared an agreement. Please review and confirm your acceptance.';
 
   async function handleConfirm() {
@@ -212,6 +271,38 @@ function ActiveDealCard({
       setConfirming(false);
     }
   }
+
+  async function handleAcceptNegotiation() {
+    setAccepting(true);
+    try {
+      await portalApi.acceptNegotiation(deal.dealId, phone);
+      toast.success('Negotiation accepted! Moving to the Agreement stage.');
+      onNegotiationAccepted();
+    } catch (err) {
+      toast.error((err as Error).message || 'Could not accept. Please try again.');
+    } finally {
+      setAccepting(false);
+    }
+  }
+
+  async function handleUploadAgreement() {
+    if (!agreementFile || uploadingAgreement) return;
+    setUploadingAgreement(true);
+    try {
+      const doc = await portalApi.uploadSignedAgreement(deal.dealId, phone, agreementFile);
+      toast.success('Signed agreement submitted to the builder!');
+      setSubmittedAgreement(doc as DealDoc);
+      setAgreementFile(null);
+    } catch (err) {
+      toast.error((err as Error).message || 'Could not upload the agreement. Please try again.');
+    } finally {
+      setUploadingAgreement(false);
+    }
+  }
+
+  const signedAgreementDoc = submittedAgreement
+    ?? deal.dealDocuments?.find(d => d.docType === 'Signed Agreement' && d.uploadedByRole === 'customer')
+    ?? null;
 
   return (
     <div className={`rounded-2xl border p-5 space-y-4 ${cardCls}`}>
@@ -255,6 +346,28 @@ function ActiveDealCard({
       {/* Stage explanation */}
       <p className="text-sm text-gray-600 leading-relaxed">{stageNote}</p>
 
+      {/* Accept negotiation — moves the deal forward to Agreement once you're happy with the terms */}
+      {isNegotiation && (
+        <div className="space-y-1.5">
+          <button
+            onClick={handleAcceptNegotiation}
+            disabled={accepting}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60 transition-opacity"
+            style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)' }}
+          >
+            {accepting ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Handshake size={15} />
+            )}
+            {accepting ? 'Accepting…' : 'Accept Negotiation & Proceed'}
+          </button>
+          <p className="text-xs text-gray-400">
+            Happy with the pricing and terms? Accepting will move this deal to the Agreement stage.
+          </p>
+        </div>
+      )}
+
       {/* Confirm button / confirmed badge — only shown at Agreement stage */}
       {isAgreement && (
         deal.customerConfirmed ? (
@@ -277,6 +390,61 @@ function ActiveDealCard({
             {confirming ? 'Confirming…' : 'Confirm Acceptance'}
           </button>
         )
+      )}
+
+      {/* Upload signed agreement — available once the customer has confirmed acceptance */}
+      {(isAgreement || isPendingBooking) && deal.customerConfirmed && (
+        <div className="space-y-2 pt-1">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+            <FileText size={11} /> Signed Agreement
+          </p>
+          {signedAgreementDoc ? (
+            <div className="flex items-center gap-3 bg-white/70 border border-gray-200 rounded-xl px-4 py-3">
+              <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center shrink-0">
+                <CheckCircle2 size={15} className="text-teal-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-800 truncate">{signedAgreementDoc.name}</p>
+                <p className="text-xs text-gray-400">
+                  {isPendingBooking ? 'Accepted by the builder — your booking is being processed' : 'Submitted to the builder for review'}
+                </p>
+              </div>
+              {signedAgreementDoc.fileUrl && (
+                <a href={signedAgreementDoc.fileUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs font-semibold text-teal-600 hover:text-teal-700 shrink-0">
+                  <ExternalLink size={12} /> View
+                </a>
+              )}
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-gray-500">
+                Print, sign, and upload your copy of the agreement so the builder can countersign and proceed.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <label className="flex-1 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-dashed border-gray-300 bg-white/70 text-sm text-gray-600 cursor-pointer hover:border-teal-300 transition-colors">
+                  <FileText size={15} className="text-gray-400 shrink-0" />
+                  <span className="truncate">{agreementFile ? agreementFile.name : 'Choose a PDF, image, or Word file…'}</span>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,image/*"
+                    className="hidden"
+                    onChange={e => setAgreementFile(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <button
+                  onClick={handleUploadAgreement}
+                  disabled={!agreementFile || uploadingAgreement}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity shrink-0"
+                  style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}
+                >
+                  {uploadingAgreement ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                  {uploadingAgreement ? 'Uploading…' : 'Submit to Builder'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       {/* Documents — shown for both negotiation and agreement stages */}
@@ -338,7 +506,7 @@ function ActiveDealCard({
                   <p className={`text-[10px] font-bold mb-0.5 ${
                     isBuilder ? 'text-teal-600' : isCP ? 'text-orange-600' : 'text-gray-500'
                   }`}>
-                    {msg.senderName} · {isBuilder ? 'Builder' : isCP ? 'Channel Partner' : msg.senderRole}
+                    {msg.senderName} · {isBuilder ? 'Builder' : isCP ? 'Channel Partner' : msg.senderRole === 'customer' ? 'You' : msg.senderRole}
                   </p>
                   <p className="text-gray-800 leading-relaxed">{msg.message}</p>
                   <p className="text-[10px] text-gray-400 mt-1">
@@ -350,18 +518,482 @@ function ActiveDealCard({
           </div>
         </div>
       )}
+
+      {/* Contact builder / CP — available while negotiating pricing & terms */}
+      {isNegotiation && (
+        <div className="space-y-2.5 pt-1">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+            <MessageSquare size={11} /> Conversations
+          </p>
+          <p className="text-xs text-gray-500">
+            Have a question about pricing or terms? Message the builder or your channel partner directly.
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setRecipient('builder')}
+              className={`flex-1 text-xs font-semibold px-3 py-2 rounded-xl border transition-colors ${
+                recipient === 'builder'
+                  ? 'bg-teal-50 border-teal-300 text-teal-700'
+                  : 'bg-white/70 border-gray-200 text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Builder
+            </button>
+            <button
+              onClick={() => setRecipient('cp')}
+              className={`flex-1 text-xs font-semibold px-3 py-2 rounded-xl border transition-colors ${
+                recipient === 'cp'
+                  ? 'bg-orange-50 border-orange-300 text-orange-700'
+                  : 'bg-white/70 border-gray-200 text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Channel Partner
+            </button>
+          </div>
+          <div className="flex items-end gap-2">
+            <textarea
+              value={replyText}
+              onChange={e => setReplyText(e.target.value)}
+              rows={2}
+              placeholder={`Write a message to your ${recipient === 'builder' ? 'builder' : 'channel partner'}…`}
+              className="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white/80 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-300 resize-none"
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={sending || !replyText.trim()}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity shrink-0"
+              style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}
+            >
+              {sending ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
+              {sending ? '' : 'Send'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Shortlist a unit & request pricing (pre-negotiation) ────────────────────
+
+interface UnitRow { id: string; tower: string; floor: number; unit: number; bhk: string; areaSqft?: number; price?: number; status: string; facing?: string; }
+interface ShortlistEntry { id: number; projectId: number; unitId: string; status: string; builderNote: string | null; }
+
+function pricingRequestedKey(shortlistId: number) { return `dealio_pricing_requested_${shortlistId}`; }
+
+function ShortlistAndPricingCard({ meetings, phone }: { meetings: ApiMeeting[]; phone: string }) {
+  const eligibleMeetings = meetings.filter(m =>
+    ['Completed', 'COMPLETED'].includes(m.status) && m.builderId != null,
+  );
+
+  const [loading,    setLoading]    = useState(true);
+  const [shortlist,  setShortlist]  = useState<ShortlistEntry | null>(null);
+  const [pricingRequested, setPricingRequested] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+
+  const [picking,    setPicking]    = useState<ApiMeeting | null>(null);
+  const [units,      setUnits]      = useState<UnitRow[]>([]);
+  const [unitsLoading, setUnitsLoading] = useState(false);
+  const [selectedUnit, setSelectedUnit] = useState<UnitRow | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const projectIds = eligibleMeetings.map(m => m.projectId);
+
+  useEffect(() => {
+    if (!phone || eligibleMeetings.length === 0) { setLoading(false); return; }
+    setLoading(true);
+    portalApi.getMyShortlists(phone)
+      .then(data => {
+        const list = (data as ShortlistEntry[]) || [];
+        const match = list.find(s => projectIds.includes(s.projectId)) ?? null;
+        setShortlist(match);
+        if (match) setPricingRequested(localStorage.getItem(pricingRequestedKey(match.id)) === '1');
+      })
+      .catch(() => setShortlist(null))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone, eligibleMeetings.length]);
+
+  if (loading || eligibleMeetings.length === 0) return null;
+
+  const matchedMeeting = shortlist ? eligibleMeetings.find(m => m.projectId === shortlist.projectId) : undefined;
+
+  async function openPicker(meeting: ApiMeeting) {
+    setPicking(meeting);
+    setSelectedUnit(null);
+    setUnitsLoading(true);
+    try {
+      const project = await builderApi.getProject(meeting.builderId!, meeting.projectId) as {
+        unitMatrix?: UnitRow[]; totalUnits?: number; configurations?: string[]; floorsPerTower?: number;
+      };
+      if (project?.unitMatrix?.length) {
+        setUnits(project.unitMatrix.filter(u => u.status === 'Available'));
+      } else {
+        const total   = project?.totalUnits ?? 0;
+        const configs = project?.configurations ?? ['2 BHK'];
+        const floors  = project?.floorsPerTower ?? Math.max(1, Math.min(Math.ceil(total / 4), 15));
+        const perFloor = Math.max(1, Math.ceil(total / floors));
+        const synthetic: UnitRow[] = [];
+        for (let f = 1; f <= floors && synthetic.length < total; f++) {
+          for (let u = 1; u <= perFloor && synthetic.length < total; u++) {
+            synthetic.push({ id: `A-${f}0${u}`, tower: 'A', floor: f, unit: u, bhk: configs[(u - 1) % configs.length], status: 'Available' });
+          }
+        }
+        setUnits(synthetic);
+      }
+    } catch { toast.error('Could not load units'); setPicking(null); }
+    finally { setUnitsLoading(false); }
+  }
+
+  async function handleShortlist() {
+    if (!picking || !selectedUnit || !phone) return;
+    setSubmitting(true);
+    try {
+      await portalApi.shortlistUnit({
+        customerPhone: phone,
+        builderId: picking.builderId!,
+        projectId: picking.projectId,
+        unitId: selectedUnit.id,
+        unitDetails: selectedUnit,
+      });
+      toast.success(`Unit ${selectedUnit.id} shortlisted! The builder will review it.`);
+      setShortlist({ id: Date.now(), projectId: picking.projectId, unitId: selectedUnit.id, status: 'Pending', builderNote: null });
+      setPicking(null);
+      setSelectedUnit(null);
+    } catch (err) { toast.error((err as Error).message || 'Failed to shortlist unit'); }
+    finally { setSubmitting(false); }
+  }
+
+  async function handleRequestPricing() {
+    if (!shortlist || !matchedMeeting || requesting) return;
+    setRequesting(true);
+    try {
+      await portalApi.requestPricing({
+        builderId: matchedMeeting.builderId!,
+        projectId: shortlist.projectId,
+        customerPhone: phone,
+        unitId: shortlist.unitId,
+        unitDetails: { unitId: shortlist.unitId },
+        note: 'Please share a pricing quote for this unit.',
+      });
+      localStorage.setItem(pricingRequestedKey(shortlist.id), '1');
+      setPricingRequested(true);
+      toast.success('Pricing request sent to the builder!');
+    } catch (err) { toast.error((err as Error).message || 'Could not send pricing request'); }
+    finally { setRequesting(false); }
+  }
+
+  return (
+    <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50/60 to-cyan-50/40 p-5 space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}>
+          <Bookmark size={18} className="text-white" />
+        </div>
+        <div>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Found a unit you like?</p>
+          <h2 className="text-base font-bold text-gray-900 leading-tight">Shortlist it & request pricing</h2>
+        </div>
+      </div>
+
+      {!shortlist ? (
+        <>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            After your site visit, shortlist the unit you're interested in — the builder will review it and you can then request a pricing quote.
+          </p>
+          <div className="space-y-2">
+            {eligibleMeetings.map(m => (
+              <div key={m.id} className="flex items-center justify-between gap-3 bg-white/70 border border-gray-200 rounded-xl px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{m.projectName || 'Project'}</p>
+                  <p className="text-xs text-gray-400">Visited {toDateLabel(m.confirmedDate || m.preferredDate)}</p>
+                </div>
+                <button
+                  onClick={() => openPicker(m)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white shrink-0 hover:opacity-90 transition-opacity"
+                  style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}
+                >
+                  <Bookmark size={13} /> Shortlist a Unit
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 bg-white/70 border border-gray-200 rounded-xl px-4 py-3">
+            <div className="w-9 h-9 rounded-lg bg-teal-50 flex items-center justify-center shrink-0">
+              <Bookmark size={15} className="text-teal-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-gray-800">Unit {shortlist.unitId} shortlisted</p>
+              <p className="text-xs text-gray-400">{matchedMeeting?.projectName || 'Project'} · {shortlist.status === 'Pending' ? 'Awaiting builder review' : shortlist.status}</p>
+            </div>
+          </div>
+
+          {pricingRequested ? (
+            <div className="flex items-center gap-2 text-sm font-semibold text-teal-700">
+              <CheckCircle2 size={17} className="text-teal-600" />
+              Pricing request sent — the builder will share a quote soon.
+            </div>
+          ) : (
+            <button
+              onClick={handleRequestPricing}
+              disabled={requesting}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60 transition-opacity"
+              style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)' }}
+            >
+              {requesting ? <Loader2 size={15} className="animate-spin" /> : <Tag size={15} />}
+              {requesting ? 'Sending…' : 'Request Pricing'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Unit picker modal */}
+      {picking && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" onClick={() => setPicking(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <p className="text-sm font-bold text-gray-900">Pick a unit</p>
+                <p className="text-xs text-gray-400">{picking.projectName}</p>
+              </div>
+              <button onClick={() => setPicking(null)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {unitsLoading ? (
+                <div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-teal-500" /></div>
+              ) : units.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-10">No available units found.</p>
+              ) : units.map(u => {
+                const isSelected = selectedUnit?.id === u.id;
+                return (
+                  <button
+                    key={u.id}
+                    onClick={() => setSelectedUnit(u)}
+                    className={`w-full flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+                      isSelected ? 'border-teal-400 bg-teal-50' : 'border-gray-200 bg-white hover:border-teal-200'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800">Unit {u.id} · {u.bhk}</p>
+                      <p className="text-xs text-gray-400">
+                        Tower {u.tower} · Floor {u.floor === 0 ? 'Ground' : u.floor}
+                        {u.areaSqft ? ` · ${u.areaSqft} sqft` : ''}
+                      </p>
+                    </div>
+                    {isSelected && <CheckCircle2 size={18} className="text-teal-600 shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="p-4 border-t border-gray-100">
+              <button
+                onClick={handleShortlist}
+                disabled={!selectedUnit || submitting}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-opacity"
+                style={{ background: 'linear-gradient(135deg,#0A7E8C,#0d9488)' }}
+              >
+                {submitting ? <Loader2 size={15} className="animate-spin" /> : <Bookmark size={15} />}
+                {submitting ? 'Shortlisting…' : selectedUnit ? `Shortlist Unit ${selectedUnit.id}` : 'Select a unit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+// ─── Journey threads — one journey per meeting (links customer · builder · CP) ───
+// Every site-visit booking is its own thread, keyed by its Meeting id — the unique handle
+// that links the three parties' rows (Meeting.customerId / builderId / cpId, and the Deal
+// it becomes via Deal.builderId / customerId / cpId). The matching deal attaches to its
+// most recent visit; a deal with no visit gets its own thread.
+
+interface JourneyThread {
+  key: string;
+  projectId: number;
+  projectName: string;
+  /** Unique per-thread handle shown to the user — "Visit #<meetingId>" or "Deal #<dealId>". */
+  handle: string;
+  deal: CustomerDeal | null;
+  meetings: ApiMeeting[];
+  lastActivity: number;
+}
+
+function buildThreads(deals: CustomerDeal[], meetings: ApiMeeting[]): JourneyThread[] {
+  const threads: JourneyThread[] = [];
+  const claimedDeals = new Set<number>();
+
+  // Newest visit first, so when several visits share a project the deal attaches to the
+  // most recent one and older visits stay visit-only threads.
+  const sortedMeetings = [...meetings].sort(
+    (a, b) => (new Date(b.createdAt).getTime() || 0) - (new Date(a.createdAt).getTime() || 0),
+  );
+
+  sortedMeetings.forEach(m => {
+    let deal: CustomerDeal | null = null;
+    if (m.projectId != null) {
+      const match = deals.find(d => d.projectId === m.projectId && !claimedDeals.has(d.dealId));
+      if (match) { deal = match; claimedDeals.add(match.dealId); }
+    }
+    threads.push({
+      key:        `m${m.id}`,
+      projectId:  m.projectId,
+      projectName: m.projectName || deal?.projectName || '',
+      handle:     `Visit #${m.id}`,
+      deal,
+      meetings:   [m],
+      lastActivity: Math.max(
+        new Date(m.createdAt).getTime() || 0,
+        deal ? (new Date(deal.createdAt).getTime() || 0) : 0,
+      ),
+    });
+  });
+
+  // Deals that never matched a visit → their own thread.
+  deals.forEach(d => {
+    if (claimedDeals.has(d.dealId)) return;
+    threads.push({
+      key:        `d${d.dealId}`,
+      projectId:  d.projectId,
+      projectName: d.projectName || '',
+      handle:     `Deal #${d.dealId}`,
+      deal:       d,
+      meetings:   [],
+      lastActivity: new Date(d.createdAt).getTime() || 0,
+    });
+  });
+
+  return threads.sort((a, b) => b.lastActivity - a.lastActivity);
+}
+
+const PRE_DEAL_STAGES = ['', 'meeting requested', 'meeting confirmed', 'meeting done', 'new lead', 'enquiry'];
+
+// ─── Possession card (interior-vendor activation, shown when a thread closes) ────
+
+function PossessionCard({ deal }: { deal: CustomerDeal }) {
+  return (
+    <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 p-5 space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: 'linear-gradient(135deg,#8B5CF6,#D946EF)' }}>
+          <Sparkles size={18} className="text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-900">Interior Vendor — now available</p>
+          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+            Keys handed over for {deal.projectName || 'your home'}! Hire a trusted interior vendor directly from your portal — book a free consult to get quotes for design, modular kitchen, painting and more.
+          </p>
+        </div>
+        <Link to="/customer/meeting"
+          className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-white shrink-0 hover:opacity-90 transition-opacity"
+          style={{ background: 'linear-gradient(135deg,#8B5CF6,#D946EF)' }}>
+          Hire a Vendor <ArrowRight size={13} />
+        </Link>
+      </div>
+
+      <div className="border-t border-violet-200/70 pt-3 flex flex-wrap gap-x-6 gap-y-2">
+        {[
+          { label: 'Unit Marked SOLD', done: true },
+          { label: 'Loan Disbursed', done: deal.loanStatus === 'DISBURSED' || !deal.loanCaseId },
+          { label: 'Journey Complete', done: true },
+          { label: 'Interior Vendor Activated', done: true },
+        ].map(item => (
+          <span key={item.label} className={`flex items-center gap-1.5 text-xs font-medium ${item.done ? 'text-emerald-700' : 'text-gray-400'}`}>
+            <CheckCircle2 size={13} className={item.done ? 'text-emerald-600' : 'text-gray-300'} />
+            {item.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── One journey thread (per property) ──────────────────────────────────────────
+
+function JourneyThreadCard({
+  thread, phone, customerName, onReload,
+}: {
+  thread: JourneyThread;
+  phone: string;
+  customerName: string;
+  onReload: () => void;
+}) {
+  const [deal, setDeal] = useState<CustomerDeal | null>(thread.deal);
+  useEffect(() => { setDeal(thread.deal); }, [thread.deal]);
+
+  const status    = deal?.dealStatus.toLowerCase() ?? '';
+  const isActive  = status === 'negotiation' || status === 'agreement' || status === 'pending booking';
+  const isClosed  = status === 'closed';
+  const isPreDeal = !deal || PRE_DEAL_STAGES.includes(status);
+
+  const steps  = buildJourney(deal ? [deal] : [], thread.meetings);
+  const handle = thread.handle;
+
+  return (
+    <div className="space-y-4">
+      {/* Thread header — the unique handle linking customer · builder · CP */}
+      <div className="flex items-center justify-between gap-3 px-0.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[11px] font-bold text-white px-2 py-0.5 rounded-md shrink-0"
+            style={{ background: 'linear-gradient(135deg,#6366F1,#818CF8)' }}>
+            {handle}
+          </span>
+          <h2 className="text-sm font-bold text-gray-900 truncate">{thread.projectName || 'Your Property'}</h2>
+        </div>
+        {deal && (
+          <Link to={`/customer/deals/${deal.dealId}`}
+            className="flex items-center gap-1 text-xs font-semibold text-secondary hover:underline shrink-0">
+            Deal Room <ArrowRight size={12} />
+          </Link>
+        )}
+      </div>
+
+      {/* Pre-negotiation: shortlist a unit & request pricing (self-hides until a visit is done) */}
+      {isPreDeal && <ShortlistAndPricingCard meetings={thread.meetings} phone={phone} />}
+
+      {/* Active deal — negotiation / agreement / pending booking */}
+      {isActive && deal && (
+        <ActiveDealCard
+          deal={deal}
+          phone={phone}
+          customerName={customerName}
+          onConfirmed={() => setDeal(prev => prev ? { ...prev, customerConfirmed: true } : prev)}
+          onNegotiationAccepted={onReload}
+          onMessageSent={(msg) => setDeal(prev => prev ? { ...prev, messages: [...(prev.messages ?? []), msg] } : prev)}
+        />
+      )}
+
+      {/* Milestone timeline for this property */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        {steps.length === 0 ? (
+          <div className="flex flex-col items-center py-10 text-center">
+            <AlertCircle size={24} className="text-gray-300 mb-2" />
+            <p className="text-sm text-gray-500">No milestones yet for this property.</p>
+          </div>
+        ) : (
+          <JourneyTimeline steps={steps} />
+        )}
+      </div>
+
+      {/* Possession reached */}
+      {isClosed && deal && <PossessionCard deal={deal} />}
+    </div>
+  );
+}
+
 const CustomerJourney = () => {
   const { user } = useAuthStore();
-  const [steps,      setSteps]      = useState<JourneyStep[]>([]);
-  const [activeDeal, setActiveDeal] = useState<CustomerDeal | null>(null);
-  const [loading,    setLoading]    = useState(true);
-  const [empty,      setEmpty]      = useState(false);
+  const [threads, setThreads] = useState<JourneyThread[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [empty,   setEmpty]   = useState(false);
 
   const phone = user?.phone ?? '';
 
@@ -371,27 +1003,17 @@ const CustomerJourney = () => {
       .then(([dealsData, meetingsData]) => {
         const deals    = (dealsData    as CustomerDeal[]) || [];
         const meetings = (meetingsData as ApiMeeting[])   || [];
-
-        // Identify the first deal in an active negotiation / agreement stage
-        const active = deals.find(d => {
-          const s = d.dealStatus.toLowerCase();
-          return s === 'negotiation' || s === 'agreement';
-        }) ?? null;
-        setActiveDeal(active);
-
-        const journey = buildJourney(deals, meetings);
-        setSteps(journey);
-        setEmpty(journey.length === 0 && !active);
+        // One journey thread per property — each links the customer, builder and CP
+        // through its deal/meeting rows and tracks its own milestones independently.
+        const built = buildThreads(deals, meetings);
+        setThreads(built);
+        setEmpty(built.length === 0);
       })
       .catch(() => toast.error('Could not load journey'))
       .finally(() => setLoading(false));
   }, [phone]);
 
   useEffect(() => { load(); }, [load]);
-
-  function handleConfirmed() {
-    setActiveDeal(prev => prev ? { ...prev, customerConfirmed: true } : prev);
-  }
 
   return (
     <DashboardLayout>
@@ -414,34 +1036,30 @@ const CustomerJourney = () => {
           <div className="flex justify-center py-16">
             <Loader2 size={32} className="animate-spin text-secondary" />
           </div>
-        ) : (
-          <>
-            {/* Active deal card — shown above timeline when in Negotiation / Agreement */}
-            {activeDeal && (
-              <ActiveDealCard
-                deal={activeDeal}
-                phone={phone}
-                onConfirmed={handleConfirmed}
-              />
-            )}
-
-            {/* Journey timeline */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              {empty ? (
-                <div className="flex flex-col items-center py-16 text-center">
-                  <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <AlertCircle size={28} className="text-gray-300" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-1">No journey data yet</h3>
-                  <p className="text-sm text-gray-500">
-                    Schedule a site visit or book a unit to get started.
-                  </p>
-                </div>
-              ) : (
-                <JourneyTimeline steps={steps} />
-              )}
+        ) : empty ? (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex flex-col items-center py-16 text-center">
+              <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <AlertCircle size={28} className="text-gray-300" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-1">No journey data yet</h3>
+              <p className="text-sm text-gray-500">
+                Schedule a site visit or book a unit to get started.
+              </p>
             </div>
-          </>
+          </div>
+        ) : (
+          <div className="space-y-10">
+            {threads.map(t => (
+              <JourneyThreadCard
+                key={t.key}
+                thread={t}
+                phone={phone}
+                customerName={user?.name ?? ''}
+                onReload={load}
+              />
+            ))}
+          </div>
         )}
       </div>
     </DashboardLayout>

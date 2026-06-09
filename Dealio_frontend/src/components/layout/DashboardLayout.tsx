@@ -3,7 +3,8 @@ import {drainNotifs} from '@/lib/crossNotify';
 import {useNotificationStream} from '@/hooks/useNotificationStream';
 import {useNavigate, useLocation} from 'react-router-dom';
 import {useAuthStore, roleLabels, roleColors, UserRole} from '@/stores/useAuthStore';
-import {useNotificationStore} from '@/stores/useNotificationStore';
+import {useNotificationStore, ServerNotification} from '@/stores/useNotificationStore';
+import {builderApi, cpApi, customerApi} from '@/lib/api';
 import NotificationPanel from '@/components/shared/NotificationPanel';
 import AIChatWidget from '@/components/shared/AIChatWidget';
 import {
@@ -385,6 +386,27 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
         window.addEventListener(evt, drain);
         return () => window.removeEventListener(evt, drain);
     }, [user?.id, user?.role]);
+
+    // Hydrate the bell with server-persisted notifications once on login. The list
+    // endpoints return unread-only and mark-read on fetch, so this is a one-time
+    // drain of anything that arrived while offline; SSE keeps the bell live after.
+    const hydratedRef = useRef(false);
+    useEffect(() => {
+        if (!role || hydratedRef.current) return;
+        hydratedRef.current = true;
+        const fetcher =
+            role === 'builder'  ? builderApi.getBuilderNotifications :
+            role === 'cp'       ? cpApi.getNotifications :
+            role === 'customer' ? customerApi.getNotifications : null;
+        if (!fetcher) return;
+        Promise.resolve(fetcher())
+            .then((items) => {
+                if (Array.isArray(items)) {
+                    useNotificationStore.getState().ingestServerNotifications(items as ServerNotification[]);
+                }
+            })
+            .catch(() => { /* offline / unreachable — SSE will still deliver live events */ });
+    }, [role]);
 
     const [pendingMeetings, setPendingMeetings] = useState(() =>
         Number(localStorage.getItem('dealio_pending_meetings') || '0'),

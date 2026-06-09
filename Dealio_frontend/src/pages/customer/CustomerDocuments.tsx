@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { FileText, Download, Upload, Eye, Shield, CheckCircle2, X, FolderOpen } from 'lucide-react';
 import { toast } from 'sonner';
+import { portalApi } from '@/lib/api';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 interface ReceivedDoc {
   id: string; name: string; issuedBy: string; dateIssued: string;
@@ -24,7 +26,38 @@ const statusPill: Record<string, string> = {
 
 const FILTERS = ['All', 'From Builder', 'From Bank', 'My Uploads', 'Action Required'];
 
+interface DealDoc {
+  id: number;
+  name: string;
+  docType: string;
+  fileUrl?: string | null;
+  createdAt: string;
+}
+interface CustomerDeal {
+  dealId: number;
+  dealStatus: string;
+  projectName?: string;
+  dealDocuments?: DealDoc[];
+}
+
+// Builder-shared docs that need the customer's signature before they're final
+const SIGNATURE_REQUIRED = ['Sale Agreement', 'Sale Deed'];
+
+function dealDocToReceived(doc: DealDoc, projectName?: string): ReceivedDoc {
+  const status: ReceivedDoc['status'] = SIGNATURE_REQUIRED.includes(doc.docType)
+    ? (doc.fileUrl ? 'Pending Signature' : 'Action Required')
+    : 'Verified';
+  return {
+    id: `deal-doc-${doc.id}`,
+    name: doc.docType === 'Registration Copy' ? 'Registration Receipt' : doc.name || doc.docType,
+    issuedBy: projectName ? `Builder · ${projectName}` : 'Builder',
+    dateIssued: new Date(doc.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+    status,
+  };
+}
+
 export default function CustomerDocuments() {
+  const { user } = useAuthStore();
   const [filter, setFilter] = useState('All');
   const [receivedDocs, setReceivedDocs] = useState<ReceivedDoc[]>([]);
   const [requiredDocs, setRequiredDocs] = useState<RequiredDoc[]>([]);
@@ -32,6 +65,18 @@ export default function CustomerDocuments() {
   const [signStep, setSignStep] = useState(0);
   const [agreed, setAgreed] = useState(false);
   const [otp, setOtp] = useState('');
+
+  useEffect(() => {
+    const phone = user?.phone;
+    if (!phone) return;
+    portalApi.getMyDeals(phone).then((data) => {
+      const deals = (data as CustomerDeal[]) || [];
+      // Prefer the deal that's reached possession — that's when closing documents (Sale Deed, Registration Receipt) land
+      const deal = deals.find(d => d.dealStatus.toLowerCase() === 'closed') ?? deals[0];
+      if (!deal?.dealDocuments?.length) return;
+      setReceivedDocs(deal.dealDocuments.map(d => dealDocToReceived(d, deal.projectName)));
+    }).catch(() => { /* document vault stays empty if deals can't be loaded */ });
+  }, [user?.phone]);
 
   const submitted = requiredDocs.filter(d => d.status === 'Submitted').length;
 
