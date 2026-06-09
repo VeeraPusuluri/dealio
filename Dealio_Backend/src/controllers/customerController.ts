@@ -141,15 +141,31 @@ export const customerController = {
     const notifications = await prisma.notification.findMany({
       where: { userId, read: false },
       orderBy: { createdAt: 'desc' },
-      take: 20
+      take: 30
     });
-    if (notifications.length > 0) {
-      await prisma.notification.updateMany({
-        where: { id: { in: notifications.map(n => n.id) } },
-        data: { read: true }
-      });
-    }
+    // Read-state is now persisted via PATCH /customer/notifications/:id/read — we no
+    // longer mark-read-on-fetch (that made clicked notifications reappear as unread).
     res.json({ ok: true, data: notifications });
+  },
+
+  // PATCH /customer/notifications/:id/read — mark one of the caller's notifications read
+  markNotificationRead: async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    await prisma.notification.updateMany({
+      where: { id: Number(req.params.id), userId },
+      data: { read: true },
+    });
+    res.json({ ok: true });
+  },
+
+  // PATCH /customer/notifications/read-all — mark all the caller's unread notifications read
+  markAllNotificationsRead: async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    await prisma.notification.updateMany({
+      where: { userId, read: false },
+      data: { read: true },
+    });
+    res.json({ ok: true });
   },
 
   // Diagnostic: list active channels and subscriber counts (no auth needed in dev)

@@ -58,6 +58,8 @@ router.get('/resolve-maps-link', builderController.resolveMapsLink);
 // Builder notifications
 router.get('/notifications/stream', requireAuth, builderController.streamNotifications);  // SSE
 router.get('/notifications', requireAuth, builderController.getBuilderNotifications);
+router.patch('/notifications/read-all', requireAuth, builderController.markAllNotificationsRead);
+router.patch('/notifications/:id/read', requireAuth, builderController.markNotificationRead);
 
 // Customer SSE notification stream (shortlist responses, deal updates)
 router.get('/customer/notifications/stream', requireAuth, builderController.streamNotifications);
@@ -69,8 +71,12 @@ router.get('/customer/booked-slots', builderController.getBookedSlots);
 router.patch('/customer/meetings/:id/rating', builderController.rateCustomerMeeting);
 router.get('/customer/deals', builderController.getCustomerDeals);
 router.patch('/customer/deals/:dealId/confirm',                          builderController.confirmCustomerDeal);
+router.patch('/customer/deals/:dealId/accept-negotiation',               builderController.acceptNegotiation);
+router.post('/customer/deals/:dealId/signed-agreement', requireAuth, uploadDealDoc.single('file'), builderController.uploadSignedAgreement);
+router.post('/customer/deals/:dealId/messages', requireAuth, builderController.sendCustomerDealMessage);
 router.post('/customer/shortlist', builderController.createUnitShortlist);
 router.get('/customer/shortlist', builderController.getCustomerShortlists);
+router.post('/customer/pricing-requests', builderController.requestPricing);
 
 // CP share link — public endpoints (no auth)
 router.post('/projects/:projectId/leads/from-share', builderController.createLeadFromShare);
@@ -89,6 +95,7 @@ router.get('/:builderId/meetings', builderController.getBuilderMeetings);
 router.patch('/:builderId/meetings/:meetingId', builderController.updateMeetingStatus);
 router.get('/:builderId/deals', builderController.getBuilderDeals);
 router.patch('/:builderId/deals/:dealId/status', requireAuth, builderController.updateDealStatus);
+router.patch('/:builderId/deals/:dealId/accept-agreement', requireAuth, builderController.acceptSignedAgreement);
 router.get('/:builderId/deals/:dealId',                                  builderController.getDeal);
 router.post('/:builderId/deals/:dealId/documents',   requireAuth,        builderController.addDealDocument);
 router.post('/:builderId/deals/:dealId/upload',      requireAuth, uploadDealDoc.single('file'), builderController.uploadDealDocument);

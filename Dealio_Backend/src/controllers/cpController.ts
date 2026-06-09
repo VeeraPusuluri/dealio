@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { randomBytes } from 'crypto';
 import prisma from '../utils/prisma';
 import { channelManager } from '../services/channelManager';
+import { notifyDealParties } from '../services/dealNotify';
 
 // In-memory OTP store for phone verification (dev-only)
 const phoneOtpStore: Record<string, { otp: string; expiresAt: number }> = {};
@@ -198,15 +199,31 @@ export const cpController = {
     const notifications = await prisma.notification.findMany({
       where: { userId, read: false },
       orderBy: { createdAt: 'desc' },
-      take: 20,
+      take: 30,
     });
-    if (notifications.length > 0) {
-      await prisma.notification.updateMany({
-        where: { id: { in: notifications.map(n => n.id) } },
-        data: { read: true },
-      });
-    }
+    // Read-state is now persisted via PATCH /cp/notifications/:id/read — we no longer
+    // mark-read-on-fetch (that made clicked notifications reappear as unread).
     res.json({ ok: true, data: notifications });
+  },
+
+  // PATCH /:cpUserId/notifications/:id/read — mark one of the caller's notifications read
+  markNotificationRead: async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    await prisma.notification.updateMany({
+      where: { id: Number(req.params.id), userId },
+      data: { read: true },
+    });
+    res.json({ ok: true });
+  },
+
+  // PATCH /:cpUserId/notifications/read-all — mark all the caller's unread notifications read
+  markAllNotificationsRead: async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    await prisma.notification.updateMany({
+      where: { userId, read: false },
+      data: { read: true },
+    });
+    res.json({ ok: true });
   },
 
   // ── Meetings ──────────────────────────────────────────────────────────
@@ -630,11 +647,16 @@ export const cpController = {
       const tierRates: Record<string, number> = { Silver: 1.5, Gold: 2.0, Platinum: 2.5 };
       const commPct    = (updated.project as any)?.commissionValue > 0 ? (updated.project as any).commissionValue : (tierRates[cp.tier] ?? 1.5);
       const commAmount = updated.dealValue ? updated.dealValue * commPct / 100 : null;
-      const builderUid = (updated.builder as any)?.userId;
-      if (builderUid) {
-        const msg = `CP agreed to the deal for ${(updated.project as any)?.name ?? 'your project'}. Stage: Agreement.`;
-        channelManager.publish(`user:${builderUid}`, { type: 'deal_agreed', title: 'CP Agreed to Deal', message: msg, city: '', timestamp: new Date().toISOString(), link: '/builder/deals' });
-      }
+      const agreeProject = (updated.project as any)?.name ?? 'your project';
+      await notifyDealParties(updated.id, {
+        type: 'deal_agreed',
+        title: 'CP Agreed to Deal',
+        message: `CP agreed to the deal for ${agreeProject}. Stage: Agreement.`,
+        to: ['builder'],
+        link: { builder: '/builder/deals' },
+        whatsappTemplate: 'deal_stage_update',
+        whatsappVars: ({ name }) => [name, agreeProject, 'Agreement'],
+      }).catch(() => {});
       res.json({ ok: true, data: { id: updated.id, status: updated.status, commissionPercent: commPct, commissionAmount: commAmount } });
     } catch {
       res.status(404).json({ ok: false, message: 'Deal not found' });
@@ -660,14 +682,14 @@ export const cpController = {
         message,
       },
     });
-    const deal = await prisma.deal.findUnique({
-      where: { id: Number(dealId) },
-      include: { builder: { select: { userId: true } }, project: { select: { name: true } } },
-    });
-    if (deal?.builder) {
-      const bUid = (deal.builder as any).userId;
-      channelManager.publish(`user:${bUid}`, { type: 'deal_message', title: 'New message from CP', message: message.substring(0, 80), city: '', timestamp: new Date().toISOString(), link: '/builder/deals' });
-    }
+    await notifyDealParties(Number(dealId), {
+      type: 'deal_message',
+      title: 'New message from CP',
+      message: message.substring(0, 80),
+      to: ['builder'],
+      link: { builder: '/builder/deals' },
+      whatsappTemplate: 'deal_new_message',
+    }).catch(() => {});
     res.json({ ok: true, data: msg });
   },
 

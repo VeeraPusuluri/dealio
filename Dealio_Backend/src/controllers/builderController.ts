@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { channelManager } from '../services/channelManager';
+import { notifyDealParties } from '../services/dealNotify';
 import PDFDocument from 'pdfkit';
 import { generateICS } from '../services/calendarService';
 import { sendCalendarInvite } from '../services/emailService';
@@ -9,7 +10,7 @@ const DEAL_STATUS_NORM: Record<string, string> = {
   'new lead': 'New Lead', 'profile created': 'Profile Created',
   'meeting requested': 'Meeting Requested', 'meeting confirmed': 'Meeting Confirmed',
   'meeting done': 'Meeting Done', 'negotiation': 'Negotiation',
-  'agreement': 'Agreement', 'booked': 'Booked',
+  'agreement': 'Agreement', 'pending booking': 'Pending Booking', 'booked': 'Booked',
   'loan sanctioned': 'Loan Sanctioned', 'closed': 'Closed', 'possession': 'Possession',
 };
 function normalizeDealStatus(s: string): string {
@@ -451,10 +452,25 @@ export const builderController = {
     const { builderId, dealId } = req.params;
     const { status } = req.body;
     try {
+      const normalized = normalizeDealStatus(status);
       const updated = await prisma.deal.update({
         where: { id: Number(dealId), builderId: Number(builderId) },
-        data:  { status: normalizeDealStatus(status) },
+        data:  { status: normalized },
+        include: { project: { select: { name: true } } },
       });
+      // Notify the customer and CP that the deal advanced (bell + SSE + WhatsApp).
+      // Previously this endpoint changed the stage silently.
+      const projectName = (updated.project as any)?.name ?? 'your deal';
+      await notifyDealParties(updated.id, {
+        type: 'notification',
+        notifType: 'info',
+        title: `Deal moved to ${normalized}`,
+        message: `${projectName} is now at the "${normalized}" stage.`,
+        to: ['customer', 'cp'],
+        link: { customer: '/customer/journey', cp: '/cp/leads', builder: '/builder/deals' },
+        whatsappTemplate: 'deal_stage_update',
+        whatsappVars: ({ name }) => [name, projectName, normalized],
+      }).catch(() => {});
       res.json({ ok: true, data: { id: String(updated.id), status: updated.status } });
     } catch {
       res.status(404).json({ ok: false, message: 'Deal not found' });
@@ -1354,15 +1370,32 @@ export const builderController = {
     const notifications = await prisma.notification.findMany({
       where: { userId, read: false },
       orderBy: { createdAt: 'desc' },
-      take: 20
+      take: 30
     });
-    if (notifications.length > 0) {
-      await prisma.notification.updateMany({
-        where: { id: { in: notifications.map(n => n.id) } },
-        data: { read: true }
-      });
-    }
+    // Read-state is now persisted via PATCH /notifications/:id/read — we no longer
+    // mark-read-on-fetch (that lost the unread state and made clicked notifications
+    // reappear as unread after a re-hydrate).
     res.json({ ok: true, data: notifications });
+  },
+
+  // PATCH /notifications/:id/read — mark one of the caller's notifications read
+  markNotificationRead: async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    await prisma.notification.updateMany({
+      where: { id: Number(req.params.id), userId },
+      data: { read: true },
+    });
+    res.json({ ok: true });
+  },
+
+  // PATCH /notifications/read-all — mark all the caller's unread notifications read
+  markAllNotificationsRead: async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    await prisma.notification.updateMany({
+      where: { userId, read: false },
+      data: { read: true },
+    });
+    res.json({ ok: true });
   },
 
   // Follows a maps.app.goo.gl short link server-side and returns the expanded URL
@@ -1846,16 +1879,21 @@ export const builderController = {
       where: { id: Number(dealId) },
       include: { cp: { select: { userId: true } }, project: { select: { name: true } } },
     });
-    if (doc.sharedWithCp && deal?.cp) {
-      const cpUid = (deal.cp as any).userId;
-      const msg = `Builder shared "${file.originalname}" for ${(deal.project as any)?.name ?? 'your deal'}.`;
-      await prisma.notification.create({ data: { userId: cpUid, title: 'Document Shared', message: msg, type: 'info', link: '/cp/leads' } });
-      channelManager.publish(`user:${cpUid}`, { type: 'deal_doc', title: 'Document Shared', message: msg, city: '', timestamp: new Date().toISOString(), link: '/cp/leads' });
-    }
-    if (doc.sharedWithCustomer && deal?.customerId) {
-      const msg = `Builder shared "${file.originalname}" — please review in your journey.`;
-      await prisma.notification.create({ data: { userId: deal.customerId, title: 'Document Ready for Review', message: msg, type: 'info', link: '/customer/journey' } });
-      channelManager.publish(`user:${deal.customerId}`, { type: 'deal_doc', title: 'Document for Review', message: msg, city: '', timestamp: new Date().toISOString(), link: '/customer/journey' });
+    // Fan out (bell + SSE + opt-in WhatsApp) to whichever parties the doc is shared with.
+    const docProject = (deal?.project as any)?.name ?? 'your deal';
+    const docTargets: ('cp' | 'customer')[] = [
+      ...(doc.sharedWithCp ? ['cp' as const] : []),
+      ...(doc.sharedWithCustomer ? ['customer' as const] : []),
+    ];
+    if (docTargets.length) {
+      await notifyDealParties(Number(dealId), {
+        type: 'deal_doc',
+        title: 'Document Shared',
+        message: `Builder shared "${file.originalname}" for ${docProject}.`,
+        to: docTargets,
+        link: { cp: '/cp/leads', customer: '/customer/journey' },
+        whatsappTemplate: 'deal_document_shared',
+      }).catch(() => {});
     }
     res.json({ ok: true, data: {
       id: doc.id, name: doc.name, docType: doc.docType, fileUrl: doc.fileUrl,
@@ -1884,16 +1922,21 @@ export const builderController = {
       where: { id: Number(dealId) },
       include: { cp: { select: { userId: true } }, project: { select: { name: true } } },
     });
-    if (sharedWithCp && deal?.cp) {
-      const cpUid = (deal.cp as any).userId;
-      const msg = `Builder shared "${name}" for ${(deal.project as any)?.name ?? 'your deal'}.`;
-      await prisma.notification.create({ data: { userId: cpUid, title: 'Document Shared', message: msg, type: 'info', link: '/cp/leads' } });
-      channelManager.publish(`user:${cpUid}`, { type: 'deal_doc', title: 'Document Shared', message: msg, city: '', timestamp: new Date().toISOString(), link: '/cp/leads' });
-    }
-    if (sharedWithCustomer && deal?.customerId) {
-      const msg = `Builder shared "${name}" — please review it in your journey.`;
-      await prisma.notification.create({ data: { userId: deal.customerId, title: 'Document Ready for Review', message: msg, type: 'info', link: '/customer/journey' } });
-      channelManager.publish(`user:${deal.customerId}`, { type: 'deal_doc', title: 'Document for Review', message: msg, city: '', timestamp: new Date().toISOString(), link: '/customer/journey' });
+    // Fan out (bell + SSE + opt-in WhatsApp) to whichever parties the doc is shared with.
+    const addDocProject = (deal?.project as any)?.name ?? 'your deal';
+    const addDocTargets: ('cp' | 'customer')[] = [
+      ...(sharedWithCp ? ['cp' as const] : []),
+      ...(sharedWithCustomer ? ['customer' as const] : []),
+    ];
+    if (addDocTargets.length) {
+      await notifyDealParties(Number(dealId), {
+        type: 'deal_doc',
+        title: 'Document Shared',
+        message: `Builder shared "${name}" for ${addDocProject}.`,
+        to: addDocTargets,
+        link: { cp: '/cp/leads', customer: '/customer/journey' },
+        whatsappTemplate: 'deal_document_shared',
+      }).catch(() => {});
     }
     res.json({ ok: true, data: doc });
   },
@@ -1935,14 +1978,14 @@ export const builderController = {
         message,
       },
     });
-    const deal = await prisma.deal.findUnique({
-      where: { id: Number(dealId) },
-      include: { cp: { select: { userId: true } }, project: { select: { name: true } } },
-    });
-    if (deal?.cp) {
-      const cpUid = (deal.cp as any).userId;
-      channelManager.publish(`user:${cpUid}`, { type: 'deal_message', title: 'New message from Builder', message: message.substring(0, 80), city: '', timestamp: new Date().toISOString(), link: '/cp/leads' });
-    }
+    await notifyDealParties(Number(dealId), {
+      type: 'deal_message',
+      title: 'New message from Builder',
+      message: message.substring(0, 80),
+      to: ['cp'],
+      link: { cp: '/cp/leads' },
+      whatsappTemplate: 'deal_new_message',
+    }).catch(() => {});
     res.json({ ok: true, data: msg });
   },
 
@@ -1982,12 +2025,16 @@ export const builderController = {
         include: { project: { select: { name: true } } },
       });
       if (cpId) {
-        const cp = await prisma.channelPartner.findUnique({ where: { id: cpId }, select: { userId: true } });
-        if (cp) {
-          const msg = `You have been assigned to the deal for ${(updated.project as any)?.name ?? 'a project'}.`;
-          await prisma.notification.create({ data: { userId: cp.userId, title: 'Deal Assigned', message: msg, type: 'info', link: '/cp/leads' } });
-          channelManager.publish(`user:${cp.userId}`, { type: 'deal_assigned', title: 'Deal Assigned', message: msg, city: '', timestamp: new Date().toISOString(), link: '/cp/leads' });
-        }
+        const assignedProject = (updated.project as any)?.name ?? 'a project';
+        await notifyDealParties(updated.id, {
+          type: 'deal_assigned',
+          title: 'Deal Assigned',
+          message: `You have been assigned to the deal for ${assignedProject}.`,
+          to: ['cp'],
+          link: { cp: '/cp/leads' },
+          whatsappTemplate: 'deal_stage_update',
+          whatsappVars: ({ name }) => [name, assignedProject, 'Assigned to you'],
+        }).catch(() => {});
       }
       res.json({ ok: true, data: { id: updated.id, cpId: updated.cpId } });
     } catch {
@@ -2008,15 +2055,231 @@ export const builderController = {
         data:  { customerConfirmed: true, status: 'Agreement' },
         include: { builder: { select: { userId: true } }, project: { select: { name: true } } },
       });
-      const builderUid = (updated.builder as any)?.userId;
-      if (builderUid) {
-        const msg = `Customer confirmed the deal for ${(updated.project as any)?.name ?? 'your project'}.`;
-        await prisma.notification.create({ data: { userId: builderUid, title: 'Customer Confirmed Deal', message: msg, type: 'info', link: '/builder/deals' } });
-        channelManager.publish(`user:${builderUid}`, { type: 'deal_confirmed', title: 'Customer Confirmed Deal', message: msg, city: '', timestamp: new Date().toISOString(), link: '/builder/deals' });
-      }
+      const confirmProject = (updated.project as any)?.name ?? 'your project';
+      await notifyDealParties(updated.id, {
+        type: 'deal_confirmed',
+        title: 'Customer Confirmed Deal',
+        message: `Customer confirmed the deal for ${confirmProject}.`,
+        to: ['builder'],
+        link: { builder: '/builder/deals' },
+        whatsappTemplate: 'deal_stage_update',
+        whatsappVars: ({ name }) => [name, confirmProject, 'Customer confirmed'],
+      }).catch(() => {});
       res.json({ ok: true, data: { id: updated.id, status: updated.status } });
     } catch {
       res.status(404).json({ ok: false, message: 'Deal not found or not authorized' });
     }
+  },
+
+  // PATCH /customer/deals/:dealId/accept-negotiation — customer accepts the negotiated pricing & terms,
+  // moving the deal forward from Negotiation to Agreement
+  acceptNegotiation: async (req: Request, res: Response) => {
+    const { dealId } = req.params;
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ ok: false, message: 'phone is required' });
+    const customer = await prisma.user.findUnique({ where: { phone } });
+    if (!customer) return res.status(404).json({ ok: false, message: 'Customer not found' });
+    try {
+      const deal = await prisma.deal.findUnique({ where: { id: Number(dealId), customerId: customer.id }, select: { status: true } });
+      if (!deal) return res.status(404).json({ ok: false, message: 'Deal not found or not authorized' });
+      if (deal.status !== 'Negotiation') {
+        return res.status(400).json({ ok: false, message: 'This deal is not currently in the negotiation stage' });
+      }
+      const updated = await prisma.deal.update({
+        where: { id: Number(dealId), customerId: customer.id },
+        data:  { status: 'Agreement' },
+        include: { builder: { select: { userId: true } }, cp: { select: { userId: true } }, project: { select: { name: true } } },
+      });
+      const projectName = (updated.project as any)?.name ?? 'your project';
+      await notifyDealParties(updated.id, {
+        type: 'deal_agreed',
+        notifType: 'success',
+        title: 'Negotiation Accepted',
+        message: `${customer.fullName ?? 'Customer'} accepted the negotiated terms for ${projectName}. The deal has moved to Agreement.`,
+        to: ['builder', 'cp'],
+        link: { builder: '/builder/deals', cp: '/cp/leads' },
+        whatsappTemplate: 'deal_stage_update',
+        whatsappVars: ({ name }) => [name, projectName, 'Agreement'],
+      }).catch(() => {});
+      res.json({ ok: true, data: { id: updated.id, status: updated.status } });
+    } catch {
+      res.status(404).json({ ok: false, message: 'Deal not found or not authorized' });
+    }
+  },
+
+  // POST /customer/deals/:dealId/signed-agreement — customer uploads & submits the signed agreement to the builder
+  uploadSignedAgreement: async (req: Request, res: Response) => {
+    const { dealId } = req.params;
+    const { phone } = req.body;
+    const file = (req as any).file as Express.Multer.File | undefined;
+    if (!phone) return res.status(400).json({ ok: false, message: 'phone is required' });
+    if (!file) return res.status(400).json({ ok: false, message: 'No file uploaded' });
+    const customer = await prisma.user.findUnique({ where: { phone } });
+    if (!customer) return res.status(404).json({ ok: false, message: 'Customer not found' });
+
+    const deal = await prisma.deal.findUnique({
+      where: { id: Number(dealId), customerId: customer.id },
+      include: { builder: { select: { userId: true } }, cp: { select: { userId: true } }, project: { select: { name: true } } },
+    });
+    if (!deal) return res.status(404).json({ ok: false, message: 'Deal not found or not authorized' });
+
+    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/deal-docs/${file.filename}`;
+    const doc = await prisma.dealDocument.create({
+      data: {
+        dealId:             deal.id,
+        name:               file.originalname,
+        docType:            'Signed Agreement',
+        fileUrl,
+        uploadedByRole:     'customer',
+        sharedWithCp:       true,
+        sharedWithCustomer: true,
+      },
+    });
+
+    const signedProject = (deal.project as any)?.name ?? 'your project';
+    await notifyDealParties(deal.id, {
+      type: 'deal_doc',
+      notifType: 'success',
+      title: 'Signed Agreement Received',
+      message: `${customer.fullName ?? 'Customer'} submitted the signed agreement for ${signedProject}.`,
+      to: ['builder', 'cp'],
+      link: { builder: '/builder/deals', cp: '/cp/leads' },
+      whatsappTemplate: 'deal_document_shared',
+    }).catch(() => {});
+
+    res.json({ ok: true, data: {
+      id: doc.id, name: doc.name, docType: doc.docType, fileUrl: doc.fileUrl,
+      uploadedByRole: doc.uploadedByRole, createdAt: doc.createdAt.toISOString(),
+    }});
+  },
+
+  // PATCH /:builderId/deals/:dealId/accept-agreement — builder accepts the customer's signed agreement, moving the deal to Pending Booking
+  acceptSignedAgreement: async (req: Request, res: Response) => {
+    const { builderId, dealId } = req.params;
+    try {
+      const deal = await prisma.deal.findUnique({
+        where: { id: Number(dealId), builderId: Number(builderId) },
+        include: {
+          customer: { select: { userId: true, fullName: true } },
+          cp:       { select: { userId: true } },
+          project:  { select: { name: true } },
+          dealDocuments: { select: { docType: true, uploadedByRole: true } },
+        },
+      });
+      if (!deal) return res.status(404).json({ ok: false, message: 'Deal not found' });
+      if (deal.status !== 'Agreement') {
+        return res.status(400).json({ ok: false, message: 'This deal is not currently in the agreement stage' });
+      }
+      const hasSignedAgreement = deal.dealDocuments.some(d => d.docType === 'Signed Agreement' && d.uploadedByRole === 'customer');
+      if (!hasSignedAgreement) {
+        return res.status(400).json({ ok: false, message: 'No signed agreement has been submitted by the customer yet' });
+      }
+
+      const updated = await prisma.deal.update({
+        where: { id: Number(dealId), builderId: Number(builderId) },
+        data:  { status: 'Pending Booking' },
+      });
+
+      const acceptProject = (deal.project as any)?.name ?? 'your project';
+      await notifyDealParties(updated.id, {
+        type: 'deal_agreed',
+        notifType: 'success',
+        title: 'Agreement Accepted',
+        message: `The signed agreement for ${acceptProject} was accepted — the deal is now Pending Booking.`,
+        to: ['customer', 'cp'],
+        link: { customer: '/customer/journey', cp: '/cp/leads' },
+        whatsappTemplate: 'deal_stage_update',
+        whatsappVars: ({ name }) => [name, acceptProject, 'Pending Booking'],
+      }).catch(() => {});
+
+      res.json({ ok: true, data: { id: updated.id, status: updated.status } });
+    } catch {
+      res.status(404).json({ ok: false, message: 'Deal not found' });
+    }
+  },
+
+  // POST /customer/deals/:dealId/messages — customer messages the builder or CP on a deal
+  sendCustomerDealMessage: async (req: Request, res: Response) => {
+    const { dealId } = req.params;
+    const { phone, recipientRole, message } = req.body;
+    if (!phone) return res.status(400).json({ ok: false, message: 'phone is required' });
+    if (!message?.trim()) return res.status(400).json({ ok: false, message: 'message is required' });
+    if (!['builder', 'cp'].includes(recipientRole)) {
+      return res.status(400).json({ ok: false, message: 'recipientRole must be "builder" or "cp"' });
+    }
+    const customer = await prisma.user.findUnique({ where: { phone } });
+    if (!customer) return res.status(404).json({ ok: false, message: 'Customer not found' });
+
+    const deal = await prisma.deal.findUnique({
+      where: { id: Number(dealId), customerId: customer.id },
+      include: {
+        builder: { select: { userId: true } },
+        cp:      { select: { userId: true } },
+        project: { select: { name: true } },
+      },
+    });
+    if (!deal) return res.status(404).json({ ok: false, message: 'Deal not found or not authorized' });
+
+    const msg = await prisma.dealMessage.create({
+      data: {
+        dealId:     deal.id,
+        senderId:   customer.id,
+        senderName: customer.fullName ?? 'Customer',
+        senderRole: 'customer',
+        message,
+      },
+    });
+
+    const custMsgProject = (deal.project as any)?.name ?? 'your project';
+    if (recipientRole === 'cp' && !deal.cp) {
+      return res.status(400).json({ ok: false, message: 'No channel partner is assigned to this deal yet' });
+    }
+    await notifyDealParties(deal.id, {
+      type: 'deal_message',
+      title: 'New message from customer',
+      message: `${customer.fullName ?? 'Customer'} sent a message about ${custMsgProject}.`,
+      to: [recipientRole as 'builder' | 'cp'],
+      link: { builder: '/builder/deals', cp: '/cp/leads' },
+      whatsappTemplate: 'deal_new_message',
+    }).catch(() => {});
+
+    res.json({ ok: true, data: msg });
+  },
+
+  // POST /customer/pricing-requests — customer asks the builder for a pricing quote on a shortlisted unit
+  requestPricing: async (req: Request, res: Response) => {
+    const { builderId, projectId, customerPhone, unitId, note } = req.body;
+    if (!builderId || !projectId || !customerPhone || !unitId) {
+      return res.status(400).json({ ok: false, message: 'Missing required fields' });
+    }
+    const customer = await prisma.user.findUnique({ where: { phone: customerPhone } });
+    if (!customer) return res.status(404).json({ ok: false, message: 'Customer not found' });
+
+    const builder = await prisma.builder.findUnique({ where: { id: Number(builderId) }, select: { userId: true } });
+    if (!builder) return res.status(404).json({ ok: false, message: 'Builder not found' });
+
+    const project = await prisma.project.findUnique({ where: { id: Number(projectId) }, select: { name: true } });
+    const projectName = project?.name ?? 'a project';
+    const customerName = customer.fullName ?? 'A customer';
+    const requestNote = (note?.trim() as string | undefined) || `Please share a pricing quote for Unit ${unitId}.`;
+
+    const builderMsg = `${customerName} requested pricing for Unit ${unitId} in ${projectName}. "${requestNote}"`;
+    await prisma.notification.create({ data: { userId: builder.userId, title: 'Pricing Request', message: builderMsg, type: 'info', link: '/builder/leads' } });
+    channelManager.publish(`user:${builder.userId}`, { type: 'pricing_request', title: 'Pricing Request', message: builderMsg, city: '', timestamp: new Date().toISOString(), link: '/builder/leads' });
+
+    const shortlist = await prisma.unitShortlist.findFirst({
+      where: { customerId: customer.id, projectId: Number(projectId), unitId },
+      select: { cpId: true },
+    });
+    if (shortlist?.cpId) {
+      const cp = await prisma.channelPartner.findUnique({ where: { id: shortlist.cpId }, select: { userId: true } });
+      if (cp) {
+        const cpMsg = `${customerName} requested pricing for Unit ${unitId} in ${projectName}.`;
+        await prisma.notification.create({ data: { userId: cp.userId, title: 'Pricing Request', message: cpMsg, type: 'info', link: '/cp/leads' } });
+        channelManager.publish(`user:${cp.userId}`, { type: 'pricing_request', title: 'Pricing Request', message: cpMsg, city: '', timestamp: new Date().toISOString(), link: '/cp/leads' });
+      }
+    }
+
+    res.json({ ok: true, data: { sent: true } });
   },
 };

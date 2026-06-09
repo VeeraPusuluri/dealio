@@ -14,6 +14,7 @@ model User {
   email           String?          @unique
   role            String           // BUILDER, CUSTOMER, CP, BANK, NRI, ADMIN
   preferredCity   String?
+  whatsappOptIn   Boolean          @default(false)
   createdAt       DateTime         @default(now())
   builder         Builder?
   channelPartner  ChannelPartner?

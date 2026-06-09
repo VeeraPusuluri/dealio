@@ -19,12 +19,16 @@ export interface ChannelEvent {
     | 'deal_message'
     | 'deal_assigned'
     | 'deal_confirmed'
-    | 'deal_agreed';
+    | 'deal_agreed'
+    | 'pricing_request';
   title: string;
   message: string;
   projectId?: number;
   meetingId?: number;
   dealId?: number;
+  /** Id of the persisted Notification row this event mirrors — lets the client
+   *  dedupe the live SSE event against the one it later hydrates from the DB. */
+  notificationId?: number;
   city: string;
   link?: string;
   timestamp: string;

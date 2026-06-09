@@ -18,5 +18,7 @@ router.get('/subscribe', requireAuth, customerController.subscribeToCity);   // 
 router.patch('/preferred-city', requireAuth, customerController.setPreferredCity);
 router.patch('/profile', requireAuth, customerController.updateProfile);
 router.get('/notifications', requireAuth, customerController.getNotifications);
+router.patch('/notifications/read-all', requireAuth, customerController.markAllNotificationsRead);
+router.patch('/notifications/:id/read', requireAuth, customerController.markNotificationRead);
 
 export default router;

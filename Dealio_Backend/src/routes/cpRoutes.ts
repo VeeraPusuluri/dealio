@@ -41,6 +41,8 @@ router.patch('/:cpUserId/profile', requireAuth, cpController.updateProfile);
 // Notifications — static paths before /:cpUserId to avoid param collision
 router.get('/notifications/stream', requireAuth, cpController.streamNotifications);  // SSE
 router.get('/notifications',        requireAuth, cpController.getNotifications);
+router.patch('/notifications/read-all', requireAuth, cpController.markAllNotificationsRead);
+router.patch('/notifications/:id/read', requireAuth, cpController.markNotificationRead);
 
 // Phone verification
 router.post('/verify-phone/send-otp', requireAuth, cpController.sendPhoneOtp);
