@@ -97,6 +97,7 @@ router.patch('/:builderId/meetings/:meetingId', builderController.updateMeetingS
 router.get('/:builderId/deals', builderController.getBuilderDeals);
 router.patch('/:builderId/deals/:dealId/status', requireAuth, builderController.updateDealStatus);
 router.patch('/:builderId/deals/:dealId/accept-agreement', requireAuth, builderController.acceptSignedAgreement);
+router.patch('/:builderId/deals/:dealId/mark-sold', requireAuth, builderController.markDealSold);   // Phase 9 — mark unit SOLD + close
 router.get('/:builderId/deals/:dealId',                                  builderController.getDeal);
 router.post('/:builderId/deals/:dealId/documents',   requireAuth,        builderController.addDealDocument);
 router.post('/:builderId/deals/:dealId/upload',      requireAuth, uploadDealDoc.single('file'), builderController.uploadDealDocument);

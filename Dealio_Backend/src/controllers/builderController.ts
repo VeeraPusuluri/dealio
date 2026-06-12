@@ -2200,6 +2200,58 @@ export const builderController = {
     }
   },
 
+  // PATCH /:builderId/deals/:dealId/mark-sold — Phase 9 (disbursement/registration):
+  // mark the customer's unit SOLD in the project's unit matrix and close the deal.
+  // Completes the customer journey and activates the interior-vendor step.
+  markDealSold: async (req: Request, res: Response) => {
+    const { builderId, dealId } = req.params;
+    const { unitId } = req.body as { unitId?: string };
+    try {
+      const deal = await prisma.deal.findUnique({
+        where: { id: Number(dealId), builderId: Number(builderId) },
+        include: { project: { select: { id: true, name: true, unitMatrix: true } } },
+      });
+      if (!deal) return res.status(404).json({ ok: false, message: 'Deal not found' });
+
+      // Resolve the unit: explicit override, else the customer's latest shortlist for this project.
+      let targetUnitId = unitId;
+      if (!targetUnitId) {
+        const sl = await prisma.unitShortlist.findFirst({
+          where: { customerId: deal.customerId, projectId: deal.projectId },
+          orderBy: { id: 'desc' },
+        });
+        targetUnitId = sl?.unitId;
+      }
+
+      // Mark that unit Sold in the matrix (when it can be located).
+      let unitMarked: string | null = null;
+      const matrix = (deal.project as any)?.unitMatrix;
+      if (targetUnitId && Array.isArray(matrix)) {
+        const updatedMatrix = matrix.map((u: any) => {
+          if (String(u.id) === String(targetUnitId)) { unitMarked = String(u.id); return { ...u, status: 'Sold' }; }
+          return u;
+        });
+        if (unitMarked) await prisma.project.update({ where: { id: deal.projectId }, data: { unitMatrix: updatedMatrix } });
+      }
+
+      // Close the deal — registration done.
+      const updated = await prisma.deal.update({ where: { id: deal.id }, data: { status: 'Closed' } });
+
+      // Notify customer + CP — journey completes, interior-vendor activates.
+      await notifyDealParties(deal.id, {
+        type: 'notification', notifType: 'success',
+        title: 'Registration Complete 🎉',
+        message: `Your unit at ${(deal.project as any)?.name ?? 'the project'} is registered. Welcome home!`,
+        to: ['customer', 'cp'],
+        link: { customer: '/customer/journey', cp: '/cp/leads' },
+      }).catch(() => {});
+
+      res.json({ ok: true, data: { status: updated.status, unitMarkedSold: unitMarked } });
+    } catch {
+      res.status(404).json({ ok: false, message: 'Deal not found' });
+    }
+  },
+
   // POST /customer/deals/:dealId/messages — customer messages the builder or CP on a deal
   sendCustomerDealMessage: async (req: Request, res: Response) => {
     const { dealId } = req.params;

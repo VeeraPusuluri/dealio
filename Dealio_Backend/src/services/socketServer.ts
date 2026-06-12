@@ -3,7 +3,7 @@ import { Server as SocketServer, Socket } from 'socket.io';
 import prisma from '../utils/prisma';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'dealio-secret-key-12345';
 
 interface AuthSocket extends Socket {
   userId?: number;
@@ -15,7 +15,12 @@ let io: SocketServer;
 
 export function initSocketServer(httpServer: HttpServer) {
   io = new SocketServer(httpServer, {
-    cors: { origin: '*', methods: ['GET', 'POST'] },
+    cors: {
+      origin: process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
+        : '*',
+      methods: ['GET', 'POST'],
+    },
     path: '/socket.io',
   });
 
