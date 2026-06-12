@@ -29,13 +29,13 @@ interface UnitShortlistItem {
 }
 import { toast } from 'sonner';
 
-const stages: LeadStage[] = ['New Lead', 'Profile Created', 'Meeting Requested', 'Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Agreement', 'Booked', 'Closed'];
+const stages: LeadStage[] = ['New Lead', 'Profile Created', 'Meeting Requested', 'Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Agreement', 'Pending Booking', 'Booked', 'Closed'];
 
 const stageToMilestone: Record<string, string> = {
   'New Lead': 'Enquiry', 'Profile Created': 'Enquiry',
   'Meeting Requested': 'Site Visit Scheduled', 'Meeting Confirmed': 'Site Visit Scheduled',
   'Meeting Done': 'Site Visit Done', 'Negotiation': 'Negotiation',
-  'Agreement': 'Agreement', 'Booked': 'Booked', 'Closed': 'Possession Given',
+  'Agreement': 'Agreement', 'Pending Booking': 'Booked', 'Booked': 'Booked', 'Closed': 'Possession Given',
 };
 
 // Map backend enum values to display labels
@@ -50,6 +50,8 @@ const STAGE_MAP: Record<string, LeadStage> = {
   Negotiation: 'Negotiation',
   AGREEMENT: 'Agreement',
   Agreement: 'Agreement',
+  PENDING_BOOKING: 'Pending Booking',
+  'Pending Booking': 'Pending Booking',
   BOOKED: 'Booked',
   Booked: 'Booked',
   CLOSED: 'Closed',
@@ -71,6 +73,7 @@ const STAGE_ENUM: Record<string, string> = {
   'Meeting Done': 'MEETING_DONE',
   'Negotiation': 'NEGOTIATION',
   'Agreement': 'Agreement',
+  'Pending Booking': 'Pending Booking',
   'Booked': 'BOOKED',
   'Closed': 'CLOSED',
 };
@@ -105,7 +108,7 @@ interface ApiDeal {
   cpId?: number | null;
 }
 
-const VALID_STAGES = ['New Lead', 'Profile Created', 'Meeting Requested', 'Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Agreement', 'Booked', 'Closed',
+const VALID_STAGES = ['New Lead', 'Profile Created', 'Meeting Requested', 'Meeting Confirmed', 'Meeting Done', 'Negotiation', 'Agreement', 'Pending Booking', 'Booked', 'Closed',
   'Loan Application Created', 'Loan Sanctioned', 'Loan Disbursed', 'Registration Done', 'Possession Given'];
 
 function dealToLead(d: ApiDeal) {
@@ -154,7 +157,8 @@ const NEXT_STAGES: Record<string, LeadStage[]> = {
   'Meeting Confirmed': ['Meeting Done', 'Negotiation', 'Closed'],
   'Meeting Done': ['Negotiation', 'Agreement', 'Booked', 'Closed'],
   'Negotiation': ['Agreement', 'Booked', 'Closed'],
-  'Agreement': ['Booked', 'Closed'],
+  'Agreement': ['Pending Booking', 'Booked', 'Closed'],
+  'Pending Booking': ['Booked', 'Closed'],
   'Booked': ['Closed'],
   'Closed': [],
 };

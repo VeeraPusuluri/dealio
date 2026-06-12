@@ -58,7 +58,7 @@ const STAGES: PipelineStage[] = [
     icon: MapPin,
     nextStep: 'Discuss pricing & unit preference',
     nextHow: 'Contact your builder or channel partner to share your budget and preferred unit.',
-    nextLink: '/customer/contact',
+    nextLink: '/customer/conversations',
     nextLabel: 'Contact Builder',
     color: '#0A7E8C',
   },
@@ -108,7 +108,7 @@ const STAGES: PipelineStage[] = [
     icon: ShieldCheck,
     nextStep: 'Schedule property registration',
     nextHow: 'Contact your builder to arrange the registration date. Carry your original ID and payment.',
-    nextLink: '/customer/contact',
+    nextLink: '/customer/conversations',
     nextLabel: 'Contact Builder',
     color: '#16A34A',
   },
@@ -126,6 +126,7 @@ const STAGES: PipelineStage[] = [
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 interface DealData {
+  dealId?: number;
   dealStatus: string;
   loanStatus?: string;
   loanCaseId?: number;
@@ -172,6 +173,7 @@ export default function CustomerPipelineWidget({ phone }: { phone: string }) {
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(true);
   const [hidden, setHidden] = useState(() => localStorage.getItem(HIDDEN_KEY) === 'true');
+  const [dealId, setDealId] = useState<number | null>(null);
 
   const shortlistCount = (() => {
     try { return (JSON.parse(localStorage.getItem('dealio_customer_shortlist') ?? '[]') as number[]).length; }
@@ -182,12 +184,14 @@ export default function CustomerPipelineWidget({ phone }: { phone: string }) {
     if (!phone) { setStageId('browsing'); setLoading(false); return; }
     Promise.all([portalApi.getMyDeals(phone), portalApi.getMyMeetings(phone)])
       .then(([deals, meetings]) => {
+        const dealList = (deals as DealData[]) || [];
         const stage = resolveStage(
-          (deals as DealData[]) || [],
+          dealList,
           (meetings as MeetingData[]) || [],
           shortlistCount,
         );
         setStageId(stage);
+        setDealId(dealList[0]?.dealId ?? null);
       })
       .catch(() => setStageId('browsing'))
       .finally(() => setLoading(false));
@@ -318,7 +322,11 @@ export default function CustomerPipelineWidget({ phone }: { phone: string }) {
                   </p>
                 )}
                 <button
-                  onClick={() => navigate(current.nextLink)}
+                  onClick={() => navigate(
+                    current.nextLink === '/customer/conversations' && dealId != null
+                      ? `/customer/conversations?dealId=${dealId}`
+                      : current.nextLink,
+                  )}
                   className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white transition-opacity hover:opacity-90"
                   style={{ backgroundColor: current.color }}
                 >

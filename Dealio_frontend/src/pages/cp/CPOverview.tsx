@@ -103,7 +103,7 @@ const CPOverview = () => {
   const navigate = useNavigate();
   const user = useAuthStore(s => s.user);
   const [leads, setLeads] = useState<CPLead[]>([]);
-  const [todayTasks, setTodayTasks] = useState<{ name: string; project: string; note: string; time?: string; type: 'followup' | 'call' }[]>([]);
+  const [todayTasks, setTodayTasks] = useState<{ name: string; project: string; note: string; time?: string; type: 'followup' | 'call' | 'meeting' }[]>([]);
   const { commissions } = useCommissionStore();
   const { addNotification } = useNotificationStore();
 
@@ -125,11 +125,19 @@ const CPOverview = () => {
       .catch(() => {});
     cpApi.getDueToday(user.id)
       .then((data: any) => {
-        const { followUps = [], callLogs = [] } = data as {
+        const { meetings = [], followUps = [], callLogs = [] } = data as {
+          meetings:  { customerName: string; projectName: string; meetingType?: string | null; time?: string | null; status: string }[];
           followUps: { customerName: string; projectName: string; reason: string; dueTime?: string }[];
           callLogs:  { customerName: string; projectName: string; outcome: string }[];
         };
         setTodayTasks([
+          ...meetings.map(m => ({
+            name:    m.customerName,
+            project: m.projectName,
+            note:    m.meetingType ?? 'Site visit',
+            time:    m.time ?? undefined,
+            type:    'meeting' as const,
+          })),
           ...followUps.map(f => ({
             name:    f.customerName,
             project: f.projectName,
@@ -143,7 +151,7 @@ const CPOverview = () => {
             note:    c.outcome ? `Last call: ${c.outcome}` : c.projectName,
             type:    'call' as const,
           })),
-        ].slice(0, 5));
+        ].slice(0, 6));
       })
       .catch(() => {});
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -345,13 +353,13 @@ const CPOverview = () => {
                     <CheckCircle2 size={18} style={{ color: '#22C55E' }} />
                   </div>
                   <p style={{ fontSize: 12.5, color: '#94A3B8', margin: 0 }}>All clear for today</p>
-                  <p style={{ fontSize: 11, color: '#CBD5E1', margin: '4px 0 0' }}>No follow-ups due right now</p>
+                  <p style={{ fontSize: 11, color: '#CBD5E1', margin: '4px 0 0' }}>No meetings or follow-ups due</p>
                 </div>
               ) : (
                 <div>
                   {todayTasks.map((task, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 20px', borderBottom: i < todayTasks.length - 1 ? '1px solid #F8FAFC' : 'none' }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: task.type === 'call' ? '#F5821F' : '#A78BFA', flexShrink: 0, marginLeft: 4 }} />
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: task.type === 'call' ? '#F5821F' : task.type === 'meeting' ? '#0A7E8C' : '#A78BFA', flexShrink: 0, marginLeft: 4 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <div style={{ fontSize: 13.5, fontWeight: 600, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.name}</div>
@@ -365,8 +373,8 @@ const CPOverview = () => {
                           {task.note}
                         </div>
                       </div>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: task.type === 'call' ? '#F5821F' : '#A78BFA', background: task.type === 'call' ? '#FFF7ED' : '#F5F3FF', borderRadius: 6, padding: '3px 8px', flexShrink: 0 }}>
-                        {task.type === 'call' ? 'Callback' : 'Follow-up'}
+                      <span style={{ fontSize: 10, fontWeight: 700, color: task.type === 'call' ? '#F5821F' : task.type === 'meeting' ? '#0A7E8C' : '#A78BFA', background: task.type === 'call' ? '#FFF7ED' : task.type === 'meeting' ? '#ECFEFF' : '#F5F3FF', borderRadius: 6, padding: '3px 8px', flexShrink: 0 }}>
+                        {task.type === 'call' ? 'Callback' : task.type === 'meeting' ? 'Meeting' : 'Follow-up'}
                       </span>
                       <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Hi ${task.name}, just checking in!`)}`, '_blank')}
                         style={{ width: 30, height: 30, borderRadius: 8, background: '#F0FDF4', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

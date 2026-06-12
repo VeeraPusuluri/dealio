@@ -34,7 +34,7 @@ interface PublicProject { id: number; builderId: number; name: string; city?: st
 
 const STAGES = [
   'New Lead', 'Profile Created', 'Meeting Requested', 'Meeting Confirmed',
-  'Meeting Done', 'Negotiation', 'Agreement', 'Booked', 'Closed',
+  'Meeting Done', 'Negotiation', 'Agreement', 'Pending Booking', 'Booked', 'Closed',
 ] as const;
 
 const STAGE_COLOR: Record<string, { bg: string; text: string; dot: string }> = {
@@ -45,6 +45,7 @@ const STAGE_COLOR: Record<string, { bg: string; text: string; dot: string }> = {
   'Meeting Confirmed':  { bg: 'bg-violet-50',  text: 'text-violet-700',  dot: '#8b5cf6' },
   'Meeting Done':       { bg: 'bg-pink-50',    text: 'text-pink-700',    dot: '#ec4899' },
   'Negotiation':        { bg: 'bg-amber-50',   text: 'text-amber-700',   dot: '#f59e0b' },
+  'Pending Booking':    { bg: 'bg-cyan-50',    text: 'text-cyan-700',    dot: '#0891b2' },
   'Booked':             { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: '#10b981' },
   'Closed':             { bg: 'bg-green-50',   text: 'text-green-700',   dot: '#16a34a' },
 };

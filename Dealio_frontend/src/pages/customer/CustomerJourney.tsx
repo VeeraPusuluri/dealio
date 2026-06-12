@@ -10,6 +10,7 @@ import {
   Bookmark, Tag, X, Upload,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { STAGE_META, normalizeStage } from '@/lib/dealStages';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -876,6 +877,33 @@ function buildThreads(deals: CustomerDeal[], meetings: ApiMeeting[]): JourneyThr
 
 const PRE_DEAL_STAGES = ['', 'meeting requested', 'meeting confirmed', 'meeting done', 'new lead', 'enquiry'];
 
+type ThreadKind = 'visit' | 'deal';
+
+// A thread counts as a "deal" once a real transaction is underway (negotiation onwards),
+// otherwise it's still a "visit". Drives the Visits / Deals filter.
+function threadKind(thread: JourneyThread): ThreadKind {
+  const status = thread.deal?.dealStatus?.toLowerCase() ?? '';
+  return thread.deal && !PRE_DEAL_STAGES.includes(status) ? 'deal' : 'visit';
+}
+
+// The current-stage chip for a thread — the deal stage when a deal is underway, else the
+// site-visit status. Gives an at-a-glance answer to "where is this visit right now?".
+function threadStage(thread: JourneyThread): { label: string; badge: string; color: string } {
+  const status = thread.deal?.dealStatus?.toLowerCase() ?? '';
+  if (thread.deal && !PRE_DEAL_STAGES.includes(status)) {
+    const meta = STAGE_META[normalizeStage(thread.deal.dealStatus)];
+    return { label: meta.label, badge: meta.badge, color: meta.color };
+  }
+  const s = (thread.meetings[0]?.status ?? '').toLowerCase();
+  if (s.includes('cancel'))    return { label: 'Visit Cancelled',   badge: 'bg-rose-50 text-rose-700 border-rose-200',         color: '#e11d48' };
+  if (s.includes('complet'))   return { label: 'Visit Completed',   badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', color: '#059669' };
+  if (s.includes('reschedul')) return { label: 'Visit Rescheduled', badge: 'bg-amber-50 text-amber-700 border-amber-200',       color: '#d97706' };
+  if (s.includes('follow'))    return { label: 'Follow-up Needed',  badge: 'bg-amber-50 text-amber-700 border-amber-200',       color: '#d97706' };
+  if (s.includes('confirm'))   return { label: 'Visit Confirmed',   badge: 'bg-blue-50 text-blue-700 border-blue-200',          color: '#2563eb' };
+  if (thread.meetings.length)  return { label: 'Visit Requested',   badge: 'bg-indigo-50 text-indigo-700 border-indigo-200',    color: '#6366f1' };
+  return { label: 'In Progress', badge: 'bg-gray-50 text-gray-600 border-gray-200', color: '#94a3b8' };
+}
+
 // ─── Possession card (interior-vendor activation, shown when a thread closes) ────
 
 function PossessionCard({ deal }: { deal: CustomerDeal }) {
@@ -936,55 +964,65 @@ function JourneyThreadCard({
 
   const steps  = buildJourney(deal ? [deal] : [], thread.meetings);
   const handle = thread.handle;
+  const stage  = threadStage(thread);
 
   return (
-    <div className="space-y-4">
-      {/* Thread header — the unique handle linking customer · builder · CP */}
-      <div className="flex items-center justify-between gap-3 px-0.5">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-[11px] font-bold text-white px-2 py-0.5 rounded-md shrink-0"
+    <div
+      className="rounded-2xl border border-gray-200/70 bg-white shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-1 duration-500"
+      style={{ borderLeft: `3px solid ${stage.color}` }}
+    >
+      {/* Header strip — handle · project · current stage · deal room */}
+      <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-50/70 to-transparent">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="text-[11px] font-bold text-white px-2 py-0.5 rounded-md shrink-0 shadow-sm"
             style={{ background: 'linear-gradient(135deg,#6366F1,#818CF8)' }}>
             {handle}
           </span>
-          <h2 className="text-sm font-bold text-gray-900 truncate">{thread.projectName || 'Your Property'}</h2>
+          <h2 className="text-[15px] font-bold text-gray-900 truncate tracking-tight">{thread.projectName || 'Your Property'}</h2>
         </div>
-        {deal && (
-          <Link to={`/customer/deals/${deal.dealId}`}
-            className="flex items-center gap-1 text-xs font-semibold text-secondary hover:underline shrink-0">
-            Deal Room <ArrowRight size={12} />
-          </Link>
-        )}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${stage.badge}`}>
+            {stage.label}
+          </span>
+          {deal && (
+            <Link to={`/customer/deals/${deal.dealId}`}
+              className="hidden sm:flex items-center gap-1 text-xs font-semibold text-secondary hover:gap-1.5 transition-all">
+              Deal Room <ArrowRight size={12} />
+            </Link>
+          )}
+        </div>
       </div>
 
-      {/* Pre-negotiation: shortlist a unit & request pricing (self-hides until a visit is done) */}
-      {isPreDeal && <ShortlistAndPricingCard meetings={thread.meetings} phone={phone} />}
+      {/* Body */}
+      <div className="p-4 sm:p-5 space-y-4">
+        {/* Pre-negotiation: shortlist a unit & request pricing (self-hides until a visit is done) */}
+        {isPreDeal && <ShortlistAndPricingCard meetings={thread.meetings} phone={phone} />}
 
-      {/* Active deal — negotiation / agreement / pending booking */}
-      {isActive && deal && (
-        <ActiveDealCard
-          deal={deal}
-          phone={phone}
-          customerName={customerName}
-          onConfirmed={() => setDeal(prev => prev ? { ...prev, customerConfirmed: true } : prev)}
-          onNegotiationAccepted={onReload}
-          onMessageSent={(msg) => setDeal(prev => prev ? { ...prev, messages: [...(prev.messages ?? []), msg] } : prev)}
-        />
-      )}
+        {/* Active deal — negotiation / agreement / pending booking */}
+        {isActive && deal && (
+          <ActiveDealCard
+            deal={deal}
+            phone={phone}
+            customerName={customerName}
+            onConfirmed={() => setDeal(prev => prev ? { ...prev, customerConfirmed: true } : prev)}
+            onNegotiationAccepted={onReload}
+            onMessageSent={(msg) => setDeal(prev => prev ? { ...prev, messages: [...(prev.messages ?? []), msg] } : prev)}
+          />
+        )}
 
-      {/* Milestone timeline for this property */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        {/* Milestone timeline */}
         {steps.length === 0 ? (
-          <div className="flex flex-col items-center py-10 text-center">
-            <AlertCircle size={24} className="text-gray-300 mb-2" />
-            <p className="text-sm text-gray-500">No milestones yet for this property.</p>
+          <div className="flex flex-col items-center py-8 text-center">
+            <AlertCircle size={22} className="text-gray-300 mb-2" />
+            <p className="text-sm text-gray-400">No milestones yet for this property.</p>
           </div>
         ) : (
           <JourneyTimeline steps={steps} />
         )}
-      </div>
 
-      {/* Possession reached */}
-      {isClosed && deal && <PossessionCard deal={deal} />}
+        {/* Possession reached */}
+        {isClosed && deal && <PossessionCard deal={deal} />}
+      </div>
     </div>
   );
 }
@@ -994,6 +1032,7 @@ const CustomerJourney = () => {
   const [threads, setThreads] = useState<JourneyThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [empty,   setEmpty]   = useState(false);
+  const [filter,  setFilter]  = useState<'all' | ThreadKind>('all');
 
   const phone = user?.phone ?? '';
 
@@ -1015,20 +1054,39 @@ const CustomerJourney = () => {
 
   useEffect(() => { load(); }, [load]);
 
+  const visitCount = threads.filter(t => threadKind(t) === 'visit').length;
+  const dealCount  = threads.length - visitCount;
+  const filtered   = filter === 'all' ? threads : threads.filter(t => threadKind(t) === filter);
+
   return (
     <DashboardLayout>
       <div className="space-y-6 pb-8">
-        {/* Page header */}
-        <div className="pt-1 flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: 'linear-gradient(135deg, #6366F1, #818CF8)' }}
-          >
-            <ListChecks size={18} className="text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Property Journey</h1>
-            <p className="text-sm text-gray-500">Track every milestone from visit to possession</p>
+        {/* Hero header */}
+        <div className="relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-violet-50/60 px-5 sm:px-6 py-5">
+          <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-indigo-300/20 blur-3xl pointer-events-none" />
+          <div className="relative flex items-center gap-4">
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/25"
+              style={{ background: 'linear-gradient(135deg, #6366F1, #818CF8)' }}
+            >
+              <ListChecks size={22} className="text-white" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight leading-tight">Property Journey</h1>
+              <p className="text-sm text-gray-500 mt-0.5">Track every milestone from first visit to possession</p>
+            </div>
+            {!loading && !empty && (
+              <div className="ml-auto hidden sm:flex items-stretch gap-2.5">
+                <div className="px-4 py-2 rounded-xl bg-white/70 border border-indigo-100 text-center backdrop-blur-sm">
+                  <p className="text-lg font-bold text-gray-900 leading-none">{threads.length}</p>
+                  <p className="text-[10px] font-medium text-gray-500 mt-1 uppercase tracking-wide">Journeys</p>
+                </div>
+                <div className="px-4 py-2 rounded-xl bg-white/70 border border-indigo-100 text-center backdrop-blur-sm">
+                  <p className="text-lg font-bold text-gray-900 leading-none">{dealCount}</p>
+                  <p className="text-[10px] font-medium text-gray-500 mt-1 uppercase tracking-wide">Active deals</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1037,29 +1095,64 @@ const CustomerJourney = () => {
             <Loader2 size={32} className="animate-spin text-secondary" />
           </div>
         ) : empty ? (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="bg-white rounded-2xl border border-gray-200/70 shadow-sm p-6">
             <div className="flex flex-col items-center py-16 text-center">
-              <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <AlertCircle size={28} className="text-gray-300" />
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100">
+                <ListChecks size={28} className="text-indigo-400" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-1">No journey data yet</h3>
-              <p className="text-sm text-gray-500">
-                Schedule a site visit or book a unit to get started.
+              <h3 className="font-bold text-gray-900 mb-1 text-base">No journeys yet</h3>
+              <p className="text-sm text-gray-500 max-w-xs">
+                Schedule a site visit or book a unit, and your property journey will appear here.
               </p>
             </div>
           </div>
         ) : (
-          <div className="space-y-10">
-            {threads.map(t => (
-              <JourneyThreadCard
-                key={t.key}
-                thread={t}
-                phone={phone}
-                customerName={user?.name ?? ''}
-                onReload={load}
-              />
-            ))}
-          </div>
+          <>
+            {/* Filter — view all journeys, just site visits, or active/closed deals */}
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-gray-100/80 border border-gray-200/70 w-fit">
+              {([
+                ['all',   'All',    threads.length],
+                ['visit', 'Visits', visitCount],
+                ['deal',  'Deals',  dealCount],
+              ] as const).map(([key, label, count]) => {
+                const active = filter === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setFilter(key)}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      active ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    {label}
+                    <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold ${
+                      active ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-200/80 text-gray-500'
+                    }`}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {filtered.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-200/70 shadow-sm p-12 text-center">
+                <p className="text-sm text-gray-400">
+                  No {filter === 'deal' ? 'active deals' : 'site visits'} to show.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {filtered.map(t => (
+                  <JourneyThreadCard
+                    key={t.key}
+                    thread={t}
+                    phone={phone}
+                    customerName={user?.name ?? ''}
+                    onReload={load}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </DashboardLayout>

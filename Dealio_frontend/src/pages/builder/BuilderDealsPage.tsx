@@ -377,9 +377,9 @@ export function DealDrawer({
         <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0"
           style={{ background: 'linear-gradient(135deg, #0A7E8C10 0%, transparent 100%)' }}>
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: '#0A7E8C18', color: '#0A7E8C' }}>
-              <Handshake size={18} />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md shadow-teal-600/20"
+              style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}>
+              <Handshake size={18} className="text-white" />
             </div>
             <div className="min-w-0">
               <h3 className="text-[14px] font-bold text-foreground truncate">{dealSummary.customerName}</h3>
@@ -413,8 +413,8 @@ export function DealDrawer({
               onClick={() => setTab(key)}
               className={`flex items-center gap-1.5 px-3.5 py-3 text-[11px] font-semibold whitespace-nowrap transition-all border-b-2 -mb-px ${
                 tab === key
-                  ? 'border-[#0A7E8C] text-[#0A7E8C]'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
+                  ? 'border-[#0A7E8C] text-[#0A7E8C] bg-[#0A7E8C0a]'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
               }`}
             >
               <Icon size={12} />
@@ -489,10 +489,14 @@ export function DealDrawer({
                             }`}
                             style={isActive ? { backgroundColor: color, borderColor: color } : {}}
                           >
-                            {stageUpdating && isActive
-                              ? <span className="flex items-center gap-1"><Loader2 size={10} className="animate-spin" />{s}</span>
-                              : s
-                            }
+                            {stageUpdating && isActive ? (
+                              <span className="flex items-center gap-1"><Loader2 size={10} className="animate-spin" />{s}</span>
+                            ) : (
+                              <span className="flex items-center gap-1.5">
+                                {!isActive && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />}
+                                {s}
+                              </span>
+                            )}
                           </button>
                         );
                       })}
@@ -718,7 +722,7 @@ export function DealDrawer({
                       return events.map((e, i) => (
                         <div key={i} className="flex items-start gap-3">
                           <div className="flex flex-col items-center shrink-0" style={{ width: 20 }}>
-                            <div className="w-2.5 h-2.5 rounded-full mt-1 shrink-0" style={{ backgroundColor: e.color }} />
+                            <div className="w-2.5 h-2.5 rounded-full mt-1 shrink-0" style={{ backgroundColor: e.color, boxShadow: `0 0 0 3px ${e.color}1f` }} />
                             {i < events.length - 1 && <div className="w-px flex-1 mt-1 bg-border min-h-[16px]" />}
                           </div>
                           <div className="flex-1 pb-3 min-w-0">
@@ -748,9 +752,9 @@ export function DealDrawer({
                         const isBuilder = msg.senderRole === 'builder';
                         return (
                           <div key={msg.id} className={`flex ${isBuilder ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 ${
+                            <div className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
                               isBuilder
-                                ? 'bg-[#0A7E8C] text-white rounded-br-sm'
+                                ? 'bg-[#0A7E8C] text-white rounded-br-sm shadow-teal-600/20'
                                 : 'bg-muted text-foreground rounded-bl-sm border border-border'
                             }`}>
                               {!isBuilder && (
@@ -818,8 +822,10 @@ export function DealDrawer({
                     )}
 
                     {detail.dealDocuments.map(doc => (
-                      <div key={doc.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted/30 border border-border">
-                        <FileText size={15} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <div key={doc.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted/30 border border-border hover:border-ring/30 transition-colors">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center flex-shrink-0">
+                          <FileText size={15} className="text-blue-500" />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap mb-1.5">
                             <p className="text-[13px] font-semibold text-foreground truncate">{doc.name}</p>
@@ -1144,12 +1150,15 @@ export function BuilderDealsPanel({ builderId: externalBid, embedded }: { builde
         {/* ── Stats Row ── */}
         {!loading && deals.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-shrink-0">
-            {stats.map(({ label, value, color, bg }) => (
-              <div key={label} className={`rounded-2xl border border-border ${bg} px-4 py-3 flex items-center gap-3`}>
-                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                <div>
-                  <p className="text-[10px] font-semibold text-muted-foreground">{label}</p>
-                  <p className="text-[22px] font-black text-foreground leading-tight">{value}</p>
+            {stats.map(({ label, value, color }) => (
+              <div key={label} className="relative overflow-hidden rounded-2xl border border-border bg-card px-4 py-3">
+                <div className="absolute -right-3 -top-3 w-16 h-16 rounded-full blur-2xl" style={{ background: `${color}22` }} />
+                <div className="relative flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}55` }} />
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+                    <p className="text-[24px] font-black leading-tight tracking-tight" style={{ color }}>{value}</p>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1183,14 +1192,15 @@ export function BuilderDealsPanel({ builderId: externalBid, embedded }: { builde
                 <div
                   key={deal.id}
                   onClick={() => { if (builderId) setSelectedDeal(deal); }}
-                  className="bg-card rounded-2xl border border-border p-4 shadow-sm cursor-pointer hover:shadow-md hover:border-ring/40 transition-all duration-150 group"
+                  className="bg-card rounded-2xl border border-border p-4 shadow-sm cursor-pointer hover:shadow-md hover:border-ring/40 hover:-translate-y-0.5 transition-all duration-200 group"
+                  style={{ borderLeft: `3px solid ${stageColor}` }}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0">
                       {/* Avatar */}
                       <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-[12px] font-black text-white"
-                        style={{ backgroundColor: stageColor }}
+                        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-[12px] font-black text-white shadow-sm"
+                        style={{ background: `linear-gradient(135deg, ${stageColor}, ${stageColor}cc)` }}
                       >
                         {initials}
                       </div>

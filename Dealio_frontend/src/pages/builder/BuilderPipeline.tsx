@@ -77,16 +77,19 @@ const BuilderPipeline = () => {
       <div className="flex flex-col h-[calc(100vh-7rem)] gap-0">
 
         {/* ── Pipeline header ───────────────────────────────────────── */}
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h2 className="text-[17px] font-bold text-foreground leading-tight">Pipeline</h2>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Leads · Deals · Meetings in one place
-            </p>
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-card px-5 py-4 mb-4 flex-shrink-0">
+          <div className="absolute -right-10 -top-10 w-36 h-36 rounded-full bg-teal-500/10 blur-3xl pointer-events-none" />
+          <div className="relative flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-teal-600/25"
+              style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}>
+              <Users size={20} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-foreground tracking-tight leading-tight">Sales Pipeline</h2>
+              <p className="text-[12px] text-muted-foreground mt-0.5">Leads · Deals · Meetings in one place</p>
+            </div>
+            {bidLoading && <Loader2 size={16} className="animate-spin text-muted-foreground ml-auto" />}
           </div>
-          {bidLoading && (
-            <Loader2 size={16} className="animate-spin text-muted-foreground" />
-          )}
         </div>
 
         {/* ── Stats + Tab bar ───────────────────────────────────────── */}

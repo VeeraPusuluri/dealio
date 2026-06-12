@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import DatePickerField from '@/components/shared/DatePickerField';
+import { ALL_SLOTS } from '@/lib/builderAvailability';
 import AddToCalendarButton from '@/components/shared/AddToCalendarButton';
 import { AppleCalendar, CalEvent } from '@/components/shared/AppleCalendar';
 
@@ -279,13 +280,14 @@ export function BuilderMeetingsPanel({ builderId: externalBid, embedded }: { bui
           ] as const).map(({ label, value }) => {
             const st = STAT_STYLES[label];
             return (
-              <div key={label} className="rounded-2xl border border-border bg-card px-4 py-3.5 flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl ${st.iconBg} flex items-center justify-center flex-shrink-0`}>
+              <div key={label} className="relative overflow-hidden rounded-2xl border border-border bg-card px-4 py-3.5 flex items-center gap-3">
+                <div className={`absolute -right-4 -top-4 w-16 h-16 rounded-full blur-2xl opacity-50 ${st.iconBg}`} />
+                <div className={`relative w-9 h-9 rounded-xl ${st.iconBg} flex items-center justify-center flex-shrink-0`}>
                   <Calendar size={16} className={st.iconColor} />
                 </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground font-medium">{label}</p>
-                  <p className="text-xl font-bold text-foreground leading-tight">{value}</p>
+                <div className="relative">
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
+                  <p className="text-2xl font-bold text-foreground leading-tight tracking-tight">{value}</p>
                 </div>
               </div>
             );
@@ -430,7 +432,7 @@ export function BuilderMeetingsPanel({ builderId: externalBid, embedded }: { bui
                         <ArrowLeft size={14} />
                       </button>
                       {/* avatar */}
-                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-bold text-white ${
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-bold text-white shadow-md ${
                         selected.status === 'Pending'   ? 'bg-amber-400'   :
                         selected.status === 'Confirmed' ? 'bg-blue-500'    :
                         selected.status === 'Completed' ? 'bg-emerald-500' :
@@ -569,7 +571,12 @@ export function BuilderMeetingsPanel({ builderId: externalBid, embedded }: { bui
                             <label className="text-[10px] font-medium text-slate-400 mb-1.5 block">
                               {actionType === 'reschedule' ? 'New Time' : 'Confirmed Time'}
                             </label>
-                            <input value={newTime} onChange={e => setNewTime(e.target.value)} placeholder="e.g. 11:00 AM" className={ic} />
+                            <select value={newTime} onChange={e => setNewTime(e.target.value)} className={ic}>
+                              <option value="">Select a time…</option>
+                              {(newTime && !ALL_SLOTS.includes(newTime) ? [newTime, ...ALL_SLOTS] : ALL_SLOTS).map(s => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
                           </div>
                         </div>
                       )}
@@ -614,12 +621,12 @@ export function BuilderMeetingsPanel({ builderId: externalBid, embedded }: { bui
                       <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Actions</p>
                       <div className="space-y-2">
                         {selected.status === 'Pending' && (<>
-                          <button onClick={() => setActionType('confirm')}
+                          <button onClick={() => { setActionType('confirm'); setNewDate(selected.confirmedDate || selected.preferredDate || ''); setNewTime(selected.confirmedTime || selected.preferredTime || ''); }}
                             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-bold text-white hover:opacity-90 transition-opacity"
                             style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}>
                             <CheckCircle2 size={16} /> Approve Meeting
                           </button>
-                          <button onClick={() => setActionType('reschedule')}
+                          <button onClick={() => { setActionType('reschedule'); setNewDate(selected.confirmedDate || selected.preferredDate || ''); setNewTime(selected.confirmedTime || selected.preferredTime || ''); }}
                             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold text-orange-700 border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors">
                             <Calendar size={15} /> Propose New Time
                           </button>

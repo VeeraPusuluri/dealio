@@ -19,6 +19,7 @@ import DatePickerField from '@/components/shared/DatePickerField';
 
 interface RealProject {
   id: number;
+  builderId: number;
   name: string;
   city: string;
   builderName: string | null;
@@ -215,34 +216,44 @@ const CPMeetingRequests = ({ embedded }: { embedded?: boolean } = {}) => {
     <Wrapper>
       <div className={embedded ? 'space-y-5' : 'space-y-5 pb-8'}>
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-[17px] font-bold text-foreground">Meetings & Sharing</h1>
-            <p className="text-[12px] text-muted-foreground mt-0.5">Track meeting requests and share projects with clients</p>
+        {/* Hero header */}
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-card px-5 sm:px-6 py-5">
+          <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-teal-500/10 blur-3xl pointer-events-none" />
+          <div className="relative flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-teal-600/25"
+              style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}>
+              <Calendar size={22} className="text-white" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold text-foreground tracking-tight leading-tight">Meetings &amp; Sharing</h1>
+              <p className="text-sm text-muted-foreground mt-0.5">Track meeting requests and share projects with clients</p>
+            </div>
+            <button onClick={() => { setShowRequestForm(true); setTab('meetings'); }}
+              className="ml-auto flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-semibold text-white shadow-md shadow-teal-600/20 hover:-translate-y-0.5 transition-all"
+              style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}>
+              <Calendar size={14} /> New Request
+            </button>
           </div>
-          <button onClick={() => { setShowRequestForm(true); setTab('meetings'); }}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-all"
-            style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}>
-            <Calendar size={14} /> New Request
-          </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-muted/60 rounded-xl p-1 w-fit">
-          {(['meetings', 'sharing'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2 rounded-lg text-[13px] font-semibold transition-all capitalize ${tab === t ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-              {t === 'meetings' ? (
-                <span className="flex items-center gap-1.5">
-                  <Calendar size={13} /> Meetings
-                  {pending > 0 && <span className="w-4 h-4 rounded-full bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center">{pending}</span>}
-                </span>
-              ) : (
-                <span className="flex items-center gap-1.5"><Share2 size={13} /> Project Sharing</span>
-              )}
-            </button>
-          ))}
+        <div className="flex items-center gap-1.5 bg-muted/60 rounded-xl p-1 w-fit border border-border/60">
+          {(['meetings', 'sharing'] as const).map(t => {
+            const active = tab === t;
+            return (
+              <button key={t} onClick={() => setTab(t)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all ${active ? 'bg-card text-foreground shadow-sm ring-1 ring-black/5' : 'text-muted-foreground hover:text-foreground'}`}>
+                {t === 'meetings' ? (
+                  <>
+                    <Calendar size={13} /> Meetings
+                    {pending > 0 && <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-400 text-white text-[9px] font-bold">{pending}</span>}
+                  </>
+                ) : (
+                  <><Share2 size={13} /> Project Sharing</>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* ── Meetings tab ─────────────────────────────────────────────── */}
@@ -251,16 +262,17 @@ const CPMeetingRequests = ({ embedded }: { embedded?: boolean } = {}) => {
             {/* Stats strip */}
             <div className="grid grid-cols-3 gap-3">
               {[
-                { label: 'Total',     value: meetings.length, dotColor: 'bg-muted',      textColor: 'text-foreground' },
-                { label: 'Pending',   value: pending,         dotColor: 'bg-amber-400',   textColor: 'text-amber-600' },
-                { label: 'Confirmed', value: confirmed,        dotColor: 'bg-blue-500',    textColor: 'text-blue-600' },
-              ].map(({ label, value, dotColor, textColor }) => (
-                <div key={label} className="rounded-2xl border border-border bg-card p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className={`w-2 h-2 rounded-full ${dotColor}`} />
+                { label: 'Total',     value: meetings.length, dot: 'bg-slate-400', text: 'text-foreground', glow: 'bg-slate-400/10' },
+                { label: 'Pending',   value: pending,         dot: 'bg-amber-400', text: 'text-amber-600',  glow: 'bg-amber-400/15' },
+                { label: 'Confirmed', value: confirmed,       dot: 'bg-blue-500',  text: 'text-blue-600',   glow: 'bg-blue-500/15' },
+              ].map(({ label, value, dot, text, glow }) => (
+                <div key={label} className="relative overflow-hidden rounded-2xl border border-border bg-card p-4">
+                  <div className={`absolute -right-3 -top-3 w-16 h-16 rounded-full blur-2xl ${glow}`} />
+                  <div className="relative flex items-center gap-2 mb-1">
+                    <div className={`w-2 h-2 rounded-full ${dot}`} />
                     <p className="text-[11px] text-muted-foreground font-medium">{label}</p>
                   </div>
-                  <p className={`text-2xl font-bold ${textColor}`}>{value}</p>
+                  <p className={`relative text-2xl font-bold tracking-tight ${text}`}>{value}</p>
                 </div>
               ))}
             </div>
@@ -292,7 +304,9 @@ const CPMeetingRequests = ({ embedded }: { embedded?: boolean } = {}) => {
                       <button key={m.id} onClick={() => openDetail(m)}
                         className="w-full text-left px-5 py-4 border-b border-border last:border-0 hover:bg-muted/20 transition-colors group">
                         <div className="flex items-start gap-3">
-                          <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${ms.dot}`} />
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-[11px] font-bold text-white shadow-sm ${ms.dot}`}>
+                            {m.customerName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                          </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
                               <p className="text-[13px] font-semibold text-foreground truncate">{m.customerName}</p>
@@ -334,14 +348,17 @@ const CPMeetingRequests = ({ embedded }: { embedded?: boolean } = {}) => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {realProjects.map(p => (
-                  <div key={p.id} className="rounded-2xl border border-border bg-card overflow-hidden">
-                    {p.imageUrl
-                      ? <img src={p.imageUrl} alt={p.name} className="w-full h-32 object-cover" />
-                      : <div className="w-full h-32 bg-muted flex items-center justify-center"><Building2 size={28} className="text-muted-foreground" /></div>
-                    }
+                  <div key={p.id} className="group rounded-2xl border border-border bg-card overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
+                    <div className="relative h-32 overflow-hidden">
+                      {p.imageUrl
+                        ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        : <div className="w-full h-full bg-muted flex items-center justify-center"><Building2 size={28} className="text-muted-foreground" /></div>
+                      }
+                      <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                    </div>
                     <div className="p-4">
-                      <h4 className="font-semibold text-foreground text-[13px]">{p.name}</h4>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">{p.builderName ?? '—'} · {p.city}</p>
+                      <h4 className="font-semibold text-foreground text-[13px] truncate">{p.name}</h4>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{p.builderName ?? '—'} · {p.city}</p>
                       <div className="flex items-center gap-2 mt-2 text-[12px]">
                         {p.priceMin && <Badge variant="outline">{fmtPrice(p.priceMin)}</Badge>}
                         {p.configurations && p.configurations.length > 0 && (
@@ -350,7 +367,8 @@ const CPMeetingRequests = ({ embedded }: { embedded?: boolean } = {}) => {
                       </div>
                       <div className="flex gap-2 mt-3">
                         <button onClick={() => setShowShareModal(p.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[12px] font-medium border border-border text-foreground hover:bg-muted transition-colors">
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-semibold text-white hover:opacity-90 transition-opacity"
+                          style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}>
                           <Share2 size={11} /> Share
                         </button>
                         <button onClick={() => {
@@ -358,7 +376,7 @@ const CPMeetingRequests = ({ embedded }: { embedded?: boolean } = {}) => {
                           setForm({ customerName: '', customerPhone: '', preferredDate: '', preferredTime: '', notes: '' });
                           setShowRequestForm(true);
                         }}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[12px] font-medium border border-border text-foreground hover:bg-muted transition-colors">
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-medium border border-border text-foreground hover:bg-muted transition-colors">
                           <Calendar size={11} /> Meet
                         </button>
                       </div>
@@ -379,8 +397,8 @@ const CPMeetingRequests = ({ embedded }: { embedded?: boolean } = {}) => {
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0" style={{ background: 'linear-gradient(135deg, #0A7E8C0d 0%, transparent 100%)' }}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#0A7E8C15', color: '#0A7E8C' }}>
-                  <Users size={16} />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md shadow-teal-600/20" style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}>
+                  <Users size={16} className="text-white" />
                 </div>
                 <div>
                   <h3 className="font-bold text-foreground">{selected.customerName}</h3>
