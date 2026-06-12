@@ -45,16 +45,44 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
+// Digits with optional +, spaces, dashes, parens; 6-15 digits total (E.164 caps at 15).
+// Validates without normalizing — phones are stored/looked up as entered.
+function isValidPhone(phone: unknown): phone is string {
+  if (typeof phone !== 'string') return false;
+  const trimmed = phone.trim();
+  if (!/^[+0-9 ()-]+$/.test(trimmed)) return false;
+  const digits = trimmed.replace(/\D/g, '');
+  return digits.length >= 6 && digits.length <= 15;
+}
+
+function isValidOtp(otp: unknown): otp is string {
+  return typeof otp === 'string' && /^\d{6}$/.test(otp.trim());
+}
+
+const KNOWN_ROLES = new Set(['BUILDER', 'CP', 'CUSTOMER', 'BANK', 'VENDOR', 'ADMIN', 'NRI', 'LANDOWNER']);
+
 export const authController = {
   loginSendOtp: async (req: Request, res: Response) => {
     const { phone } = req.body;
-    const result = authService.sendOtp(phone);
+    if (!isValidPhone(phone)) {
+      res.status(400).json({ ok: false, message: 'A valid phone number is required' });
+      return;
+    }
+    const result = authService.sendOtp(phone.trim());
     res.json({ ok: true, data: result });
   },
 
   loginVerifyOtp: async (req: Request, res: Response) => {
     const { phone, otp } = req.body;
-    const result = await authService.verifyOtp(phone, otp);
+    if (!isValidPhone(phone)) {
+      res.status(400).json({ ok: false, message: 'A valid phone number is required' });
+      return;
+    }
+    if (!isValidOtp(otp)) {
+      res.status(400).json({ ok: false, message: 'A valid 6-digit OTP is required' });
+      return;
+    }
+    const result = await authService.verifyOtp(phone.trim(), otp.trim());
     if (result.success) {
       res.json({ ok: true, data: result.data });
     } else {
@@ -64,14 +92,30 @@ export const authController = {
 
   signupSendOtp: async (req: Request, res: Response) => {
     const { phone } = req.body;
-    const result = authService.sendOtp(phone);
+    if (!isValidPhone(phone)) {
+      res.status(400).json({ ok: false, message: 'A valid phone number is required' });
+      return;
+    }
+    const result = authService.sendOtp(phone.trim());
     res.json({ ok: true, data: result });
   },
 
   signupVerifyOtp: async (req: Request, res: Response) => {
     const { phone, otp, fullName, role, referralCode } = req.body;
-    const isNewUser = !(await prisma.user.findUnique({ where: { phone }, select: { id: true } }));
-    const result = await authService.verifyOtp(phone, otp, { fullName, role });
+    if (!isValidPhone(phone)) {
+      res.status(400).json({ ok: false, message: 'A valid phone number is required' });
+      return;
+    }
+    if (!isValidOtp(otp)) {
+      res.status(400).json({ ok: false, message: 'A valid 6-digit OTP is required' });
+      return;
+    }
+    if (role !== undefined && !KNOWN_ROLES.has(String(role).toUpperCase())) {
+      res.status(400).json({ ok: false, message: 'Unknown role' });
+      return;
+    }
+    const isNewUser = !(await prisma.user.findUnique({ where: { phone: phone.trim() }, select: { id: true } }));
+    const result = await authService.verifyOtp(phone.trim(), otp.trim(), { fullName, role });
     if (result.success) {
       if (isNewUser && referralCode) {
         processReferral(result.data!.user.id, role, referralCode).catch(err =>
