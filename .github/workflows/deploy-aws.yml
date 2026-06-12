@@ -1,0 +1,178 @@
+name: Deploy to AWS
+
+# Deploys on every push to main — but ONLY once the repository variable
+# AWS_DEPLOY_ENABLED is set to 'true'
+# (GitHub → Settings → Secrets and variables → Actions → Variables tab).
+# Until then all jobs are skipped, so pushes to main stay green.
+#
+# Required GitHub SECRETS (Settings → Secrets and variables → Actions):
+#   AWS_ACCESS_KEY_ID      — IAM user for CI (ECR push, ECS deploy, S3 sync, CloudFront)
+#   AWS_SECRET_ACCESS_KEY
+#
+# Replace the REPLACE_WITH_* values in the env block below — and the URLs in
+# Dealio_frontend/.env.production + Dealio_Backend/.env.production — once the
+# AWS account is active. Resource checklist: docs/AWS_DEPLOYMENT.md
+#
+# Manual trigger (workflow_dispatch) deploys BOTH services and runs the
+# schema push — use it for the first deploy.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-south-1
+
+  # ── Backend: ECR image + ECS Fargate service ───────────────────────────────
+  ECR_BACKEND_REPO: dealio-backend          # ECR repository name
+  ECS_CLUSTER: dealio                       # ECS cluster name
+  ECS_BACKEND_SERVICE: dealio-backend       # ECS service name
+  ECS_BACKEND_TASK_FAMILY: dealio-backend   # task definition family — its container image must point at the ":latest" tag
+  ECS_BACKEND_CONTAINER: dealio-backend     # container name inside the task definition
+
+  # One-off Prisma migration task — runs in the same VPC as RDS.
+  # Private subnets (with NAT) + a security group allowed to reach RDS:5432.
+  MIGRATE_SUBNET_IDS: REPLACE_WITH_SUBNET_ID_A,REPLACE_WITH_SUBNET_ID_B
+  MIGRATE_SECURITY_GROUP: REPLACE_WITH_SECURITY_GROUP_ID
+
+  # ── Frontend: S3 bucket behind CloudFront ───────────────────────────────────
+  FRONTEND_S3_BUCKET: REPLACE_WITH_S3_BUCKET_NAME
+  CLOUDFRONT_DISTRIBUTION_ID: REPLACE_WITH_CLOUDFRONT_DISTRIBUTION_ID
+
+jobs:
+  # ── Detect which parts of the repo changed ────────────────────────────────
+  changes:
+    if: vars.AWS_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      backend:  ${{ steps.filter.outputs.backend == 'true' || github.event_name == 'workflow_dispatch' }}
+      frontend: ${{ steps.filter.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
+      schema:   ${{ steps.filter.outputs.schema == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'Dealio_Backend/**'
+            frontend:
+              - 'Dealio_frontend/**'
+            schema:
+              - 'Dealio_Backend/prisma/schema.prisma'
+
+  # ── Deploy backend ────────────────────────────────────────────────────────
+  deploy-backend:
+    needs: changes
+    if: vars.AWS_DEPLOY_ENABLED == 'true' && needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push backend image
+        run: |
+          IMAGE="${{ steps.ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPO }}"
+          docker build --platform linux/amd64 \
+            -t "$IMAGE:${{ github.sha }}" \
+            -t "$IMAGE:latest" \
+            Dealio_Backend
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      # Same role as Railway's preDeployCommand: apply the Prisma schema from
+      # the freshly pushed image before the service rolls over to it.
+      - name: Apply Prisma schema (one-off ECS task)
+        if: needs.changes.outputs.schema == 'true'
+        run: |
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --task-definition "$ECS_BACKEND_TASK_FAMILY" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$MIGRATE_SUBNET_IDS],securityGroups=[$MIGRATE_SECURITY_GROUP],assignPublicIp=DISABLED}" \
+            --overrides "{\"containerOverrides\":[{\"name\":\"$ECS_BACKEND_CONTAINER\",\"command\":[\"npx\",\"prisma\",\"db\",\"push\",\"--accept-data-loss\",\"--skip-generate\"]}]}" \
+            --query 'tasks[0].taskArn' --output text)
+          echo "Migration task: $TASK_ARN"
+          aws ecs wait tasks-stopped --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN"
+          EXIT_CODE=$(aws ecs describe-tasks --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "❌ Schema push failed (exit code: $EXIT_CODE) — check the task logs in CloudWatch"
+            exit 1
+          fi
+          echo "✅ Schema applied."
+
+      - name: Deploy backend to ECS
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_BACKEND_SERVICE" \
+            --force-new-deployment >/dev/null
+          echo "Waiting for the service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_BACKEND_SERVICE"
+          echo "✅ Backend deployed."
+
+  # ── Deploy frontend ───────────────────────────────────────────────────────
+  deploy-frontend:
+    needs: [changes, deploy-backend]
+    # Run if frontend changed OR backend changed (backend URL is baked into the
+    # build). always() lets it run even when deploy-backend was skipped.
+    if: |
+      always() &&
+      vars.AWS_DEPLOY_ENABLED == 'true' &&
+      (needs.changes.outputs.frontend == 'true' || needs.changes.outputs.backend == 'true') &&
+      (needs.deploy-backend.result == 'success' || needs.deploy-backend.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Dealio_frontend/package-lock.json
+
+      # VITE_* values come from the committed Dealio_frontend/.env.production
+      - name: Build frontend
+        working-directory: Dealio_frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload to S3
+        working-directory: Dealio_frontend
+        run: |
+          # Hashed assets: cache forever. index.html: never cache, so new
+          # deploys are picked up immediately.
+          aws s3 sync dist "s3://$FRONTEND_S3_BUCKET" --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude index.html
+          aws s3 cp dist/index.html "s3://$FRONTEND_S3_BUCKET/index.html" \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --paths "/*" >/dev/null
+          echo "✅ Frontend deployed."

@@ -30,6 +30,6 @@ FROM nginx:1.27-alpine AS runner
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 
-# Railway provides $PORT at runtime; envsubst replaces ${PORT} in the template.
+# The platform provides $PORT at runtime; envsubst replaces ${PORT} in the template.
 # Only substitute PORT to avoid clobbering nginx's own $uri, $request_uri, etc.
 CMD ["/bin/sh", "-c", "envsubst '${PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]

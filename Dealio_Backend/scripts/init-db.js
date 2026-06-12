@@ -1,6 +1,6 @@
 /**
  * init-db.js
- * Creates the 'dealio' database on AlloyDB if it doesn't exist.
+ * Creates the 'dealio' database on the PostgreSQL server if it doesn't exist.
  * Uses explicit connection params to avoid URL-parsing issues with
  * special characters in passwords.
  */
@@ -26,12 +26,12 @@ async function main() {
     user,
     password: decodedPassword,
     database: 'postgres', // connect to default db to create 'dealio'
-    ssl: { rejectUnauthorized: false }, // AlloyDB requires SSL
+    ssl: { rejectUnauthorized: false }, // managed Postgres (e.g. RDS) requires SSL
   });
 
   try {
     await client.connect();
-    console.log(`Connected to AlloyDB at ${host} as ${user}`);
+    console.log(`Connected to Postgres at ${host} as ${user}`);
 
     const res = await client.query(
       `SELECT 1 FROM pg_database WHERE datname = 'dealio'`
