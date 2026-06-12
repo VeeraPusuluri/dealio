@@ -27,6 +27,61 @@ export const WHATSAPP_TEMPLATES: Record<string, string> = {
   deal_message: 'deal_new_message',
 };
 
+// Login/signup OTP template. Must be an *authentication*-category template
+// (create in Meta Business Manager → "Authentication" → copy-code button);
+// Meta rejects OTP content in utility/marketing templates.
+const WA_OTP_TEMPLATE = process.env.WHATSAPP_OTP_TEMPLATE || 'dealio_otp';
+
+/**
+ * Send a one-time passcode via the approved authentication template.
+ * Auth templates require the code in both the body and the copy-code URL
+ * button, so this builds its own component payload rather than reusing
+ * sendWhatsApp. Returns ok=false instead of throwing so the caller can
+ * tell the user the code was not delivered.
+ */
+export async function sendWhatsAppOtp(toPhone: string, code: string): Promise<{ ok: boolean; detail?: string }> {
+  if (!WHATSAPP_ENABLED) {
+    console.log(`[WhatsApp:disabled] OTP for ${toPhone}: ${code}`);
+    return { ok: false, detail: 'WhatsApp is not configured' };
+  }
+
+  const to = toPhone.replace(/[^\d]/g, '');
+  if (!to) return { ok: false, detail: 'Invalid destination number' };
+
+  try {
+    const res = await fetch(`https://graph.facebook.com/${WA_VERSION}/${WA_PHONE_ID}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${WA_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to,
+        type: 'template',
+        template: {
+          name: WA_OTP_TEMPLATE,
+          language: { code: WA_LANG },
+          components: [
+            { type: 'body', parameters: [{ type: 'text', text: code }] },
+            { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: code }] },
+          ],
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      console.error(`[WhatsApp] OTP send failed (${res.status}) → ${to}: ${detail}`);
+      return { ok: false, detail: `WhatsApp API error ${res.status}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error('[WhatsApp] network error:', (err as Error).message);
+    return { ok: false, detail: 'Network error reaching WhatsApp' };
+  }
+}
+
 /**
  * Send a templated WhatsApp message. Body params fill the template's {{1}}, {{2}}…
  * Safe to call unconditionally — no-ops (with a log) when not configured.

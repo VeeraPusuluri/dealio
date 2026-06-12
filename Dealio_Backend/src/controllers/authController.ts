@@ -59,18 +59,36 @@ function isValidOtp(otp: unknown): otp is string {
   return typeof otp === 'string' && /^\d{6}$/.test(otp.trim());
 }
 
+// Optional; defaults to +91 in authService when absent
+function isValidCountryCode(cc: unknown): boolean {
+  return cc === undefined || cc === null || (typeof cc === 'string' && /^\+?\d{1,4}$/.test(cc.trim()));
+}
+
+async function handleSendOtp(req: Request, res: Response) {
+  const { phone, countryCode } = req.body;
+  if (!isValidPhone(phone)) {
+    res.status(400).json({ ok: false, message: 'A valid phone number is required' });
+    return;
+  }
+  if (!isValidCountryCode(countryCode)) {
+    res.status(400).json({ ok: false, message: 'Invalid country code' });
+    return;
+  }
+  const result = await authService.sendOtp(phone.trim(), {
+    countryCode: typeof countryCode === 'string' ? countryCode.trim() : undefined,
+    ip: req.ip,
+  });
+  if (!result.success) {
+    res.status(result.status).json({ ok: false, message: result.message });
+    return;
+  }
+  res.json({ ok: true, message: result.message, data: result });
+}
+
 const KNOWN_ROLES = new Set(['BUILDER', 'CP', 'CUSTOMER', 'BANK', 'VENDOR', 'ADMIN', 'NRI', 'LANDOWNER']);
 
 export const authController = {
-  loginSendOtp: async (req: Request, res: Response) => {
-    const { phone } = req.body;
-    if (!isValidPhone(phone)) {
-      res.status(400).json({ ok: false, message: 'A valid phone number is required' });
-      return;
-    }
-    const result = authService.sendOtp(phone.trim());
-    res.json({ ok: true, data: result });
-  },
+  loginSendOtp: handleSendOtp,
 
   loginVerifyOtp: async (req: Request, res: Response) => {
     const { phone, otp } = req.body;
@@ -90,15 +108,7 @@ export const authController = {
     }
   },
 
-  signupSendOtp: async (req: Request, res: Response) => {
-    const { phone } = req.body;
-    if (!isValidPhone(phone)) {
-      res.status(400).json({ ok: false, message: 'A valid phone number is required' });
-      return;
-    }
-    const result = authService.sendOtp(phone.trim());
-    res.json({ ok: true, data: result });
-  },
+  signupSendOtp: handleSendOtp,
 
   signupVerifyOtp: async (req: Request, res: Response) => {
     const { phone, otp, fullName, role, referralCode } = req.body;
@@ -112,6 +122,10 @@ export const authController = {
     }
     if (role !== undefined && !KNOWN_ROLES.has(String(role).toUpperCase())) {
       res.status(400).json({ ok: false, message: 'Unknown role' });
+      return;
+    }
+    if (String(role).toUpperCase() === 'ADMIN' && process.env.NODE_ENV === 'production') {
+      res.status(403).json({ ok: false, message: 'Admin accounts cannot be self-registered' });
       return;
     }
     const isNewUser = !(await prisma.user.findUnique({ where: { phone: phone.trim() }, select: { id: true } }));
