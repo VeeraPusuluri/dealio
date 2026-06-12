@@ -279,7 +279,7 @@ export const cpController = {
       return res.status(400).json({ ok: false, message: 'docType must be aadhaar, pan, or rera' });
     }
 
-    const fileUrl = `/uploads/cp-docs/${req.file.filename}`;
+    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/cp-docs/${req.file.filename}`;
     const updateData: Record<string, string | boolean> = {};
     if (docType === 'aadhaar') { updateData.aadhaarUrl = fileUrl; updateData.aadhaarVerified = false; }
     if (docType === 'pan')     { updateData.panUrl = fileUrl;     updateData.panVerified = false; }

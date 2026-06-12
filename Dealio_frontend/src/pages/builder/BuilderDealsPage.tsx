@@ -172,6 +172,7 @@ export function DealDrawer({
   const [showDocForm, setShowDocForm] = useState(false);
   const [togglingDoc, setTogglingDoc] = useState<number | null>(null);
   const [acceptingAgreement, setAcceptingAgreement] = useState(false);
+  const [markingSold, setMarkingSold] = useState(false);
 
   const openQuoteForm = () => {
     setDocForm({ docType: 'Pricing Quote', sharedWithCp: false, sharedWithCustomer: true });
@@ -248,6 +249,22 @@ export function DealDrawer({
       toast.error((e as Error).message || 'Failed to accept agreement');
     } finally {
       setAcceptingAgreement(false);
+    }
+  };
+
+  // ── Phase 9: mark unit SOLD + close deal (registration done) ──
+  const handleMarkSold = async () => {
+    if (!detail || markingSold) return;
+    setMarkingSold(true);
+    try {
+      const r = await builderApi.markDealSold(builderId, detail.id) as { unitMarkedSold?: string | null };
+      await loadDetail();
+      onRefreshList();
+      toast.success(r?.unitMarkedSold ? `Unit ${r.unitMarkedSold} marked SOLD — deal closed` : 'Deal closed & registered');
+    } catch (e: unknown) {
+      toast.error((e as Error).message || 'Failed to finalize');
+    } finally {
+      setMarkingSold(false);
     }
   };
 
@@ -502,6 +519,25 @@ export function DealDrawer({
                       })}
                     </div>
                   </div>
+
+                  {/* Phase 9 — Finalize: mark unit SOLD + close deal */}
+                  {(detail.status === 'Pending Booking' || detail.status === 'Booked') && (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                        <CheckCircle2 size={16} className="text-emerald-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-bold text-emerald-900">Finalize registration</p>
+                        <p className="text-[11px] text-emerald-700 mt-0.5">Marks the customer's unit SOLD in your inventory and closes the deal. Their journey completes and interior vendors activate.</p>
+                      </div>
+                      <button onClick={handleMarkSold} disabled={markingSold}
+                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-semibold text-white shrink-0 disabled:opacity-60"
+                        style={{ background: 'linear-gradient(135deg,#059669,#10b981)' }}>
+                        {markingSold ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                        Mark SOLD &amp; Close
+                      </button>
+                    </div>
+                  )}
 
                   {/* Customer Info */}
                   <div className="bg-card rounded-2xl border border-border p-4 shadow-sm space-y-2.5">

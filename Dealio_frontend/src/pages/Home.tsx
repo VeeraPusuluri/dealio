@@ -5,6 +5,7 @@ import {
   Building2, Users, Home as HomeIcon, Landmark, ShieldCheck,
   Globe2, ArrowRight, CheckCircle2, Sparkles, TrendingUp,
   BarChart3, Zap, Shield, Clock, MessageSquare, Menu, X, MapPin,
+  FileSignature, KeyRound,
 } from 'lucide-react';
 import { DealioLogo } from '@/components/shared/DealioLogo';
 
@@ -17,11 +18,13 @@ const roles = [
   { icon: ShieldCheck, label: 'Admin',            desc: 'Onboarding, fraud detection & revenue',          color: '#6B3FA0', bg: 'rgba(107,63,160,0.08)'  },
 ];
 
-const stats = [
-  { v: '12,400+',   l: 'Active Units',        icon: Building2,  color: '#0A7E8C' },
-  { v: '₹2,800 Cr', l: 'GMV Tracked',         icon: TrendingUp, color: '#E87722' },
-  { v: '850+',      l: 'Channel Partners',    icon: Users,      color: '#16A34A' },
-  { v: '24',        l: 'Cities Across India', icon: MapPin,     color: '#6B3FA0' },
+const journey = [
+  { icon: Zap,           label: 'Lead captured',     sub: 'Auto-scored instantly',  color: '#F5A623' },
+  { icon: MapPin,        label: 'Site visit',        sub: 'GPS-verified walk-in',   color: '#E87722' },
+  { icon: FileSignature, label: 'Agreement signed',  sub: 'RERA-ready paperwork',   color: '#6B3FA0' },
+  { icon: Landmark,      label: 'Loan sanctioned',   sub: 'Bank TAT tracked',       color: '#2E5D8E' },
+  { icon: TrendingUp,    label: 'Commission released', sub: 'Zero-leak payout',     color: '#0A7E8C' },
+  { icon: KeyRound,      label: 'Keys handed over',  sub: 'Journey complete',       color: '#16A34A' },
 ];
 
 const features = [
@@ -112,6 +115,48 @@ const Home = () => {
           will-change: opacity, transform;
         }
         .reveal-scale.revealed { opacity: 1; transform: scale(1); }
+
+        /* ── Deal-journey timeline ── */
+        @keyframes trackShimmer {
+          0%   { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        .journey-track {
+          background: linear-gradient(90deg,
+            #E2E8F0 0%, #E2E8F0 30%,
+            #F5A623 45%, #E87722 50%, #0A7E8C 55%,
+            #E2E8F0 70%, #E2E8F0 100%);
+          background-size: 200% 100%;
+          animation: trackShimmer 4.2s linear infinite;
+        }
+        @keyframes dotTravel {
+          0%   { left: 8%;  opacity: 0; }
+          5%   { opacity: 1; }
+          92%  { opacity: 1; }
+          100% { left: 92%; opacity: 0; }
+        }
+        .journey-dot {
+          width: 14px; height: 14px; border-radius: 9999px;
+          background: radial-gradient(circle, #FFFFFF 0%, #F5A623 45%, transparent 75%);
+          box-shadow: 0 0 18px 5px rgba(245,166,35,0.55);
+          transform: translate(-50%, -42%);
+          animation: dotTravel 4.2s ease-in-out infinite;
+        }
+        @keyframes nodeGlow {
+          0%, 18%, 100% {
+            transform: translateY(0) scale(1);
+            box-shadow: 0 0 0 0 transparent;
+          }
+          8% {
+            transform: translateY(-5px) scale(1.08);
+            box-shadow: 0 10px 28px -6px color-mix(in srgb, var(--c) 45%, transparent),
+                        0 0 0 8px color-mix(in srgb, var(--c) 12%, transparent);
+          }
+        }
+        .journey-node { animation: nodeGlow 4.2s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .journey-track, .journey-dot, .journey-node, .float-card { animation: none; }
+        }
       `}</style>
 
       <div className="min-h-screen bg-white text-[#1B3A5C] overflow-x-hidden">
@@ -122,7 +167,7 @@ const Home = () => {
             <DealioLogo size="sm" to="/home" />
 
             <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-500">
-              {[['#roles','Who it\'s for'],['#features','Features'],['#stats','Numbers'],['#testimonials','Stories']].map(([href, label]) => (
+              {[['#roles','Who it\'s for'],['#features','Features'],['#journey','Deal journey'],['#testimonials','Stories']].map(([href, label]) => (
                 <a key={href} href={href} className="hover:text-[#0A7E8C] transition-colors">{label}</a>
               ))}
             </nav>
@@ -163,7 +208,7 @@ const Home = () => {
 
           {mobileMenuOpen && (
             <div className="md:hidden border-t border-slate-100 bg-white px-5 py-4 space-y-1">
-              {[['#roles','Who it\'s for'],['#features','Features'],['#stats','Numbers'],['#testimonials','Stories']].map(([href, label]) => (
+              {[['#roles','Who it\'s for'],['#features','Features'],['#journey','Deal journey'],['#testimonials','Stories']].map(([href, label]) => (
                 <a key={href} href={href} onClick={() => setMobileMenuOpen(false)}
                   className="block px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-[#1B3A5C]">{label}</a>
               ))}
@@ -244,10 +289,10 @@ const Home = () => {
             <div className="hero-cards relative mt-16 max-w-4xl mx-auto">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 {[
-                  { icon: Building2,  label: 'Projects live',     value: '340',   delta: '+12 this week', color: '#0A7E8C' },
-                  { icon: TrendingUp, label: 'Deals this month',  value: '1,240', delta: '+8.4%',         color: '#E87722' },
-                  { icon: Users,      label: 'Active CPs',        value: '856',   delta: '+23 today',     color: '#16A34A' },
-                  { icon: Zap,        label: 'Leads today',       value: '2,318', delta: 'Live',          color: '#F5A623' },
+                  { icon: Zap,       label: 'Channel partner', value: 'Lead auto-scored',   delta: 'just now',  color: '#F5A623', progress: '30%'  },
+                  { icon: Landmark,  label: 'Bank portal',     value: 'Loan sanctioned',    delta: 'synced',    color: '#38BDF8', progress: '55%'  },
+                  { icon: Building2, label: 'Builder portal',  value: 'Demand letter sent', delta: 'auto',      color: '#0DAABF', progress: '80%'  },
+                  { icon: HomeIcon,  label: 'Customer portal', value: 'Keys handed over',   delta: 'milestone', color: '#4ADE80', progress: '100%' },
                 ].map((item, i) => (
                   <div key={item.label}
                     className="float-card group relative bg-white/[0.06] border border-white/12 backdrop-blur-sm rounded-2xl p-4 sm:p-5 hover:bg-white/[0.1] hover:border-white/20 transition-colors duration-200 overflow-hidden"
@@ -261,10 +306,10 @@ const Home = () => {
                       </div>
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/10 text-white/60">{item.delta}</span>
                     </div>
-                    <div className="text-xl sm:text-2xl font-black text-white">{item.value}</div>
+                    <div className="text-base sm:text-lg font-extrabold text-white leading-snug">{item.value}</div>
                     <div className="text-white/50 text-xs mt-0.5 font-medium">{item.label}</div>
                     <div className="mt-3 h-0.5 rounded-full bg-white/10 overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: '65%', backgroundColor: item.color + 'AA' }} />
+                      <div className="h-full rounded-full" style={{ width: item.progress, backgroundColor: item.color + 'AA' }} />
                     </div>
                   </div>
                 ))}
@@ -272,7 +317,7 @@ const Home = () => {
 
               <div className="absolute -top-3.5 right-3 sm:right-0 flex items-center gap-2 bg-white rounded-full px-3 py-1.5 shadow-xl shadow-black/15 text-xs font-bold text-[#1B3A5C]">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                42 deals closed today
+                One deal — every portal, live
               </div>
             </div>
           </div>
@@ -285,25 +330,38 @@ const Home = () => {
           </div>
         </section>
 
-        {/* ── Stats ── */}
-        <section id="stats" className="bg-white py-12 sm:py-16">
-          <div className="max-w-5xl mx-auto px-5 sm:px-8">
-            <div className="reveal grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-slate-100 border border-slate-100 rounded-3xl overflow-hidden">
-              {stats.map((s, i) => (
-                <div key={s.l}
-                  className="reveal group flex flex-col items-center justify-center py-10 px-6 hover:bg-slate-50/60 transition-colors text-center"
-                  style={{ transitionDelay: `${i * 0.08}s` }}>
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center mb-4"
-                    style={{ backgroundColor: s.color + '12' }}>
-                    <s.icon size={20} style={{ color: s.color }} />
+        {/* ── Deal journey ── */}
+        <section id="journey" className="bg-white py-14 sm:py-20 overflow-hidden">
+          <div className="max-w-6xl mx-auto px-5 sm:px-8">
+            <div className="reveal text-center max-w-2xl mx-auto mb-12 sm:mb-16">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#16A34A]/10 text-[#16A34A] text-xs font-bold uppercase tracking-widest mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] animate-pulse" />
+                One living timeline
+              </span>
+              <h2 className="text-3xl sm:text-4xl md:text-[44px] font-extrabold text-[#1B3A5C] leading-tight tracking-tight">
+                Watch a deal flow,<br className="hidden sm:block" /> lead to keys
+              </h2>
+              <p className="mt-3 text-slate-500 text-base leading-relaxed">
+                Builders, channel partners, banks and customers all watch the same milestones
+                light up in real time — no status calls, no guesswork.
+              </p>
+            </div>
+
+            <div className="reveal relative">
+              <div className="journey-track hidden md:block absolute top-7 left-[8%] right-[8%] h-[3px] rounded-full -translate-y-1/2" />
+              <div className="journey-dot hidden md:block absolute top-7" />
+              <div className="relative grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-x-4 gap-y-10">
+                {journey.map((s, i) => (
+                  <div key={s.label} className="flex flex-col items-center text-center">
+                    <div className="journey-node w-14 h-14 rounded-2xl bg-white border flex items-center justify-center mb-4 relative z-10"
+                      style={{ '--c': s.color, borderColor: s.color + '40', backgroundColor: s.color + '0D', animationDelay: `${i * 0.7}s` } as React.CSSProperties}>
+                      <s.icon size={22} style={{ color: s.color }} />
+                    </div>
+                    <div className="font-bold text-[#1B3A5C] text-sm leading-tight">{s.label}</div>
+                    <div className="text-xs text-slate-400 mt-1 font-medium">{s.sub}</div>
                   </div>
-                  <div className="text-3xl sm:text-4xl font-black"
-                    style={{ background: `linear-gradient(135deg, ${s.color} 0%, ${s.color}AA 100%)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                    {s.v}
-                  </div>
-                  <div className="text-sm text-slate-500 mt-1.5 font-medium">{s.l}</div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -459,7 +517,7 @@ const Home = () => {
                   Ready to close<br /> deals faster?
                 </h2>
                 <p className="text-white/60 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
-                  Join 850+ channel partners and 120+ builders already running on Dealio. No credit card needed.
+                  Join the builders, channel partners and banks already running every stage of their deals on Dealio. No credit card needed.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                   <Link to="/login?tab=signup">
@@ -491,7 +549,7 @@ const Home = () => {
                 </p>
               </div>
               <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-white/45">
-                {[['#roles','Who it\'s for'],['#features','Features'],['#stats','Numbers'],['#testimonials','Stories']].map(([href, label]) => (
+                {[['#roles','Who it\'s for'],['#features','Features'],['#journey','Deal journey'],['#testimonials','Stories']].map(([href, label]) => (
                   <a key={href} href={href} className="hover:text-white/80 transition-colors">{label}</a>
                 ))}
                 <Link to="/login"  className="hover:text-white/80 transition-colors">Sign In</Link>

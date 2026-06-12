@@ -14,6 +14,10 @@ dotenv.config();
 
 const app = express();
 
+// Behind Railway's TLS proxy req.protocol must resolve to https,
+// otherwise generated upload URLs are http:// and blocked as mixed content.
+app.set('trust proxy', 1);
+
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())

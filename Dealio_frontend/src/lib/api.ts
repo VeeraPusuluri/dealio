@@ -167,6 +167,9 @@ export const builderApi = {
   acceptSignedAgreement: (builderId: number | string, dealId: number | string) =>
     builderReq(`/builder/${builderId}/deals/${dealId}/accept-agreement`, { method: 'PATCH' }),
 
+  markDealSold: (builderId: number | string, dealId: number | string) =>
+    builderReq(`/builder/${builderId}/deals/${dealId}/mark-sold`, { method: 'PATCH' }),
+
   getBuilderNotifications: () =>
     builderReq('/builder/notifications'),
 
