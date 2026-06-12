@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Dealio is a multi-role real estate marketplace platform. It consists of five Java Spring Boot microservices and a React/TypeScript frontend.
+Dealio is a multi-role real estate marketplace platform. It consists of a single Node.js/Express + TypeScript backend (Prisma ORM over PostgreSQL) and a React/TypeScript frontend.
 
 ## Commands
 
@@ -22,39 +22,47 @@ npx playwright test   # E2E tests (Playwright)
 npm run preview       # Preview production build
 ```
 
-### Backend (run from the service directory, e.g. `Dealio_Backend/Dealio_Auth/`)
+### Backend (`Dealio_Backend/`)
 
 ```bash
-mvn clean package             # Build and package
-mvn spring-boot:run           # Run the service
-mvn test                      # Run all tests for the service
-mvn test -Dtest=ClassName     # Run a single test class (Auth service only has tests)
+npm run dev          # Dev server with hot reload (ts-node-dev), port 8090
+npm run build        # Compile TypeScript to dist/
+npm start            # Run the compiled server (node dist/index.js)
+npm test             # Jest + Supertest (src/tests/api.test.ts)
+npm run migrate      # Init DB + apply Prisma schema (scripts/init-db.js then prisma db push)
+npx prisma generate  # Regenerate the Prisma client after schema changes
+npx prisma studio    # Browse the database
 ```
 
-Start services in dependency order: Eureka → Auth → Builder → Customer → Gateway.
+Single Express app: `src/app.ts` (routes/middleware) → `src/index.ts` (HTTP server + socket.io attach).
 
 ### Database
 
-PostgreSQL (`dealio` DB) — dev credentials: `postgres/password`, Docker: `postgres/secret`.  
-Flyway migrations run automatically on startup from each service's `db/ddl/` (schema) and `db/dml/` (seed) directories. Dealio_Customer has no migrations (read-only service).
+PostgreSQL via **Prisma ORM**. The schema is the single source of truth at `Dealio_Backend/prisma/schema.prisma`; the connection string is `DATABASE_URL` in `Dealio_Backend/.env`. Apply schema changes with `npm run migrate` (dev) or `prisma migrate deploy` (prod), and run `npx prisma generate` afterwards so the typed client matches.
 
 ## Architecture
 
-### Microservices
+### Backend (single Express service, port 8090)
 
-| Service | Port | Responsibility |
+One Node.js/Express + TypeScript app. Routers are mounted under `/api/*` in `src/app.ts`:
+
+| Mount | Router | Responsibility |
 |---|---|---|
-| `Dealio_Eureka` | 8761 | Service registry (Netflix Eureka) |
-| `Dealio_Gateway` | — | API Gateway: routing and custom filters to all services |
-| `Dealio_Auth` | 8081 | Auth (phone OTP via Twilio, Google OAuth), JWT generation/refresh |
-| `Dealio_Builder` | 8087 | Core platform: projects, units, leads, deals, documents, commissions, RERA |
-| `Dealio_Customer` | 8082 | Customer-facing read API: city/project discovery |
+| `/api/auth` | authRoutes | Phone OTP + Google OAuth login, JWT issue/refresh |
+| `/api/builder` | builderRoutes | Core platform: projects, units, leads, deals, documents, commissions, meetings |
+| `/api/portal` | builderRoutes | Customer-portal views of builder data (same controllers, customer-facing) |
+| `/api/customer` | customerRoutes | City/project discovery, customer notifications |
+| `/api/cp` | cpRoutes | Channel-partner contacts, leads, follow-ups, deals, commissions |
+| `/api/ai` | aiRoutes | Anthropic-backed AI chat (SSE stream), `ANTHROPIC_API_KEY` |
+| `/api/admin` | adminRoutes | Admin: users, projects, CP verification, revenue, loan cases |
 
-Each business service follows: `controller → service → repository → entity`, with `dto/`, `config/`, `exception/`, and `security/` packages alongside.
+Layering: `routes → controller → prisma`. Controllers in `src/controllers/`, shared logic in `src/services/`. Uploaded files are served from `/uploads`. Responses use the `{ ok, message, data }` envelope.
 
-Auth is the only service with backend tests (`AuthControllerTest`, `AuthServiceTest`, `OtpServiceTest`); tests use an H2 in-memory DB via `application-test.yml`.
+**Real-time:** two transports in `src/services/` — `socketServer.ts` (socket.io, per-deal chat rooms `deal:${id}`) and `channelManager.ts` (SSE: personal `user:${id}` and per-city channels for live notifications). Deal events fan out through `services/dealNotify.ts` (`notifyDealParties`): a persisted `Notification` row **+** SSE push **+** optional WhatsApp, in one place.
 
-The SMS provider is `CONSOLE` in dev (OTPs print to logs) and `TWILIO` in prod.
+**Integrations:** Google OAuth (`GOOGLE_CLIENT_ID`), JWT (`JWT_SECRET`), email via SMTP (`SMTP_*`, `services/emailService.ts`), WhatsApp via Meta Cloud API (`WHATSAPP_*`, `services/whatsapp.ts` — opt-in + env-gated, off by default), Anthropic (`ANTHROPIC_API_KEY`).
+
+See `docs/DEAL_STAGE_AND_NOTIFICATIONS.md` for the deal-stage machine and notification architecture.
 
 ### Frontend
 
@@ -62,12 +70,9 @@ Entry point: `src/main.tsx` → `src/App.tsx` (React Router). 100+ pages organiz
 
 **User roles:** `builder`, `cp` (channel partner), `customer`, `bank`, `vendor`, `admin`, `nri`, `landowner`
 
-**API client** is in `src/lib/api.ts`. It wraps `fetch`, attaches `Authorization: Bearer <token>`, and unwraps the Spring Boot `{ ok, message, data }` response envelope. Three API instances:
-- `authApi` → Auth service (`VITE_AUTH_URL`, default `http://localhost:8081/api`)
-- `builderApi` → Builder service (`VITE_BUILDER_URL`, default `http://localhost:8080/api`)
-- `customerApi` → Customer service (`VITE_CUSTOMER_URL`, default `http://localhost:8082/api`)
+**API client** is in `src/lib/api.ts`. It wraps `fetch`, attaches `Authorization: Bearer <token>`, and unwraps the `{ ok, message, data }` response envelope. All instances target the single backend (default `http://127.0.0.1:8090/api`); `VITE_AUTH_URL` / `VITE_BUILDER_URL` / `VITE_CUSTOMER_URL` all default to it. Instances are grouped by route prefix: `authApi` (`/auth`), `builderApi` (`/builder`), `portalApi` (`/portal`, customer-facing), `customerApi` (`/customer`), `cpApi` (`/cp`), `adminApi` (`/admin`), `aiApi` (`/ai`).
 
-Tokens are stored in `localStorage` as `dealio_access_token` / `dealio_refresh_token`. Override base URLs via `.env` (`VITE_AUTH_URL`, `VITE_BUILDER_URL`, `VITE_CUSTOMER_URL`).
+Tokens are stored in `localStorage` as `dealio_access_token` / `dealio_refresh_token`. Real-time hooks: `useDealSocket` (socket.io deal chat) and `useNotificationStream` (SSE notification bell).
 
 **State management** — Zustand stores in `src/stores/`:
 - `useAuthStore` — auth state and current user/role
@@ -93,7 +98,9 @@ The frontend also integrates Supabase (`src/integrations/supabase/`) — client 
 
 ### Key Configuration Files
 
-- `Dealio_Backend/Dealio_*/src/main/resources/application.yml` — per-service Spring config (DB, JWT secret, Twilio, Google OAuth, Flyway, Eureka)
-- `Dealio_frontend/.env` — API base URLs and Supabase/Google client credentials
-- `Dealio_frontend/src/lib/api.ts` — API base URLs, fetch wrapper, response envelope unwrapping
-- `Dealio_Backend/Dealio_Auth/docs/AUTH_API.md` — Auth API endpoint reference
+- `Dealio_Backend/prisma/schema.prisma` — database schema (source of truth; run `prisma generate` after edits)
+- `Dealio_Backend/.env` — `DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `SMTP_*`, `WHATSAPP_*`, `ANTHROPIC_API_KEY`
+- `Dealio_Backend/src/app.ts` — Express app and route mounts
+- `Dealio_frontend/.env` — `VITE_*` API base URLs and Supabase/Google client credentials
+- `Dealio_frontend/src/lib/api.ts` — API instances, fetch wrapper, response envelope unwrapping
+- `docs/DEAL_STAGE_AND_NOTIFICATIONS.md` — deal-stage machine + real-time notification design

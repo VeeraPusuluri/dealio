@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
+import { notifyDealParties } from '../services/dealNotify';
 
 export const adminController = {
 
@@ -507,6 +508,30 @@ export const adminController = {
           ...(emi          ? { emi: Number(emi) }                  : {}),
         },
       });
+
+      // Log the bank action on the loan timeline.
+      await prisma.loanNote.create({
+        data: {
+          loanCaseId: Number(id), type: 'status_update',
+          sender: officerName || bank || 'Bank', senderRole: 'bank',
+          content: `Loan status updated to "${status}"${bank ? ` · ${bank}` : ''}${interestRate ? ` · ${interestRate}%` : ''}.`,
+        },
+      }).catch(() => {});
+
+      // Sync to the customer (and builder) live — bell + SSE + opt-in WhatsApp.
+      const friendly: Record<string, string> = {
+        'Applied': 'received', 'Under Review': 'under review',
+        'Sanctioned': 'sanctioned', 'Disbursed': 'disbursed', 'Rejected': 'not approved',
+      };
+      await notifyDealParties(updated.dealId, {
+        type: 'notification',
+        notifType: status === 'Rejected' ? 'error' : (status === 'Sanctioned' || status === 'Disbursed') ? 'success' : 'info',
+        title: status === 'Sanctioned' ? 'Loan Sanctioned 🎉' : status === 'Disbursed' ? 'Loan Disbursed' : 'Loan Update',
+        message: `Your home loan is now ${friendly[status] ?? status}.`,
+        to: ['customer', 'builder'],
+        link: { customer: '/customer/loan?tab=status', builder: '/builder/deals' },
+      }).catch(() => {});
+
       res.json({ ok: true, data: updated });
     } catch {
       res.status(404).json({ ok: false, message: 'Loan case not found' });

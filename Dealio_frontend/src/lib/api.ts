@@ -595,7 +595,7 @@ export const portalApi = {
     builderReq(`/portal/customer/shortlist?phone=${encodeURIComponent(phone)}`),
 
   submitLoanApplication: (data: {
-    builderId: number; projectId?: number; customerName: string; customerPhone: string;
+    builderId?: number; projectId?: number; customerName?: string; customerPhone: string;
     customerEmail?: string; loanAmount: number; propertyValue: number;
     employmentType?: string; tenureMonths: number;
   }) =>

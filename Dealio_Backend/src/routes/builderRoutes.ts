@@ -77,6 +77,7 @@ router.post('/customer/deals/:dealId/messages', requireAuth, builderController.s
 router.post('/customer/shortlist', builderController.createUnitShortlist);
 router.get('/customer/shortlist', builderController.getCustomerShortlists);
 router.post('/customer/pricing-requests', builderController.requestPricing);
+router.post('/customer/applications', builderController.createCustomerLoanApplication);   // Phase 7 — customer home-loan application
 
 // CP share link — public endpoints (no auth)
 router.post('/projects/:projectId/leads/from-share', builderController.createLeadFromShare);

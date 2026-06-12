@@ -1156,6 +1156,8 @@ export const builderController = {
       },
       orderBy: { createdAt: 'desc' },
     });
+    // Map stored bank statuses to the codes the customer's milestone tracker expects.
+    const LOAN_STATUS_UI: Record<string, string> = { 'Applied': 'SUBMITTED', 'Under Review': 'UNDER_REVIEW', 'Documents Submitted': 'UNDER_REVIEW', 'Sanctioned': 'APPROVED', 'Disbursed': 'DISBURSED', 'Rejected': 'REJECTED' };
     const mapped = deals.map(d => ({
       dealId:            d.id,
       projectId:         d.projectId,
@@ -1167,7 +1169,7 @@ export const builderController = {
       createdAt:         d.createdAt,
       loanCaseId:        (d.loanCase as any)?.id           ?? null,
       loanAmount:        (d.loanCase as any)?.loanAmount   ?? null,
-      loanStatus:        (d.loanCase as any)?.status       ?? null,
+      loanStatus:        (d.loanCase as any)?.status ? (LOAN_STATUS_UI[(d.loanCase as any).status] ?? (d.loanCase as any).status) : null,
       tenureMonths:      (d.loanCase as any)?.tenureMonths ?? null,
       interestRate:      (d.loanCase as any)?.interestRate ?? null,
       dealDocuments:     (d.dealDocuments as any[]).map(doc => ({
@@ -2281,5 +2283,57 @@ export const builderController = {
     }
 
     res.json({ ok: true, data: { sent: true } });
+  },
+
+  // POST /portal/customer/applications — customer submits a home-loan application (Phase 7).
+  // Creates a LoanCase on the customer's deal; mirrors createBuilderLoan but is
+  // customer-initiated and resolves the deal by phone when builder/project aren't supplied.
+  createCustomerLoanApplication: async (req: Request, res: Response) => {
+    const { builderId, projectId, customerName, customerPhone, customerEmail, loanAmount, propertyValue, employmentType, tenureMonths } = req.body;
+    if (!customerPhone || !loanAmount) {
+      return res.status(400).json({ ok: false, message: 'customerPhone and loanAmount are required' });
+    }
+
+    let customer = await prisma.user.findUnique({ where: { phone: customerPhone } });
+    if (!customer) {
+      customer = await prisma.user.create({ data: { phone: customerPhone, fullName: customerName ?? 'Customer', email: customerEmail ?? null, role: 'CUSTOMER' } });
+    }
+
+    // Prefer the deal matching builder+project; otherwise the customer's most recent deal.
+    let deal = (builderId && projectId)
+      ? await prisma.deal.findFirst({ where: { builderId: Number(builderId), customerId: customer.id, projectId: Number(projectId) } })
+      : null;
+    if (!deal) deal = await prisma.deal.findFirst({ where: { customerId: customer.id }, orderBy: { createdAt: 'desc' } });
+    if (!deal && builderId && projectId) {
+      deal = await prisma.deal.create({ data: { builderId: Number(builderId), customerId: customer.id, projectId: Number(projectId), status: 'Interested Loan Required' } });
+    }
+    if (!deal) return res.status(400).json({ ok: false, message: 'No deal found to attach this loan application to' });
+
+    const existing = await prisma.loanCase.findUnique({ where: { dealId: deal.id } });
+    if (existing) return res.json({ ok: true, data: { id: existing.id, alreadyExists: true } });
+
+    const loanCase = await prisma.loanCase.create({
+      data: {
+        dealId: deal.id, customerId: customer.id, projectId: deal.projectId,
+        loanAmount: Number(loanAmount), propertyValue: Number(propertyValue ?? loanAmount),
+        employmentType: employmentType ?? null, tenureMonths: tenureMonths ? Number(tenureMonths) : null,
+        status: 'Applied',
+      },
+    });
+    await prisma.loanNote.create({
+      data: {
+        loanCaseId: loanCase.id, type: 'loan_initiated', sender: customer.fullName ?? 'Customer', senderRole: 'customer',
+        content: `Loan application submitted — ₹${Number(loanAmount).toLocaleString('en-IN')}${tenureMonths ? `, ${Math.round(Number(tenureMonths) / 12)} yr tenure` : ''}`,
+      },
+    });
+
+    // Notify builder + CP (bell + SSE + opt-in WhatsApp).
+    await notifyDealParties(deal.id, {
+      type: 'notification', notifType: 'info', title: 'Loan Application Submitted',
+      message: `${customer.fullName ?? 'Customer'} applied for a home loan — ₹${(Number(loanAmount) / 100000).toFixed(1)}L.`,
+      to: ['builder', 'cp'], link: { builder: '/builder/deals', cp: '/cp/leads' },
+    }).catch(() => {});
+
+    res.json({ ok: true, data: { id: loanCase.id } });
   },
 };

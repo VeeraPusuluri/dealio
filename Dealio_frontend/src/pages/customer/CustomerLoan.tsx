@@ -30,12 +30,15 @@ const bankProducts = [
   { name: 'Kotak Mahindra', rate: 8.65, maxTenure: 25, processingFee: 1.0,  scheme: 'Balance transfer at 8.5%' },
 ];
 
-function EligibilityTab({ onRateSelect }: { onRateSelect: (rate: number) => void }) {
+function EligibilityTab({ onRateSelect, phone, customerName, onApplied }: { onRateSelect: (rate: number) => void; phone: string; customerName: string; onApplied: () => void }) {
   const [income, setIncome]           = useState(0);
   const [existingEmi, setExistingEmi] = useState(0);
   const [propertyValue, setPropertyValue] = useState(0);
   const [tenure, setTenure]           = useState(20);
   const [rate, setRate]               = useState(8.5);
+  const [employment, setEmployment]   = useState('Salaried');
+  const [applying, setApplying]       = useState(false);
+  const [applied, setApplied]         = useState(false);
   const [digiDone, setDigiDone]       = useState(false);
   const [digiLoading, setDigiLoading] = useState(false);
 
@@ -47,6 +50,35 @@ function EligibilityTab({ onRateSelect }: { onRateSelect: (rate: number) => void
   const eligible    = income > 0 || propertyValue > 0 ? Math.min(maxByIncome || Infinity, maxByLTV || Infinity) : 0;
   const emiEstimate = eligible > 0 ? (eligible * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1) : 0;
   const eligible2   = isFinite(eligible) ? eligible : 0;
+
+  async function handleApply() {
+    if (!phone) { toast.error('Please sign in to apply.'); return; }
+    if (eligible2 <= 0) { toast.error('Enter your income or property value first.'); return; }
+    setApplying(true);
+    try {
+      const res = await portalApi.submitLoanApplication({
+        customerPhone: phone,
+        customerName,
+        loanAmount: Math.round(eligible2),
+        propertyValue: propertyValue || Math.round(eligible2 / 0.8),
+        employmentType: employment,
+        tenureMonths: tenure * 12,
+      }) as { id: number; alreadyExists?: boolean };
+      toast[res?.alreadyExists ? 'info' : 'success'](
+        res?.alreadyExists
+          ? 'You already have a loan application — see Loan Status.'
+          : 'Loan application submitted! Track it under Loan Status.');
+      setApplied(true);
+      onApplied();
+    } catch (e) {
+      const msg = (e as Error).message || '';
+      toast.error(/no deal/i.test(msg)
+        ? 'Book a unit first — you need an active deal to apply for a loan.'
+        : (msg || 'Could not submit application. Please try again.'));
+    } finally {
+      setApplying(false);
+    }
+  }
 
   const color = eligible2 > 5_000_000 ? { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' }
               : eligible2 > 2_000_000 ? { bg: 'bg-amber-50  border-amber-200',   text: 'text-amber-700'   }
@@ -76,6 +108,14 @@ function EligibilityTab({ onRateSelect }: { onRateSelect: (rate: number) => void
             <label className="text-[11px] font-semibold text-muted-foreground">Interest Rate (% p.a.)</label>
             <input type="number" step="0.05" value={rate} onChange={e => setRate(Number(e.target.value))} className={inp} />
           </div>
+          <div className="space-y-1">
+            <label className="text-[11px] font-semibold text-muted-foreground">Employment Type</label>
+            <select value={employment} onChange={e => setEmployment(e.target.value)} className={inp}>
+              <option>Salaried</option>
+              <option>Self-Employed</option>
+              <option>Business Owner</option>
+            </select>
+          </div>
           <div className="md:col-span-2 space-y-1">
             <label className="text-[11px] font-semibold text-muted-foreground">Tenure: {tenure} years</label>
             <input type="range" min={5} max={30} value={tenure} onChange={e => setTenure(Number(e.target.value))} className="w-full accent-teal-600" />
@@ -88,6 +128,18 @@ function EligibilityTab({ onRateSelect }: { onRateSelect: (rate: number) => void
             <p className={`text-[24px] font-black mt-0.5 ${color.text}`}>{formatCurrency(Math.round(eligible2))}</p>
             <p className="text-[11px] text-muted-foreground mt-1">
               Estimated EMI: {formatCurrency(Math.round(emiEstimate))}/month for {tenure} yrs at {rate}%
+            </p>
+            <button
+              onClick={handleApply}
+              disabled={applying || applied || eligible2 <= 0}
+              className="mt-3 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
+              style={{ background: 'linear-gradient(135deg, #0A7E8C, #0d9488)' }}
+            >
+              {applying ? <Loader2 size={14} className="animate-spin" /> : <Banknote size={14} />}
+              {applied ? 'Application Submitted ✓' : applying ? 'Submitting…' : 'Apply for this Loan'}
+            </button>
+            <p className="text-[10px] text-muted-foreground mt-1.5">
+              We'll attach this to your active deal and notify your builder. Track progress under <strong>Loan Status</strong>.
             </p>
           </div>
         )}
@@ -500,7 +552,12 @@ export default function CustomerLoan() {
 
         {tab === 'status'      && <LoanStatusTab phone={user?.phone ?? ''} />}
         {tab === 'eligibility' && (
-          <EligibilityTab onRateSelect={r => { setCalcRate(r); setTab('calculator'); }} />
+          <EligibilityTab
+            phone={user?.phone ?? ''}
+            customerName={user?.name ?? ''}
+            onRateSelect={r => { setCalcRate(r); setTab('calculator'); }}
+            onApplied={() => setTab('status')}
+          />
         )}
         {tab === 'calculator'  && <EMICalculatorTab initialRate={calcRate} />}
       </div>
