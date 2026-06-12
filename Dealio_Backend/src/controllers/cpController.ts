@@ -403,11 +403,17 @@ export const cpController = {
   getDueToday: async (req: Request, res: Response) => {
     const cpUserId = Number(req.params.cpUserId);
     const cp = await prisma.channelPartner.findUnique({ where: { userId: cpUserId } });
-    if (!cp) return res.json({ ok: true, data: { followUps: [], callLogs: [] } });
+    if (!cp) return res.json({ ok: true, data: { meetings: [], followUps: [], callLogs: [] } });
 
     const today = new Date().toISOString().slice(0, 10);
+    // Normalise a stored date string to YYYY-MM-DD — same logic the follow-ups calendar uses.
+    const dateOnly = (s?: string | null) => {
+      if (!s) return '';
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? s.split('T')[0] : d.toISOString().slice(0, 10);
+    };
 
-    const [followUps, callLogs] = await Promise.all([
+    const [followUps, callLogs, meetingRows] = await Promise.all([
       prisma.cPFollowUp.findMany({
         where: { cpId: cp.id, dueDate: today, done: false },
         include: {
@@ -432,11 +438,30 @@ export const cpController = {
         },
         orderBy: { createdAt: 'asc' },
       }),
+      prisma.meeting.findMany({
+        where: { cpId: cp.id, status: { not: 'Cancelled' } },
+        include: { project: { select: { name: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
     ]);
+
+    // Meetings scheduled for today (date-only of confirmed/preferred date), excluding
+    // only cancelled — matching the follow-ups calendar. These were previously missing.
+    const meetings = meetingRows
+      .filter(m => dateOnly(m.confirmedDate ?? m.preferredDate) === today)
+      .map(m => ({
+        id:           String(m.id),
+        customerName: m.customerName,
+        projectName:  m.project?.name ?? 'Unknown Project',
+        meetingType:  m.meetingType,
+        time:         m.confirmedTime ?? m.preferredTime ?? null,
+        status:       m.status,
+      }));
 
     res.json({
       ok: true,
       data: {
+        meetings,
         followUps: followUps.map(f => ({
           id:           String(f.id),
           dealId:       String(f.dealId),
