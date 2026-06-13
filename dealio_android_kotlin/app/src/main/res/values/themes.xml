@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Dealio" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/dealio_navy</item>
+        <item name="android:statusBarColor">@color/dealio_navy</item>
+        <item name="android:navigationBarColor">@color/dealio_navy</item>
+    </style>
+</resources>
