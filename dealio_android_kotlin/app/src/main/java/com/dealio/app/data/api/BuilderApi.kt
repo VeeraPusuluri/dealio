@@ -1,10 +1,13 @@
 package com.dealio.app.data.api
 
+import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 
 /**
@@ -39,11 +42,27 @@ interface BuilderApi {
         @Body body: ProjectPayload,
     ): Response<ApiEnvelope<Project>>
 
+    /** Partial update with an arbitrary field set (e.g. just the cover image). */
+    @PATCH("builder/{builderId}/projects/{projectId}")
+    suspend fun patchProject(
+        @Path("builderId") builderId: Long,
+        @Path("projectId") projectId: Long,
+        @Body body: Map<String, @JvmSuppressWildcards Any?>,
+    ): Response<ApiEnvelope<Project>>
+
     @GET("builder/{builderId}/projects/{projectId}/documents")
     suspend fun getDocuments(
         @Path("builderId") builderId: Long,
         @Path("projectId") projectId: Long,
     ): Response<ApiEnvelope<List<ProjectDocument>>>
+
+    @Multipart
+    @POST("builder/{builderId}/projects/{projectId}/image")
+    suspend fun uploadProjectImage(
+        @Path("builderId") builderId: Long,
+        @Path("projectId") projectId: Long,
+        @Part file: MultipartBody.Part,
+    ): Response<ApiEnvelope<String>>
 
     // ── Leads ─────────────────────────────────────────────────────────────────
     @GET("builder/{builderId}/leads")

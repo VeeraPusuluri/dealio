@@ -81,9 +81,10 @@ fun SplashScreen(onFinished: () -> Unit) {
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "Real estate, simplified.",
+                text = "Real estate made simple",
                 color = Color.White.copy(alpha = 0.65f),
                 fontSize = 15.sp,
+                letterSpacing = 0.5.sp,
             )
         }
 

@@ -9,6 +9,8 @@ import androidx.navigation.compose.rememberNavController
 import com.dealio.app.data.BuilderStore
 import com.dealio.app.data.TokenStore
 import com.dealio.app.ui.builder.BuilderRoot
+import com.dealio.app.ui.cp.CpRoot
+import com.dealio.app.ui.customer.CustomerRoot
 import com.dealio.app.ui.screens.HomeScreen
 import com.dealio.app.ui.screens.LoginScreen
 import com.dealio.app.ui.screens.SignupScreen
@@ -78,11 +80,13 @@ fun DealioNavHost() {
                     popUpTo(0) { inclusive = true }
                 }
             }
-            // Builders get the full bottom-nav app; other roles see the placeholder for now.
-            if (tokenStore.user()?.role.equals("BUILDER", ignoreCase = true)) {
-                BuilderRoot(onLogout = logout)
-            } else {
-                HomeScreen(onLogout = logout)
+            // Each role gets its full bottom-nav app; remaining roles see the placeholder for now.
+            val role = tokenStore.user()?.role
+            when {
+                role.equals("BUILDER", ignoreCase = true) -> BuilderRoot(onLogout = logout)
+                role.equals("CUSTOMER", ignoreCase = true) -> CustomerRoot(onLogout = logout)
+                role.equals("CP", ignoreCase = true) -> CpRoot(onLogout = logout)
+                else -> HomeScreen(onLogout = logout)
             }
         }
     }

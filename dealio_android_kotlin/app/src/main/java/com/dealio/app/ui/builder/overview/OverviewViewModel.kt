@@ -30,8 +30,8 @@ class OverviewViewModel(app: Application) : BuilderViewModel(app) {
 
     init { load() }
 
-    fun load() {
-        _state.update { it.copy(loading = true, error = null) }
+    fun load(silent: Boolean = false) {
+        if (!silent) _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             val name = repo.currentUser?.fullName
             val projects = repo.getProjects()

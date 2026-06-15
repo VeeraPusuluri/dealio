@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,13 +14,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,6 +39,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.navigation.NavController
 import com.dealio.app.ui.theme.CardBorder
 import com.dealio.app.ui.theme.Navy
 import com.dealio.app.ui.theme.Teal
@@ -57,14 +71,16 @@ fun statusColorPair(status: String): Pair<Color, Color> {
     return when {
         s.contains("booked") || s.contains("closed") || s.contains("confirmed") ||
             s.contains("completed") || s.contains("released") || s.contains("sanctioned") ||
-            s.contains("accepted") || s.contains("disbursed") ->
+            s.contains("accepted") || s.contains("disbursed") || s == "valid" ->
             StatusColors.Green to StatusColors.GreenBg
         s.contains("negotiation") || s.contains("pending") || s.contains("review") ||
-            s.contains("processing") || s.contains("rescheduled") || s.contains("requested") ->
+            s.contains("processing") || s.contains("rescheduled") || s.contains("requested") ||
+            s.contains("expiring") ->
             StatusColors.Amber to StatusColors.AmberBg
         s.contains("agreement") || s.contains("meeting") || s.contains("profile") ->
             StatusColors.Blue to StatusColors.BlueBg
-        s.contains("reject") || s.contains("cancel") || s.contains("lost") ->
+        s.contains("reject") || s.contains("cancel") || s.contains("lost") ||
+            s.contains("expired") || s.contains("missing") ->
             StatusColors.Red to StatusColors.RedBg
         s.contains("suggest") ->
             StatusColors.Purple to StatusColors.PurpleBg
@@ -87,7 +103,7 @@ fun StatusChip(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun DealioCard(
     modifier: Modifier = Modifier,
-    content: @Composable Column.() -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
         modifier = modifier
@@ -204,3 +220,69 @@ fun InfoRow(label: String, value: String?, modifier: Modifier = Modifier) {
 }
 
 val ScreenPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp)
+
+/** Runs [onResume] each time the screen returns to the foreground (e.g. back from a detail/form). */
+@Composable
+fun RefreshOnResume(onResume: () -> Unit) {
+    val owner = LocalLifecycleOwner.current
+    DisposableEffect(owner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) onResume()
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+}
+
+/** Header for the top-level bottom-nav tabs (handles its own status-bar inset). */
+@Composable
+fun TabHeader(
+    title: String,
+    subtitle: String? = null,
+    trailing: @Composable (() -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .statusBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Navy, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            if (subtitle != null) Text(subtitle, color = TextSecondary, fontSize = 12.sp)
+        }
+        if (trailing != null) trailing()
+    }
+}
+
+/** Standard sub-screen shell: a back-arrow top bar over a body. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SubScreenScaffold(
+    title: String,
+    nav: NavController,
+    actions: @Composable () -> Unit = {},
+    body: @Composable (PaddingValues) -> Unit,
+) {
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = { Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    IconButton(onClick = { nav.navigateUp() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Navy)
+                    }
+                },
+                actions = { actions() },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White,
+                    titleContentColor = Navy,
+                ),
+            )
+        },
+        content = body,
+    )
+}

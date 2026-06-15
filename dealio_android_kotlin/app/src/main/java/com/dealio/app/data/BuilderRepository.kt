@@ -24,6 +24,8 @@ import com.dealio.app.data.api.ShortlistResponseRequest
 import com.dealio.app.data.api.StageRequest
 import com.dealio.app.data.api.StatusRequest
 import com.google.gson.Gson
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Response
 import java.io.IOException
 
@@ -72,6 +74,23 @@ class BuilderRepository(context: Context) {
 
     suspend fun getDocuments(projectId: Long): ApiResult<List<ProjectDocument>> =
         withBuilder { bid -> call { api.getDocuments(bid, projectId) } }
+
+    /** Uploads a hero image and persists it on the project (returns the stored URL). */
+    suspend fun uploadProjectImage(projectId: Long, bytes: ByteArray, fileName: String, mime: String): ApiResult<String> =
+        withBuilder { bid ->
+            val part = okhttp3.MultipartBody.Part.createFormData(
+                "file", fileName,
+                bytes.toRequestBody(mime.toMediaTypeOrNull()),
+            )
+            when (val r = call { api.uploadProjectImage(bid, projectId, part) }) {
+                is ApiResult.Success -> {
+                    // mirror the web: persist the returned URL as the cover image
+                    call { api.patchProject(bid, projectId, mapOf("coverUrl" to r.data)) }
+                    r
+                }
+                is ApiResult.Error -> r
+            }
+        }
 
     // ── Leads ───────────────────────────────────────────────────────────────
     suspend fun getLeads(): ApiResult<List<Lead>> =

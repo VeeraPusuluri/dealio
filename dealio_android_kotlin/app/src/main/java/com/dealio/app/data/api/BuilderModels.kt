@@ -44,6 +44,9 @@ data class Project(
     val reraState: String? = null,
     val priceMin: Double? = null,
     val priceMax: Double? = null,
+    // Customer list endpoint returns the raw column names; keep both and read via priceLow()/priceHigh().
+    val priceFrom: Double? = null,
+    val priceTo: Double? = null,
     val pricePerSqftFrom: Double? = null,
     val pricePerSqftTo: Double? = null,
     val maintenanceCharges: Double? = null,
@@ -56,6 +59,7 @@ data class Project(
     val closingSoon: Boolean = false,
     val published: Boolean = true,
     val imageUrl: String? = null,
+    val coverUrl: String? = null,
     val videoUrl: String? = null,
     val googleMapsLink: String? = null,
     val landArea: String? = null,
@@ -136,6 +140,9 @@ data class ProjectPayload(
     val closingSoon: Boolean? = null,
     val videoUrl: String? = null,
     val virtualTourUrl: String? = null,
+    val coverUrl: String? = null,
+    val imageUrl: String? = null,
+    val published: Boolean? = null,
     val googleMapsLink: String? = null,
     val landArea: String? = null,
     val buildingPermitNumber: String? = null,
@@ -285,6 +292,8 @@ data class Shortlist(
     val customerName: String = "",
     val customerPhone: String = "",
     val projectName: String = "",
+    val projectCity: String = "",
+    val builderId: Long? = null,
 )
 
 data class UnitDetails(

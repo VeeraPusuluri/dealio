@@ -1,17 +1,10 @@
 package com.dealio.app.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,8 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dealio.app.ui.auth.AuthStep
 import com.dealio.app.ui.auth.AuthViewModel
+import com.dealio.app.ui.components.AuthScaffold
 import com.dealio.app.ui.components.DealioButton
-import com.dealio.app.ui.components.DealioLogo
 import com.dealio.app.ui.components.DemoCodeHint
 import com.dealio.app.ui.components.ErrorText
 import com.dealio.app.ui.components.OtpInput
@@ -54,28 +47,13 @@ fun LoginScreen(
         if (state.loggedInUser != null) onLoggedIn()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .systemBarsPadding()
-            .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp),
+    val onDetails = state.step == AuthStep.DETAILS
+    AuthScaffold(
+        headline = if (onDetails) "Welcome back" else "Enter the code",
+        subtitle = if (onDetails) "Sign in with your phone number to continue."
+        else "We sent a 6-digit code to ${state.maskedPhone ?: "your phone"}.",
     ) {
-        Spacer(Modifier.height(28.dp))
-        DealioLogo()
-        Spacer(Modifier.height(40.dp))
-
-        if (state.step == AuthStep.DETAILS) {
-            Text("Welcome back", style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Sign in with your phone number to continue.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = TextSecondary,
-            )
-            Spacer(Modifier.height(32.dp))
-
+        if (onDetails) {
             PhoneField(
                 countryCode = countryCode,
                 onCountryCodeChange = { countryCode = it; viewModel.clearError() },
@@ -92,15 +70,6 @@ fun LoginScreen(
             )
             ErrorText(state.error)
         } else {
-            Text("Enter the code", style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "We sent a 6-digit code to ${state.maskedPhone ?: "your phone"}.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = TextSecondary,
-            )
-            Spacer(Modifier.height(32.dp))
-
             OtpInput(
                 value = otp,
                 onValueChange = { otp = it; viewModel.clearError() },
@@ -142,11 +111,9 @@ fun LoginScreen(
             }
         }
 
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(28.dp))
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 20.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
