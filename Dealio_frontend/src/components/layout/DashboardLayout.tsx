@@ -226,6 +226,12 @@ const getRoleNavSections = (role: UserRole, badges: Record<string, number>): Nav
                     {label: 'Analytics', path: '/bank/analytics', icon: PieChart},
                 ],
             },
+            {
+                title: 'System',
+                items: [
+                    {label: 'Settings', path: '/bank/settings', icon: Settings},
+                ],
+            },
         ],
         admin: [
             {
@@ -258,6 +264,12 @@ const getRoleNavSections = (role: UserRole, badges: Record<string, number>): Nav
                 items: [
                     {label: 'Campaigns', path: '/admin/campaigns', icon: Radio},
                     {label: 'Fraud', path: '/admin/fraud', icon: AlertTriangle},
+                ],
+            },
+            {
+                title: 'System',
+                items: [
+                    {label: 'Settings', path: '/admin/settings', icon: Settings},
                 ],
             },
         ],

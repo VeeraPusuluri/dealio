@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore, roleLabels, roleColors } from '@/stores/useAuthStore';
 import ProfilePicUploader from '@/components/shared/ProfilePicUploader';
+import SignOutCard from '@/components/shared/SignOutCard';
 import { builderApi } from '@/lib/api';
 import {
   User, Building2, Mail, Phone, Globe, MapPin,
@@ -381,6 +382,8 @@ const BuilderSettings = () => {
 
           </div>
         </div>
+
+        <SignOutCard />
       </div>
     </DashboardLayout>
   );

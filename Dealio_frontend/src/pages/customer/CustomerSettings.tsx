@@ -5,6 +5,7 @@ import { useAuthStore, roleLabels, roleColors } from '@/stores/useAuthStore';
 import { MapPin, Bell, Save, Mail, CheckCircle2, Loader2, X, Moon, Sun } from 'lucide-react';
 import { useThemeStore } from '@/stores/useThemeStore';
 import ProfilePicUploader from '@/components/shared/ProfilePicUploader';
+import SignOutCard from '@/components/shared/SignOutCard';
 
 const PREF_KEY = 'dealio_customer_prefs';
 const USER_KEY = 'dealio_user';
@@ -327,6 +328,8 @@ const CustomerSettings = () => {
 
           </div>
         </div>
+
+        <SignOutCard />
       </div>
     </DashboardLayout>
   );

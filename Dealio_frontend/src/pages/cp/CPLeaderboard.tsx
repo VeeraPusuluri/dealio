@@ -62,7 +62,6 @@ export default function CPLeaderboard() {
   return (
     <DashboardLayout>
       <div className="space-y-5 pb-8">
-
         <div>
           <h1 className="text-[17px] font-bold text-foreground">Leaderboard</h1>
           <p className="text-[12px] text-muted-foreground mt-0.5">Your performance and ranking</p>

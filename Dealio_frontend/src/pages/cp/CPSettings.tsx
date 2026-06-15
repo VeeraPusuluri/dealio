@@ -9,6 +9,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useThemeStore } from '@/stores/useThemeStore';
 import ProfilePicUploader from '@/components/shared/ProfilePicUploader';
+import SignOutCard from '@/components/shared/SignOutCard';
 
 type DocStatus = 'none' | 'uploaded' | 'verified';
 
@@ -493,6 +494,8 @@ const CPSettings = () => {
 
           </div>
         </div>
+
+        <SignOutCard />
       </div>
     </DashboardLayout>
   );

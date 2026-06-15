@@ -71,6 +71,7 @@ import BankStatus from "./pages/bank/BankStatus";
 import BankLoanCases from "./pages/bank/BankLoanCases";
 import BankAnalytics from "./pages/bank/BankAnalytics";
 import BankDocuments from "./pages/bank/BankDocuments";
+import BankSettings from "./pages/bank/BankSettings";
 
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminUsers from "./pages/admin/AdminUsers";
@@ -85,6 +86,7 @@ import AdminDeals from "./pages/admin/AdminDeals";
 import AdminCampaigns from "./pages/admin/AdminCampaigns";
 import AdminMeetings from "./pages/admin/AdminMeetings";
 import AdminAddProject from "./pages/admin/AdminAddProject";
+import AdminSettings from "./pages/admin/AdminSettings";
 import LoanPortal from "./pages/shared/LoanPortal";
 import DealConversation from "./pages/shared/DealConversation";
 import ProjectSharePage from "./pages/shared/ProjectSharePage";
@@ -232,6 +234,7 @@ const App = () => (
           <Route path="/bank/status" element={<ProtectedRoute><BankStatus /></ProtectedRoute>} />
           <Route path="/bank/analytics" element={<ProtectedRoute><BankAnalytics /></ProtectedRoute>} />
           <Route path="/bank/conversations" element={<ProtectedRoute><DealConversation /></ProtectedRoute>} />
+          <Route path="/bank/settings" element={<ProtectedRoute><BankSettings /></ProtectedRoute>} />
 
           {/* Admin */}
           <Route path="/admin" element={<ProtectedRoute><AdminOverview /></ProtectedRoute>} />
@@ -247,6 +250,7 @@ const App = () => (
           <Route path="/admin/fraud" element={<ProtectedRoute><AdminFraud /></ProtectedRoute>} />
           <Route path="/admin/campaigns" element={<ProtectedRoute><AdminCampaigns /></ProtectedRoute>} />
           <Route path="/admin/meetings" element={<ProtectedRoute><AdminMeetings /></ProtectedRoute>} />
+          <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
 
           {/* Public share page — no auth required */}
           <Route path="/p/:token" element={<ProjectSharePage />} />

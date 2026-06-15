@@ -721,8 +721,14 @@ export const adminApi = {
     return adminReq(`/loan-cases${qs.toString() ? `?${qs}` : ''}`);
   },
 
-  updateLoanCaseStatus: (id: number, data: { status: string; bank?: string; officerName?: string; officerPhone?: string; interestRate?: number; emi?: number }) =>
+  getLoanCase: (id: number) =>
+    adminReq(`/loan-cases/${id}`),
+
+  updateLoanCaseStatus: (id: number, data: { status: string; bank?: string; officerName?: string; officerPhone?: string; interestRate?: number; emi?: number; note?: string }) =>
     adminReq(`/loan-cases/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  addLoanCaseNote: (id: number, data: { content: string; type?: 'note' | 'document'; sender?: string; notifyCustomer?: boolean }) =>
+    adminReq(`/loan-cases/${id}/notes`, { method: 'POST', body: JSON.stringify(data) }),
 
   getMeetings: (params?: { status?: string; search?: string }) => {
     const qs = new URLSearchParams();
