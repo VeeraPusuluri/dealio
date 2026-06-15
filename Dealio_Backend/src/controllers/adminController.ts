@@ -491,9 +491,61 @@ export const adminController = {
     res.json({ ok: true, data: cases });
   },
 
+  // ── Single loan case with timeline + deal documents (bank detail view) ────
+  getLoanCase: async (req: Request, res: Response) => {
+    const loanCase = await prisma.loanCase.findUnique({
+      where: { id: Number(req.params.id) },
+      include: {
+        customer: { select: { id: true, fullName: true, phone: true, email: true } },
+        deal:     { select: { id: true, status: true, dealValue: true,
+                              project: { select: { name: true, city: true } },
+                              builder: { select: { companyName: true } },
+                              dealDocuments: { orderBy: { createdAt: 'desc' } } } },
+        notes:    { orderBy: { createdAt: 'asc' } },
+      },
+    });
+    if (!loanCase) return res.status(404).json({ ok: false, message: 'Loan case not found' });
+    res.json({ ok: true, data: loanCase });
+  },
+
+  // ── Bank adds a note / document request to the loan timeline ──────────────
+  addLoanCaseNote: async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { content, type, sender, notifyCustomer } = req.body as {
+      content?: string; type?: string; sender?: string; notifyCustomer?: boolean;
+    };
+    if (!content?.trim()) return res.status(400).json({ ok: false, message: 'Note content is required' });
+
+    const loanCase = await prisma.loanCase.findUnique({ where: { id: Number(id) } });
+    if (!loanCase) return res.status(404).json({ ok: false, message: 'Loan case not found' });
+
+    const note = await prisma.loanNote.create({
+      data: {
+        loanCaseId: loanCase.id,
+        type: type === 'document' ? 'document' : 'note',
+        sender: sender?.trim() || 'Bank',
+        senderRole: 'bank',
+        content: content.trim(),
+      },
+    });
+
+    if (notifyCustomer) {
+      await notifyDealParties(loanCase.dealId, {
+        type: 'notification',
+        notifType: 'info',
+        title: type === 'document' ? 'Documents Requested' : 'Loan Update',
+        message: content.trim(),
+        to: ['customer'],
+        link: { customer: '/customer/loan?tab=status' },
+      }).catch(() => {});
+    }
+
+    res.json({ ok: true, data: note });
+  },
+
   updateLoanCaseStatus: async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { status, bank, officerName, officerPhone, interestRate, emi } = req.body;
+    const { status, bank, officerName, officerPhone, interestRate, emi, note } = req.body;
     const allowed = ['Applied', 'Under Review', 'Sanctioned', 'Disbursed', 'Rejected'];
     if (!allowed.includes(status)) return res.status(400).json({ ok: false, message: 'Invalid status' });
     try {
@@ -514,7 +566,7 @@ export const adminController = {
         data: {
           loanCaseId: Number(id), type: 'status_update',
           sender: officerName || bank || 'Bank', senderRole: 'bank',
-          content: `Loan status updated to "${status}"${bank ? ` · ${bank}` : ''}${interestRate ? ` · ${interestRate}%` : ''}.`,
+          content: `Loan status updated to "${status}"${bank ? ` · ${bank}` : ''}${interestRate ? ` · ${interestRate}%` : ''}.${note?.trim() ? ` Note: ${String(note).trim()}` : ''}`,
         },
       }).catch(() => {});
 
