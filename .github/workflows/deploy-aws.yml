@@ -55,8 +55,6 @@ jobs:
         id: filter
         with:
           filters: |
-            backend:
-              - 'Dealio_Backend/**'
             frontend:
               - 'Dealio_frontend/**'
             schema:
@@ -112,18 +110,6 @@ jobs:
             exit 1
           fi
           echo "✅ Schema applied."
-
-      - name: Deploy backend to ECS
-        run: |
-          aws ecs update-service \
-            --cluster "$ECS_CLUSTER" \
-            --service "$ECS_BACKEND_SERVICE" \
-            --force-new-deployment >/dev/null
-          echo "Waiting for the service to stabilize..."
-          aws ecs wait services-stable \
-            --cluster "$ECS_CLUSTER" \
-            --services "$ECS_BACKEND_SERVICE"
-          echo "✅ Backend deployed."
 
   # ── Deploy frontend ───────────────────────────────────────────────────────
   deploy-frontend:
