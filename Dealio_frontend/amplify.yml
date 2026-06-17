@@ -1,0 +1,53 @@
+version: 1
+
+env:
+  variables:
+    NODE_ENV: production
+
+phases:
+  preBuild:
+    commands:
+      # Set environment variables from Amplify variables
+      - echo "Setting environment variables from Amplify..."
+      - export VITE_AUTH_URL=$VITE_AUTH_URL
+      - export VITE_BUILDER_URL=$VITE_BUILDER_URL
+      - export VITE_CUSTOMER_URL=$VITE_CUSTOMER_URL
+      - export VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+      - export VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
+      - export VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+      - export VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+      - export VITE_GNEWS_API_KEY=$VITE_GNEWS_API_KEY
+      
+      # Create .env.production file with Amplify variables
+      - |
+        cat > .env.production << EOF
+        VITE_AUTH_URL=$VITE_AUTH_URL
+        VITE_BUILDER_URL=$VITE_BUILDER_URL
+        VITE_CUSTOMER_URL=$VITE_CUSTOMER_URL
+        VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+        VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
+        VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+        VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+        VITE_GNEWS_API_KEY=$VITE_GNEWS_API_KEY
+        EOF
+      
+      # Display environment variables (excluding sensitive values)
+      - echo "✓ Environment variables configured for build"
+      
+      # Install dependencies
+      - npm ci
+
+  build:
+    commands:
+      - echo "Building React frontend with Vite..."
+      - npm run build
+      - echo "✓ Build completed successfully"
+
+artifacts:
+  files:
+    - dist/**/*
+  name: BuildArtifact
+
+cache:
+  paths:
+    - node_modules/**/*
