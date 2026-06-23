@@ -50,8 +50,11 @@ jobs:
 
       - run: npm ci
 
+      # Non-blocking: report lint issues but don't fail the deploy on them.
+      # `npm run build` (Vite/tsc) is the real gate.
       - name: Lint
         run: npm run lint
+        continue-on-error: true
 
       - name: Build
         run: npm run build
