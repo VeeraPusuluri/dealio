@@ -693,6 +693,17 @@ function getScrollContainer(el: HTMLElement): HTMLElement | null {
 }
 
 // ── GSAP scroll-reveal component (matches EIPL: y:30, power2.out, 0.6s) ──────
+// The page content renders inside a zoom wrapper; keep both in one place.
+const PAGE_ZOOM = 0.8;
+const SECTION_GUTTER = 40;
+// Pull a section's number+name eyebrow out of its centered max-width column so it
+// sits at the page's left gutter (content stays centered). 50vw is divided by
+// PAGE_ZOOM because viewport units don't scale with the zoom wrapper.
+const eyebrowPullLeft: React.CSSProperties = {
+    width: 'fit-content',
+    marginLeft: `calc(50% - ${50 / PAGE_ZOOM}vw + ${SECTION_GUTTER}px)`,
+};
+
 function AnimateIn({
     children, delay = 0, direction = 'up', style,
 }: {
@@ -1211,9 +1222,14 @@ const CustomerProjectDetail = () => {
         } catch { /* noop */ }
     };
 
-    const Wrapper = ({children}: {children: React.ReactNode}) => isStandalone
-        ? <div style={{background:T.bg, minHeight:'100vh', fontFamily:T.sans}}>{children}</div>
-        : <DashboardLayout>{children}</DashboardLayout>;
+    // Zoom the project view out by 20% (zoom: 0.8). Only the page content is scaled —
+    // the dashboard shell (sidebar/nav) stays at normal size.
+    const Wrapper = ({children}: {children: React.ReactNode}) => {
+        const zoomed = <div style={{zoom: PAGE_ZOOM}}>{children}</div>;
+        return isStandalone
+            ? <div style={{background:T.bg, minHeight:'100vh', fontFamily:T.sans}}>{zoomed}</div>
+            : <DashboardLayout>{zoomed}</DashboardLayout>;
+    };
 
     if (loading && !project) return (
         <Wrapper>
@@ -1632,7 +1648,7 @@ const CustomerProjectDetail = () => {
                 {(configs.length > 0 || project.priceMin) && (
                     <section id="sec-pricing" style={{maxWidth:1280,margin:'96px auto 0',padding:'0 40px'}}>
                     <AnimateIn>
-                        <div style={{display:'flex',gap:12,alignItems:'center',marginBottom:40}}>
+                        <div style={{display:'flex',gap:12,alignItems:'center',marginBottom:40,...eyebrowPullLeft}}>
                             <span style={{fontFamily:T.mono,fontSize:10,letterSpacing:'0.22em',color:T.accent,fontWeight:700}}>02</span>
                             <div style={{height:1,background:`linear-gradient(to right, ${T.accent}, transparent)`,width:64}}/>
                             <span style={sk}>Pricing</span>
@@ -1950,14 +1966,15 @@ const CustomerProjectDetail = () => {
                     <div style={{position:'absolute' as const,top:'-20%',right:'-5%',width:600,height:600,borderRadius:'50%',background:'radial-gradient(circle, rgba(201,168,108,0.06), transparent 65%)',pointerEvents:'none'}}/>
                 <AnimateIn>
                     <div style={{maxWidth:1280,margin:'0 auto',padding:'0 48px'}}>
+                        {/* Section eyebrow — pulled to the page's left gutter */}
+                        <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:12,...eyebrowPullLeft}}>
+                            <span style={{fontFamily:T.mono,fontSize:10,letterSpacing:'0.22em',color:T.accent,fontWeight:700}}>03</span>
+                            <div style={{height:1,background:`linear-gradient(to right, ${T.accent}, transparent)`,width:64}}/>
+                            <span style={{...sk,color:'rgba(255,255,255,0.35)'}}>Floor Plans</span>
+                        </div>
                         {/* Section header */}
                         <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:24,marginBottom:40}}>
                             <div>
-                                <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:12}}>
-                                    <span style={{fontFamily:T.mono,fontSize:10,letterSpacing:'0.22em',color:T.accent,fontWeight:700}}>03</span>
-                                    <div style={{height:1,background:`linear-gradient(to right, ${T.accent}, transparent)`,width:64}}/>
-                                    <span style={{...sk,color:'rgba(255,255,255,0.35)'}}>Floor Plans</span>
-                                </div>
                                 <h2 style={{fontFamily:T.serif,fontSize:'clamp(28px,3vw,44px)',fontWeight:300,color:'#fff',margin:0,letterSpacing:'-0.025em',lineHeight:1}}>
                                     Every sq ft <em style={{fontStyle:'italic',color:T.accent}}>purposefully designed.</em>
                                 </h2>
@@ -2133,16 +2150,18 @@ const CustomerProjectDetail = () => {
                     return (
                         <>
                         {/* ── Header ── */}
-                        <div style={{maxWidth:1280,margin:'0 auto',padding:'80px 48px 64px',display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:32}}>
-                            <div>
-                                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
-                                    <span style={{fontFamily:T.mono,fontSize:10,letterSpacing:'0.22em',color:'rgba(10,126,140,0.8)',fontWeight:700,textTransform:'uppercase' as const}}>04 · Amenities</span>
-                                    {amenityList.length > 0 && (
-                                        <span style={{fontFamily:T.mono,fontSize:10,fontWeight:700,color:'#0A7E8C',background:'rgba(10,126,140,0.15)',border:'1px solid rgba(10,126,140,0.25)',borderRadius:999,padding:'2px 10px'}}>
-                                            {amenityList.length} total
-                                        </span>
-                                    )}
-                                </div>
+                        <div style={{maxWidth:1280,margin:'0 auto',padding:'80px 48px 64px'}}>
+                            {/* Section eyebrow — pulled to the page's left gutter */}
+                            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16,...eyebrowPullLeft}}>
+                                <span style={{fontFamily:T.mono,fontSize:10,letterSpacing:'0.22em',color:'rgba(10,126,140,0.8)',fontWeight:700,textTransform:'uppercase' as const}}>04 · Amenities</span>
+                                {amenityList.length > 0 && (
+                                    <span style={{fontFamily:T.mono,fontSize:10,fontWeight:700,color:'#0A7E8C',background:'rgba(10,126,140,0.15)',border:'1px solid rgba(10,126,140,0.25)',borderRadius:999,padding:'2px 10px'}}>
+                                        {amenityList.length} total
+                                    </span>
+                                )}
+                            </div>
+                            <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:32}}>
+                                <div>
                                 <h2 style={{fontFamily:T.serif,fontSize:'clamp(28px,3.5vw,48px)',fontWeight:300,color:'#fff',margin:0,letterSpacing:'-0.025em',lineHeight:1}}>
                                     Crafted for <em style={{fontStyle:'italic',color:T.accent}}>modern living.</em>
                                 </h2>
@@ -2150,6 +2169,7 @@ const CustomerProjectDetail = () => {
                             <p style={{fontFamily:T.sans,fontSize:13,color:'rgba(255,255,255,0.32)',maxWidth:280,textAlign:'right' as const,lineHeight:1.8,margin:0,flexShrink:0}}>
                                 Leisure, wellness, convenience and community — all within your community.
                             </p>
+                            </div>
                         </div>
 
                         {/* ── Featured amenities — 3-col card grid ── */}
@@ -2216,7 +2236,7 @@ const CustomerProjectDetail = () => {
                 <AnimateIn>
                     {/* Header — constrained */}
                     <div style={{maxWidth:1280,margin:'0 auto',padding:'0 40px'}}>
-                        <div style={{display:'flex',gap:12,alignItems:'center',marginBottom:40}}>
+                        <div style={{display:'flex',gap:12,alignItems:'center',marginBottom:40,...eyebrowPullLeft}}>
                             <span style={{fontFamily:T.mono,fontSize:10,letterSpacing:'0.22em',color:T.accent,fontWeight:700}}>05</span>
                             <div style={{height:1,background:`linear-gradient(to right, ${T.accent}, transparent)`,width:64}}/>
                             <span style={sk}>Location &amp; City News</span>
@@ -2369,20 +2389,22 @@ const CustomerProjectDetail = () => {
                 <AnimateIn>
                     {/* ── Header ── */}
                     <div style={{maxWidth:1280,margin:'0 auto',padding:'80px 48px 56px'}}>
+                        {/* Section eyebrow — pulled to the page's left gutter */}
+                        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16,...eyebrowPullLeft}}>
+                            {/* 360 badge */}
+                            <div style={{width:34,height:34,borderRadius:10,background:'rgba(10,126,140,0.18)',border:'1px solid rgba(10,126,140,0.28)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                <span style={{fontFamily:T.mono,fontSize:9,fontWeight:700,color:'#0DAABF',letterSpacing:'0.04em'}}>360°</span>
+                            </div>
+                            <span style={{fontFamily:T.mono,fontSize:10,letterSpacing:'0.22em',color:'rgba(10,126,140,0.8)',fontWeight:700,textTransform:'uppercase' as const}}>06 · Virtual Tours</span>
+                            {tours.length > 1 && (
+                                <span style={{fontFamily:T.mono,fontSize:10,fontWeight:700,color:'#0A7E8C',background:'rgba(10,126,140,0.15)',border:'1px solid rgba(10,126,140,0.25)',borderRadius:999,padding:'2px 10px'}}>
+                                    {tours.length} tours
+                                </span>
+                            )}
+                        </div>
+                        {/* Header */}
                         <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:32}}>
                             <div>
-                                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
-                                    {/* 360 badge */}
-                                    <div style={{width:34,height:34,borderRadius:10,background:'rgba(10,126,140,0.18)',border:'1px solid rgba(10,126,140,0.28)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                                        <span style={{fontFamily:T.mono,fontSize:9,fontWeight:700,color:'#0DAABF',letterSpacing:'0.04em'}}>360°</span>
-                                    </div>
-                                    <span style={{fontFamily:T.mono,fontSize:10,letterSpacing:'0.22em',color:'rgba(10,126,140,0.8)',fontWeight:700,textTransform:'uppercase' as const}}>06 · Virtual Tours</span>
-                                    {tours.length > 1 && (
-                                        <span style={{fontFamily:T.mono,fontSize:10,fontWeight:700,color:'#0A7E8C',background:'rgba(10,126,140,0.15)',border:'1px solid rgba(10,126,140,0.25)',borderRadius:999,padding:'2px 10px'}}>
-                                            {tours.length} tours
-                                        </span>
-                                    )}
-                                </div>
                                 <h2 style={{fontFamily:T.serif,fontSize:'clamp(28px,3vw,48px)',fontWeight:300,color:'#fff',margin:0,letterSpacing:'-0.025em',lineHeight:1}}>
                                     Explore <em style={{fontStyle:'italic',color:T.accent}}>every corner</em><br/>from your screen.
                                 </h2>
@@ -2472,7 +2494,7 @@ const CustomerProjectDetail = () => {
                 {/* ══ FAQ ═══════════════════════════════════════════════════════ */}
                 <section id="sec-faq" style={{maxWidth:1280,margin:'160px auto 0',padding:'0 40px 128px'}}>
                 <AnimateIn>
-                    <div style={{display:'flex',gap:12,alignItems:'center',marginBottom:40}}>
+                    <div style={{display:'flex',gap:12,alignItems:'center',marginBottom:40,...eyebrowPullLeft}}>
                         <span style={{fontFamily:T.mono,fontSize:10,letterSpacing:'0.22em',color:T.accent,fontWeight:700}}>07</span>
                         <div style={{height:1,background:`linear-gradient(to right, ${T.accent}, transparent)`,width:64}}/>
                         <span style={sk}>Frequently Asked</span>

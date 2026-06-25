@@ -18,7 +18,7 @@ phases:
       - export VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
       - export VITE_GNEWS_API_KEY=$VITE_GNEWS_API_KEY
       
-      # Create .env.production file with Amplify variables
+      # Create .env.prod file with Amplify variables
       - |
         cat > .env.production << EOF
         VITE_AUTH_URL=$VITE_AUTH_URL

@@ -120,7 +120,10 @@ export default function DealRoom({ deal, role }: { deal: DealRoomDeal; role: Dea
   const action = actionFor(deal.status, role, deal.id);
   const docs = visibleDocs(deal.documents ?? [], role);
 
-  const { messages, connected, sendMessage } = useDealSocket(deal.id);
+  // DealRoom shows a single chat box, so it opens the viewer's primary private
+  // thread with the other principal: cp↔customer for a CP, builder↔customer otherwise.
+  const primaryThread = role === 'cp' ? 'cp-customer' : 'builder-customer';
+  const { messages, connected, sendMessage } = useDealSocket(deal.id, primaryThread);
   const [draft, setDraft] = useState('');
 
   function handleSend() {

@@ -43,7 +43,7 @@ const testimonials = [
 ];
 
 const DOT_GRID = {
-  backgroundImage: 'radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)',
+  backgroundImage: 'radial-gradient(rgba(27,58,92,0.05) 1px, transparent 1px)',
   backgroundSize: '28px 28px',
 };
 
@@ -162,20 +162,20 @@ const Home = () => {
       <div className="min-h-screen bg-white text-[#1B3A5C] overflow-x-hidden">
 
         {/* ── Navbar ── */}
-        <header className="sticky top-0 z-50 bg-white/92 backdrop-blur-xl border-b border-slate-100/80">
+        <header className="sticky top-0 z-50 bg-[#0C1F35]/95 backdrop-blur-xl border-b border-white/10">
           <div className="max-w-7xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
-            <DealioLogo size="sm" to="/home" />
+            <DealioLogo size="sm" variant="light" to="/home" />
 
-            <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-500">
+            <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white/70">
               {[['#roles','Who it\'s for'],['#features','Features'],['#journey','Deal journey'],['#testimonials','Stories']].map(([href, label]) => (
-                <a key={href} href={href} className="hover:text-[#0A7E8C] transition-colors">{label}</a>
+                <a key={href} href={href} className="hover:text-white transition-colors">{label}</a>
               ))}
             </nav>
 
             <div className="hidden md:flex items-center gap-2.5">
               {user ? (
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-slate-600">Hi, <span className="font-bold text-[#1B3A5C]">{user.name}</span></span>
+                  <span className="text-sm font-medium text-white/70">Hi, <span className="font-bold text-white">{user.name}</span></span>
                   <Link to={`/${user.role}`}>
                     <button className="px-4 py-2 rounded-xl text-sm font-bold text-white shadow-lg shadow-[#0A7E8C]/25 hover:-translate-y-px active:translate-y-0 transition-all"
                       style={{ background: 'linear-gradient(135deg, #0DAABF 0%, #0A7E8C 100%)' }}>
@@ -186,7 +186,7 @@ const Home = () => {
               ) : (
                 <>
                   <Link to="/login">
-                    <button className="px-4 py-2 rounded-xl text-sm font-semibold text-[#1B3A5C] hover:bg-slate-100 transition-colors">
+                    <button className="px-4 py-2 rounded-xl text-sm font-semibold text-white/90 hover:bg-white/10 transition-colors">
                       Sign In
                     </button>
                   </Link>
@@ -200,21 +200,21 @@ const Home = () => {
               )}
             </div>
 
-            <button className="md:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+            <button className="md:hidden p-2 rounded-lg text-white/80 hover:bg-white/10 transition-colors"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
 
           {mobileMenuOpen && (
-            <div className="md:hidden border-t border-slate-100 bg-white px-5 py-4 space-y-1">
+            <div className="md:hidden border-t border-white/10 bg-[#0C1F35] px-5 py-4 space-y-1">
               {[['#roles','Who it\'s for'],['#features','Features'],['#journey','Deal journey'],['#testimonials','Stories']].map(([href, label]) => (
                 <a key={href} href={href} onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-[#1B3A5C]">{label}</a>
+                  className="block px-3 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white">{label}</a>
               ))}
-              <div className="flex gap-2 pt-3 border-t border-slate-100 mt-2">
+              <div className="flex gap-2 pt-3 border-t border-white/10 mt-2">
                 <Link to="/login" className="flex-1">
-                  <button className="w-full py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-[#1B3A5C]">Sign In</button>
+                  <button className="w-full py-2.5 rounded-xl text-sm font-semibold border border-white/20 text-white">Sign In</button>
                 </Link>
                 <Link to="/login?tab=signup" className="flex-1">
                   <button className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg,#E0833A,#C8621D)' }}>Get Started</button>
@@ -226,38 +226,38 @@ const Home = () => {
 
         {/* ── Hero ── */}
         <section className="relative overflow-hidden"
-          style={{ background: 'linear-gradient(150deg, #0C1F35 0%, #0F2A45 30%, #1B3A5C 60%, #0A7E8C 100%)' }}>
+          style={{ background: 'linear-gradient(160deg, #FFFFFF 0%, #F4F9FB 45%, #EAF2F4 100%)' }}>
 
           <div className="absolute inset-0 pointer-events-none" style={DOT_GRID} />
 
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <div className="absolute -top-32 -right-32 w-[640px] h-[640px] rounded-full"
-              style={{ background: 'radial-gradient(circle, rgba(10,126,140,0.25) 0%, transparent 65%)' }} />
+              style={{ background: 'radial-gradient(circle, rgba(10,126,140,0.14) 0%, transparent 65%)' }} />
             <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full"
-              style={{ background: 'radial-gradient(circle, rgba(232,119,34,0.2) 0%, transparent 65%)' }} />
+              style={{ background: 'radial-gradient(circle, rgba(232,119,34,0.10) 0%, transparent 65%)' }} />
             <div className="absolute top-[45%] left-[38%] w-72 h-72 rounded-full"
-              style={{ background: 'radial-gradient(circle, rgba(245,166,35,0.1) 0%, transparent 70%)' }} />
+              style={{ background: 'radial-gradient(circle, rgba(245,166,35,0.08) 0%, transparent 70%)' }} />
           </div>
 
           <div className="relative max-w-7xl mx-auto px-5 sm:px-8 pt-20 pb-16 md:pt-28 md:pb-24">
             <div className="max-w-3xl mx-auto text-center">
 
-              <div className="hero-badge inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-white/15 bg-white/[0.06] backdrop-blur-sm text-white/80 text-xs font-medium mb-8 tracking-wide">
-                <Sparkles size={12} style={{ color: '#F0D8A8' }} />
+              <div className="hero-badge inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-slate-200 bg-white shadow-sm shadow-slate-200/60 text-slate-600 text-xs font-medium mb-8 tracking-wide">
+                <Sparkles size={12} style={{ color: '#E0833A' }} />
                 India's unified real-estate operating system
-                <span className="ml-0.5 px-2 py-0.5 rounded-full text-[#1B3A5C] text-[10px] font-bold tracking-wider"
-                  style={{ background: 'linear-gradient(135deg,#F0D8A8,#D4AF6A)' }}>NEW</span>
+                <span className="ml-0.5 px-2 py-0.5 rounded-full text-white text-[10px] font-bold tracking-wider"
+                  style={{ background: 'linear-gradient(135deg,#E0833A,#C8621D)' }}>NEW</span>
               </div>
 
-              <h1 className="hero-title text-4xl sm:text-5xl md:text-6xl lg:text-[72px] font-extrabold text-white leading-[1.08] tracking-tight mb-6">
+              <h1 className="hero-title text-4xl sm:text-5xl md:text-6xl lg:text-[72px] font-extrabold text-[#1B3A5C] leading-[1.08] tracking-tight mb-6">
                 One platform.<br />
-                <span style={{ background: 'linear-gradient(90deg,#F0D8A8,#E8A33D,#D4691C)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                <span style={{ background: 'linear-gradient(90deg,#E0833A 0%,#C8621D 55%,#0A7E8C 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                   Every stakeholder
                 </span><br />
                 in your deal.
               </h1>
 
-              <p className="hero-sub text-white/60 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed font-light">
+              <p className="hero-sub text-slate-600 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed font-light">
                 Dealio connects builders, channel partners, customers, banks and NRIs — so every transaction closes faster, with zero leakage.
               </p>
 
@@ -270,7 +270,7 @@ const Home = () => {
                   </button>
                 </Link>
                 <Link to="/login">
-                  <button className="flex items-center gap-2 px-7 py-4 rounded-2xl font-bold text-sm bg-white/10 border border-white/20 text-white hover:bg-white/18 hover:-translate-y-0.5 active:translate-y-0 transition-all backdrop-blur-sm">
+                  <button className="flex items-center gap-2 px-7 py-4 rounded-2xl font-bold text-sm bg-white border border-slate-200 text-[#1B3A5C] shadow-sm shadow-slate-200/60 hover:bg-slate-50 hover:-translate-y-0.5 active:translate-y-0 transition-all">
                     Sign in to dashboard
                   </button>
                 </Link>
@@ -278,8 +278,8 @@ const Home = () => {
 
               <div className="hero-trust flex flex-wrap items-center justify-center gap-3 sm:gap-5">
                 {[['RERA-ready'], ['6 role portals'], ['WhatsApp-native'], ['AI-powered pricing']].map(([label]) => (
-                  <span key={label} className="flex items-center gap-1.5 text-white/55 text-xs font-medium">
-                    <CheckCircle2 size={12} style={{ color: '#F5A623' }} /> {label}
+                  <span key={label} className="flex items-center gap-1.5 text-slate-500 text-xs font-medium">
+                    <CheckCircle2 size={12} style={{ color: '#16A34A' }} /> {label}
                   </span>
                 ))}
               </div>
@@ -295,27 +295,27 @@ const Home = () => {
                   { icon: HomeIcon,  label: 'Customer portal', value: 'Keys handed over',   delta: 'milestone', color: '#4ADE80', progress: '100%' },
                 ].map((item, i) => (
                   <div key={item.label}
-                    className="float-card group relative bg-white/[0.06] border border-white/12 backdrop-blur-sm rounded-2xl p-4 sm:p-5 hover:bg-white/[0.1] hover:border-white/20 transition-colors duration-200 overflow-hidden"
+                    className="float-card group relative bg-white border border-slate-200/70 shadow-lg shadow-slate-200/50 rounded-2xl p-4 sm:p-5 hover:shadow-xl hover:shadow-slate-200/70 hover:border-slate-300/70 transition-all duration-200 overflow-hidden"
                     style={{ animationDelay: `${i * 0.4}s` }}>
                     <div className="absolute top-0 left-5 right-5 h-px opacity-0 group-hover:opacity-100 transition-opacity"
                       style={{ background: `linear-gradient(90deg, transparent, ${item.color}, transparent)` }} />
                     <div className="flex items-start justify-between mb-3">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ backgroundColor: item.color + '28' }}>
+                        style={{ backgroundColor: item.color + '1F' }}>
                         <item.icon size={15} style={{ color: item.color }} />
                       </div>
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/10 text-white/60">{item.delta}</span>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">{item.delta}</span>
                     </div>
-                    <div className="text-base sm:text-lg font-extrabold text-white leading-snug">{item.value}</div>
-                    <div className="text-white/50 text-xs mt-0.5 font-medium">{item.label}</div>
-                    <div className="mt-3 h-0.5 rounded-full bg-white/10 overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: item.progress, backgroundColor: item.color + 'AA' }} />
+                    <div className="text-base sm:text-lg font-extrabold text-[#1B3A5C] leading-snug">{item.value}</div>
+                    <div className="text-slate-400 text-xs mt-0.5 font-medium">{item.label}</div>
+                    <div className="mt-3 h-1 rounded-full bg-slate-100 overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: item.progress, backgroundColor: item.color }} />
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="absolute -top-3.5 right-3 sm:right-0 flex items-center gap-2 bg-white rounded-full px-3 py-1.5 shadow-xl shadow-black/15 text-xs font-bold text-[#1B3A5C]">
+              <div className="absolute -top-3.5 right-3 sm:right-0 flex items-center gap-2 bg-white border border-slate-100 rounded-full px-3 py-1.5 shadow-xl shadow-slate-300/40 text-xs font-bold text-[#1B3A5C]">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                 One deal — every portal, live
               </div>
@@ -353,8 +353,8 @@ const Home = () => {
               <div className="relative grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-x-4 gap-y-10">
                 {journey.map((s, i) => (
                   <div key={s.label} className="flex flex-col items-center text-center">
-                    <div className="journey-node w-14 h-14 rounded-2xl bg-white border flex items-center justify-center mb-4 relative z-10"
-                      style={{ '--c': s.color, borderColor: s.color + '40', backgroundColor: s.color + '0D', animationDelay: `${i * 0.7}s` } as React.CSSProperties}>
+                    <div className="journey-node w-14 h-14 rounded-2xl border flex items-center justify-center mb-4 relative z-10"
+                      style={{ '--c': s.color, borderColor: s.color + '40', backgroundColor: '#FFFFFF', animationDelay: `${i * 0.7}s` } as React.CSSProperties}>
                       <s.icon size={22} style={{ color: s.color }} />
                     </div>
                     <div className="font-bold text-[#1B3A5C] text-sm leading-tight">{s.label}</div>
@@ -449,17 +449,17 @@ const Home = () => {
 
         {/* ── Testimonials ── */}
         <section id="testimonials" className="py-16 sm:py-20 relative overflow-hidden"
-          style={{ background: 'linear-gradient(150deg, #0C1F35 0%, #0F2A45 35%, #1A3B5D 65%, #0A6E7C 100%)' }}>
+          style={{ background: 'linear-gradient(160deg, #F1F6F9 0%, #F8FAFC 55%, #FFFFFF 100%)' }}>
           <div className="absolute inset-0 pointer-events-none" style={DOT_GRID} />
           <div className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(10,126,140,0.2) 0%, transparent 65%)' }} />
+            style={{ background: 'radial-gradient(circle, rgba(10,126,140,0.08) 0%, transparent 65%)' }} />
 
           <div className="relative max-w-7xl mx-auto px-5 sm:px-8">
             <div className="reveal text-center mb-14">
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/75 text-xs font-bold uppercase tracking-widest mb-5">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#6B3FA0]/10 text-[#6B3FA0] text-xs font-bold uppercase tracking-widest mb-5">
                 Real stories
               </span>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-tight">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#1B3A5C] leading-tight tracking-tight">
                 Trusted by India's top<br className="hidden sm:block" /> real-estate professionals
               </h2>
             </div>
@@ -467,10 +467,10 @@ const Home = () => {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {testimonials.map((t, i) => (
                 <div key={t.name}
-                  className="reveal relative bg-white/7 border border-white/10 rounded-2xl p-7 hover:bg-white/11 hover:border-white/18 transition-all duration-200 flex flex-col"
+                  className="reveal relative bg-white border border-slate-100 shadow-sm rounded-2xl p-7 hover:shadow-xl hover:shadow-slate-200/60 hover:-translate-y-1 transition-all duration-200 flex flex-col"
                   style={{ transitionDelay: `${i * 0.1}s` }}>
                   <span className="absolute top-4 right-6 text-6xl font-black leading-none select-none pointer-events-none"
-                    style={{ color: 'rgba(255,255,255,0.07)' }}>"</span>
+                    style={{ color: 'rgba(27,58,92,0.06)' }}>"</span>
 
                   <div className="flex gap-0.5 mb-5">
                     {[...Array(5)].map((_, idx) => (
@@ -480,16 +480,16 @@ const Home = () => {
                     ))}
                   </div>
 
-                  <p className="text-white/80 text-sm leading-[1.75] mb-6 flex-1">"{t.quote}"</p>
+                  <p className="text-slate-600 text-sm leading-[1.75] mb-6 flex-1">"{t.quote}"</p>
 
-                  <div className="border-t border-white/10 pt-4 flex items-center gap-3">
+                  <div className="border-t border-slate-100 pt-4 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0"
                       style={{ background: `linear-gradient(135deg, ${t.color} 0%, ${t.color}BB 100%)` }}>
                       {t.avatar}
                     </div>
                     <div>
-                      <div className="font-bold text-white text-sm leading-tight">{t.name}</div>
-                      <div className="text-white/45 text-xs mt-0.5">{t.role}</div>
+                      <div className="font-bold text-[#1B3A5C] text-sm leading-tight">{t.name}</div>
+                      <div className="text-slate-400 text-xs mt-0.5">{t.role}</div>
                     </div>
                   </div>
                 </div>
@@ -501,22 +501,22 @@ const Home = () => {
         {/* ── CTA ── */}
         <section className="bg-white py-16 sm:py-20">
           <div className="max-w-4xl mx-auto px-5 sm:px-8 text-center">
-            <div className="reveal-scale relative rounded-3xl overflow-hidden"
-              style={{ background: 'linear-gradient(150deg, #0C1F35 0%, #0F2A45 40%, #1A3B5D 70%, #0A7E8C 100%)' }}>
+            <div className="reveal-scale relative rounded-3xl overflow-hidden border border-slate-200/70 shadow-xl shadow-slate-200/60"
+              style={{ background: 'linear-gradient(150deg, #FFFFFF 0%, #F4F9FA 50%, #EDF5F1 100%)' }}>
               <div className="absolute inset-0 pointer-events-none" style={DOT_GRID} />
               <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full pointer-events-none"
-                style={{ background: 'radial-gradient(circle, rgba(10,126,140,0.3) 0%, transparent 65%)' }} />
+                style={{ background: 'radial-gradient(circle, rgba(10,126,140,0.12) 0%, transparent 65%)' }} />
               <div className="absolute -bottom-20 -left-20 w-64 h-64 rounded-full pointer-events-none"
-                style={{ background: 'radial-gradient(circle, rgba(232,119,34,0.25) 0%, transparent 65%)' }} />
+                style={{ background: 'radial-gradient(circle, rgba(232,119,34,0.10) 0%, transparent 65%)' }} />
 
               <div className="relative px-8 py-14 sm:px-14 sm:py-20">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/75 text-xs font-bold uppercase tracking-widest mb-7">
-                  <Sparkles size={11} style={{ color: '#F5A623' }} /> Free to get started
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm text-[#0A7E8C] text-xs font-bold uppercase tracking-widest mb-7">
+                  <Sparkles size={11} style={{ color: '#E0833A' }} /> Free to get started
                 </div>
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-tight mb-4">
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#1B3A5C] leading-tight tracking-tight mb-4">
                   Ready to close<br /> deals faster?
                 </h2>
-                <p className="text-white/60 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
+                <p className="text-slate-500 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
                   Join the builders, channel partners and banks already running every stage of their deals on Dealio. No credit card needed.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -528,7 +528,7 @@ const Home = () => {
                     </button>
                   </Link>
                   <Link to="/login">
-                    <button className="flex items-center gap-2.5 px-8 py-4 rounded-2xl font-bold text-sm bg-white/10 border border-white/20 text-white hover:bg-white/18 hover:-translate-y-0.5 transition-all">
+                    <button className="flex items-center gap-2.5 px-8 py-4 rounded-2xl font-bold text-sm bg-white border border-slate-200 text-[#1B3A5C] shadow-sm hover:bg-slate-50 hover:-translate-y-0.5 transition-all">
                       Sign in to dashboard
                     </button>
                   </Link>

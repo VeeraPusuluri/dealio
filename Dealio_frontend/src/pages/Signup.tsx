@@ -39,6 +39,8 @@ const roleDescriptions: Record<UserRole, string> = {
 
 const signupRoles: UserRole[] = ['customer', 'cp', 'builder', 'bank', 'nri'];
 
+const RESEND_COOLDOWN = 30; // seconds before OTP can be requested again
+
 type Method = 'phone' | 'google';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -127,6 +129,7 @@ const SignupPage = () => {
   const [phoneOtpSent, setPhoneOtpSent] = useState(false);
   const [phoneOtp, setPhoneOtp]   = useState('');
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const [resendIn, setResendIn]   = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const navigate           = useNavigate();
@@ -144,6 +147,13 @@ const SignupPage = () => {
       return () => clearTimeout(t);
     }
   }, [phoneOtpSent]);
+
+  // Resend cooldown countdown
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
 
   // ── OTP box handlers ──
   const handleOtpDigitChange = (index: number, value: string) => {
@@ -192,6 +202,7 @@ const SignupPage = () => {
       const data = await authApi.signupSendOtp(phoneCC, phone.replace(/\D/g, ''), name.trim(), signupRole.toUpperCase()) as { demoCode?: string; maskedPhone?: string } | null;
       setOtpDigits(['', '', '', '', '', '']);
       setPhoneOtpSent(true);
+      setResendIn(RESEND_COOLDOWN);
       if (data?.demoCode) toast({ title: 'Demo OTP', description: `Your code: ${data.demoCode}` });
       else toast({ title: 'OTP sent', description: `Code sent to ${data?.maskedPhone ?? `${phoneCC} ${phone}`}` });
     } catch (e: unknown) {
@@ -444,7 +455,7 @@ const SignupPage = () => {
             <div className="flex mb-6 p-1 rounded-xl" style={{ backgroundColor: '#F1F5F9' }}>
               <button
                 type="button"
-                onClick={() => { setMethod('phone'); setPhoneOtpSent(false); }}
+                onClick={() => { setMethod('phone'); setPhoneOtpSent(false); setResendIn(0); }}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] font-semibold transition-all ${
                   method === 'phone' ? 'bg-white text-[#0A1628] shadow-sm' : 'text-slate-400 hover:text-slate-600'
                 }`}
@@ -626,7 +637,7 @@ const SignupPage = () => {
                 <div className="flex items-center justify-between text-xs pt-1">
                   <button
                     type="button"
-                    onClick={() => { setPhoneOtpSent(false); setPhoneOtp(''); setOtpDigits(['','','','','','']); }}
+                    onClick={() => { setPhoneOtpSent(false); setPhoneOtp(''); setOtpDigits(['','','','','','']); setResendIn(0); }}
                     className="text-slate-400 hover:text-[#0A1628] transition-colors"
                   >
                     ← Change number
@@ -634,11 +645,11 @@ const SignupPage = () => {
                   <button
                     type="button"
                     onClick={(e) => handleSendPhoneOtp(e as React.FormEvent)}
-                    disabled={busy}
-                    className="font-semibold hover:underline disabled:opacity-50"
+                    disabled={busy || resendIn > 0}
+                    className="font-semibold hover:underline disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed"
                     style={{ color: '#0A7E8C' }}
                   >
-                    Resend code
+                    {resendIn > 0 ? `Resend in ${resendIn}s` : 'Resend code'}
                   </button>
                 </div>
               </form>

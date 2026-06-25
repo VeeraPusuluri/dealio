@@ -27,6 +27,8 @@ const roleHome: Record<UserRole, string> = {
 const signinRoles: UserRole[] = ['customer', 'cp', 'builder', 'bank', 'nri', 'admin'];
 const signupRoles: UserRole[] = ['customer', 'cp', 'builder', 'bank', 'nri'];
 
+const RESEND_COOLDOWN = 30; // seconds before OTP can be requested again
+
 type Mode   = 'signin' | 'signup';
 type Method = 'phone' | 'google';
 
@@ -130,6 +132,7 @@ const LoginPage = () => {
   const [phoneOtpSent, setPhoneOtpSent] = useState(false);
   const [phoneOtp, setPhoneOtp]   = useState('');
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const [resendIn, setResendIn]   = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -150,6 +153,13 @@ const LoginPage = () => {
       return () => clearTimeout(t);
     }
   }, [phoneOtpSent]);
+
+  // Resend cooldown countdown
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
 
   // ── OTP box handlers ──
   const handleOtpDigitChange = (index: number, value: string) => {
@@ -203,6 +213,7 @@ const LoginPage = () => {
       }
       setOtpDigits(['', '', '', '', '', '']);
       setPhoneOtpSent(true);
+      setResendIn(RESEND_COOLDOWN);
       if (data?.demoCode) toast({ title: 'Demo OTP', description: `Your code: ${data.demoCode}` });
       else toast({ title: 'OTP sent', description: `Code sent to ${data?.maskedPhone ?? phone}` });
     } catch (err: unknown) {
@@ -269,6 +280,7 @@ const LoginPage = () => {
     setPhoneOtpSent(false);
     setPhoneOtp('');
     setOtpDigits(['', '', '', '', '', '']);
+    setResendIn(0);
     if (next === 'signup' && signupRole === 'admin') setSignupRole('customer');
   };
 
@@ -727,7 +739,7 @@ const LoginPage = () => {
                 <div className="flex items-center justify-between text-xs pt-1">
                   <button
                     type="button"
-                    onClick={() => { setPhoneOtpSent(false); setPhoneOtp(''); setOtpDigits(['','','','','','']); }}
+                    onClick={() => { setPhoneOtpSent(false); setPhoneOtp(''); setOtpDigits(['','','','','','']); setResendIn(0); }}
                     className="text-slate-400 hover:text-[#0A1628] transition-colors"
                   >
                     ← Change number
@@ -735,11 +747,11 @@ const LoginPage = () => {
                   <button
                     type="button"
                     onClick={(e) => handleSendPhoneOtp(e as React.FormEvent)}
-                    disabled={busy}
-                    className="font-bold hover:underline disabled:opacity-50"
+                    disabled={busy || resendIn > 0}
+                    className="font-bold hover:underline disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed"
                     style={{ color: '#0A7E8C' }}
                   >
-                    Resend code
+                    {resendIn > 0 ? `Resend in ${resendIn}s` : 'Resend code'}
                   </button>
                 </div>
               </form>

@@ -324,7 +324,7 @@ export default function CustomerPipelineWidget({ phone }: { phone: string }) {
                 <button
                   onClick={() => navigate(
                     current.nextLink === '/customer/conversations' && dealId != null
-                      ? `/customer/conversations?dealId=${dealId}`
+                      ? `/customer/conversations?dealId=${dealId}&with=builder`
                       : current.nextLink,
                   )}
                   className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white transition-opacity hover:opacity-90"
