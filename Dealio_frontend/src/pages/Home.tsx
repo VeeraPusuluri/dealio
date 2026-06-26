@@ -2,571 +2,481 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import {
-  Building2, Users, Home as HomeIcon, Landmark, ShieldCheck,
-  Globe2, ArrowRight, CheckCircle2, Sparkles, TrendingUp,
-  BarChart3, Zap, Shield, Clock, MessageSquare, Menu, X, MapPin,
-  FileSignature, KeyRound,
+  Building2, Users, Home as HomeIcon, Landmark, Globe2, ShieldCheck,
+  ArrowRight, ArrowUpRight, Menu, X,
 } from 'lucide-react';
 import { DealioLogo } from '@/components/shared/DealioLogo';
 
+/* ────────────────────────────────────────────────────────────────────────────
+   Dealio — home page
+   Aesthetic: editorial proptech. Warm paper, ink navy, a single terracotta
+   accent. Fraunces (serif) for display, Plus Jakarta Sans for body, Geist Mono
+   for indices/labels. Hairline rules, numbered sections, structured layout.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+const NAV = [
+  ['#who', 'Who it’s for'],
+  ['#ledger', 'The ledger'],
+  ['#system', 'The system'],
+  ['#voices', 'Voices'],
+] as const;
+
 const roles = [
-  { icon: Building2,   label: 'Builders',        desc: 'Inventory, RERA, demand letters & AI pricing',   color: '#0A7E8C', bg: 'rgba(10,126,140,0.08)' },
-  { icon: Users,       label: 'Channel Partners', desc: 'Pipeline, brochures, commissions & leaderboard', color: '#E87722', bg: 'rgba(232,119,34,0.08)'  },
-  { icon: HomeIcon,    label: 'Customers',        desc: 'Track journey, EMI calculator & documents',      color: '#16A34A', bg: 'rgba(22,163,74,0.08)'   },
-  { icon: Landmark,    label: 'Banks',            desc: 'Loan cases, TAT tracking & approvals',           color: '#2E5D8E', bg: 'rgba(46,93,142,0.08)'   },
-  { icon: Globe2,      label: 'NRI Buyers',       desc: 'POA, FEMA, repatriation & remote management',   color: '#D97706', bg: 'rgba(217,119,6,0.08)'   },
-  { icon: ShieldCheck, label: 'Admin',            desc: 'Onboarding, fraud detection & revenue',          color: '#6B3FA0', bg: 'rgba(107,63,160,0.08)'  },
+  { n: '01', icon: Building2,   label: 'Builders',         line: 'Inventory, RERA filings, demand letters & AI-led pricing.' },
+  { n: '02', icon: Users,       label: 'Channel partners', line: 'One pipeline, shared brochures, clean commission ledgers.' },
+  { n: '03', icon: HomeIcon,    label: 'Customers',        line: 'A live journey, EMI clarity and every document in one place.' },
+  { n: '04', icon: Landmark,    label: 'Banks',            line: 'Loan cases with TAT tracking and a transparent approval trail.' },
+  { n: '05', icon: Globe2,      label: 'NRI buyers',       line: 'POA, FEMA and repatriation — managed from anywhere on earth.' },
+  { n: '06', icon: ShieldCheck, label: 'Admin',            line: 'Onboarding, fraud signals and revenue, under one roof.' },
 ];
 
-const journey = [
-  { icon: Zap,           label: 'Lead captured',     sub: 'Auto-scored instantly',  color: '#F5A623' },
-  { icon: MapPin,        label: 'Site visit',        sub: 'GPS-verified walk-in',   color: '#E87722' },
-  { icon: FileSignature, label: 'Agreement signed',  sub: 'RERA-ready paperwork',   color: '#6B3FA0' },
-  { icon: Landmark,      label: 'Loan sanctioned',   sub: 'Bank TAT tracked',       color: '#2E5D8E' },
-  { icon: TrendingUp,    label: 'Commission released', sub: 'Zero-leak payout',     color: '#0A7E8C' },
-  { icon: KeyRound,      label: 'Keys handed over',  sub: 'Journey complete',       color: '#16A34A' },
+/* The deal ledger shown in the hero — a real product artifact, not floating cards */
+const ledger = [
+  { stage: 'Lead',        portal: 'CP',       note: 'Auto-scored · 92', done: true },
+  { stage: 'Site visit',  portal: 'Customer', note: 'GPS verified',     done: true },
+  { stage: 'Agreement',   portal: 'Builder',  note: 'RERA-ready',       done: true },
+  { stage: 'Loan',        portal: 'HDFC',     note: 'Sanctioned',       done: true },
+  { stage: 'Commission',  portal: 'CP',       note: '₹2.4L released',   done: false, active: true },
+  { stage: 'Possession',  portal: 'Customer', note: 'Keys pending',     done: false },
 ];
 
-const features = [
-  { num: '01', icon: BarChart3,    color: '#0A7E8C', title: 'Universal Milestones',  desc: '13-stage customer journey synced in real-time across builder, CP and bank portals — no more WhatsApp follow-ups.' },
-  { num: '02', icon: Zap,          color: '#E87722', title: 'Lead Intelligence',      desc: 'Auto-scored leads (0–100), instant loan eligibility checks, GPS walk-in tracking and AI-powered follow-up nudges.' },
-  { num: '03', icon: TrendingUp,   color: '#16A34A', title: 'Commission Engine',      desc: 'Real-time payout tracking, L1/L2 referral bonuses and a zero-leak audit trail every channel partner can trust.' },
-  { num: '04', icon: Shield,       color: '#2E5D8E', title: 'RERA Compliance',        desc: 'Auto-generate RERA reports, track compliance deadlines and store all project documents in one auditable place.' },
-  { num: '05', icon: MessageSquare,color: '#7B5E3A', title: 'WhatsApp-Native',        desc: 'Broadcast updates, send demand letters and receive OTPs — without leaving the communication layer your teams use.' },
-  { num: '06', icon: Clock,        color: '#6B3FA0', title: 'AI Pricing Engine',      desc: 'Dynamic price recommendations based on project velocity, market comps and demand signals — updated daily.' },
+const stats = [
+  { v: '₹4,200 Cr', k: 'transacted on platform' },
+  { v: '13', k: 'milestones, one timeline' },
+  { v: '6', k: 'role-built portals' },
+  { v: '60%', k: 'less follow-up time' },
 ];
 
-const testimonials = [
-  { quote: 'Dealio cut our CP follow-up time by 60%. Every stakeholder sees the same deal status in real time.', name: 'Priya S.', role: 'Sales Head, Prestige Group',    avatar: 'PS', color: '#0A7E8C' },
-  { quote: 'Finally a platform that speaks banker. TAT tracking alone saved us 2 weeks per loan case.',          name: 'Ramesh B.', role: 'Branch Manager, HDFC Bank',   avatar: 'RB', color: '#E87722' },
-  { quote: 'As an NRI, managing my property remotely was a nightmare. Dealio changed that completely.',          name: 'Arjun M.', role: 'NRI Buyer, Dubai',             avatar: 'AM', color: '#16A34A' },
+const system = [
+  { n: '01', title: 'Universal milestones', line: 'A 13-stage journey that builder, channel partner, bank and buyer all read from the same source — no parallel WhatsApp threads.' },
+  { n: '02', title: 'Lead intelligence',    line: 'Leads scored 0–100 the moment they land, with instant eligibility checks and GPS-verified walk-ins.' },
+  { n: '03', title: 'Commission engine',    line: 'Real-time payouts, L1/L2 referral bonuses and an audit trail a partner can actually trust.' },
+  { n: '04', title: 'RERA, handled',        line: 'Generate filings, track deadlines and keep every project document in one auditable vault.' },
+  { n: '05', title: 'WhatsApp-native',      line: 'Broadcasts, demand letters and OTPs flow through the layer your teams already live in.' },
+  { n: '06', title: 'Pricing that moves',   line: 'Daily price guidance from project velocity, comparable sales and live demand signals.' },
 ];
-
-const DOT_GRID = {
-  backgroundImage: 'radial-gradient(rgba(27,58,92,0.05) 1px, transparent 1px)',
-  backgroundSize: '28px 28px',
-};
 
 const Home = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const { user } = useAuthStore();
 
   useEffect(() => {
     const io = new IntersectionObserver(
-      (entries) => entries.forEach(e => {
-        if (e.isIntersecting) {
-          e.target.classList.add('revealed');
-          io.unobserve(e.target);
-        }
+      (entries) => entries.forEach((e) => {
+        if (e.isIntersecting) { e.target.classList.add('shown'); io.unobserve(e.target); }
       }),
-      { threshold: 0.1, rootMargin: '0px 0px -60px 0px' }
+      { threshold: 0.12, rootMargin: '0px 0px -50px 0px' }
     );
-    document.querySelectorAll('.reveal, .reveal-left, .reveal-scale').forEach(el => io.observe(el));
+    document.querySelectorAll('.rise').forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, []);
 
   return (
-    <>
+    <div className="dealio-home min-h-screen antialiased">
       <style>{`
-        @keyframes heroUp {
-          from { opacity: 0; transform: translateY(26px); }
-          to   { opacity: 1; transform: translateY(0);    }
+        .dealio-home {
+          --ink:    #0A1628;
+          --ink-2:  #07101C;
+          --muted:  #5C6B7C;
+          --paper:  #FFFFFF;
+          --paper-2:#F4F6F8;
+          --line:   rgba(10,22,40,0.13);
+          --line-2: rgba(10,22,40,0.07);
+          --brand:   #0A7E8C;
+          --brand-2: #0DAABF;
+          --warm:    #F5A623;
+          --warm-2:  #E87722;
+          --teal:   #0A7E8C;
+          background: var(--paper);
+          color: var(--ink);
+          font-feature-settings: "ss01","cv01";
         }
-        @keyframes heroScale {
-          from { opacity: 0; transform: translateY(20px) scale(0.97); }
-          to   { opacity: 1; transform: translateY(0) scale(1);       }
+        .ff-serif { font-family: "Fraunces", Georgia, "Times New Roman", serif; font-optical-sizing: auto; }
+        .ff-mono  { font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .kicker {
+          font-family: "Geist Mono", ui-monospace, monospace;
+          font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
         }
-        @keyframes floatY {
-          0%,100% { transform: translateY(0px);  }
-          50%      { transform: translateY(-7px); }
+        .grain::after {
+          content:""; position:fixed; inset:0; z-index:60; pointer-events:none;
+          opacity:.02; mix-blend-mode:multiply;
+          background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
         }
-        .hero-badge  { animation: heroUp    0.55s ease 0.10s both; }
-        .hero-title  { animation: heroUp    0.65s ease 0.25s both; }
-        .hero-sub    { animation: heroUp    0.60s ease 0.40s both; }
-        .hero-cta    { animation: heroUp    0.60s ease 0.55s both; }
-        .hero-trust  { animation: heroUp    0.55s ease 0.68s both; }
-        .hero-cards  { animation: heroScale 0.70s ease 0.80s both; }
-        .float-card  { animation: floatY 4.5s ease-in-out infinite; }
-        .float-card:nth-child(2) { animation-delay: 0.5s;  }
-        .float-card:nth-child(3) { animation-delay: 1.0s;  }
-        .float-card:nth-child(4) { animation-delay: 1.5s;  }
+        .link-underline { position:relative; }
+        .link-underline::after {
+          content:""; position:absolute; left:0; bottom:-3px; height:1px; width:100%;
+          background:currentColor; transform:scaleX(0); transform-origin:left;
+          transition:transform .35s cubic-bezier(.22,1,.36,1);
+        }
+        .link-underline:hover::after { transform:scaleX(1); }
 
-        .reveal {
-          opacity: 0;
-          transform: translateY(30px);
-          transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-                      transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-          will-change: opacity, transform;
-        }
-        .reveal.revealed { opacity: 1; transform: translateY(0); }
+        @keyframes up { from { opacity:0; transform:translateY(22px); } to { opacity:1; transform:translateY(0); } }
+        .in-1 { animation: up .8s cubic-bezier(.22,1,.36,1) .05s both; }
+        .in-2 { animation: up .8s cubic-bezier(.22,1,.36,1) .16s both; }
+        .in-3 { animation: up .8s cubic-bezier(.22,1,.36,1) .27s both; }
+        .in-4 { animation: up .8s cubic-bezier(.22,1,.36,1) .38s both; }
+        .in-5 { animation: up .9s cubic-bezier(.22,1,.36,1) .50s both; }
 
-        .reveal-left {
-          opacity: 0;
-          transform: translateX(-28px);
-          transition: opacity 0.65s ease, transform 0.65s ease;
-          will-change: opacity, transform;
-        }
-        .reveal-left.revealed { opacity: 1; transform: translateX(0); }
+        .rise { opacity:0; transform:translateY(26px); transition:opacity .8s cubic-bezier(.22,1,.36,1), transform .8s cubic-bezier(.22,1,.36,1); }
+        .rise.shown { opacity:1; transform:translateY(0); }
 
-        .reveal-scale {
-          opacity: 0;
-          transform: scale(0.96);
-          transition: opacity 0.6s ease, transform 0.6s ease;
-          will-change: opacity, transform;
-        }
-        .reveal-scale.revealed { opacity: 1; transform: scale(1); }
+        @keyframes pulseDot { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.35;transform:scale(.7);} }
+        .live-dot { animation: pulseDot 1.8s ease-in-out infinite; }
 
-        /* ── Deal-journey timeline ── */
-        @keyframes trackShimmer {
-          0%   { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-        .journey-track {
-          background: linear-gradient(90deg,
-            #E2E8F0 0%, #E2E8F0 30%,
-            #F5A623 45%, #E87722 50%, #0A7E8C 55%,
-            #E2E8F0 70%, #E2E8F0 100%);
-          background-size: 200% 100%;
-          animation: trackShimmer 4.2s linear infinite;
-        }
-        @keyframes dotTravel {
-          0%   { left: 8%;  opacity: 0; }
-          5%   { opacity: 1; }
-          92%  { opacity: 1; }
-          100% { left: 92%; opacity: 0; }
-        }
-        .journey-dot {
-          width: 14px; height: 14px; border-radius: 9999px;
-          background: radial-gradient(circle, #FFFFFF 0%, #F5A623 45%, transparent 75%);
-          box-shadow: 0 0 18px 5px rgba(245,166,35,0.55);
-          transform: translate(-50%, -42%);
-          animation: dotTravel 4.2s ease-in-out infinite;
-        }
-        @keyframes nodeGlow {
-          0%, 18%, 100% {
-            transform: translateY(0) scale(1);
-            box-shadow: 0 0 0 0 transparent;
-          }
-          8% {
-            transform: translateY(-5px) scale(1.08);
-            box-shadow: 0 10px 28px -6px color-mix(in srgb, var(--c) 45%, transparent),
-                        0 0 0 8px color-mix(in srgb, var(--c) 12%, transparent);
-          }
-        }
-        .journey-node { animation: nodeGlow 4.2s ease-in-out infinite; }
+        @keyframes flow { 0%{ left:-30%; } 100%{ left:130%; } }
+        .flow-line { position:relative; overflow:hidden; }
+        .flow-line::after { content:""; position:absolute; top:0; bottom:0; width:30%;
+          background:linear-gradient(90deg, transparent, var(--brand-2), transparent);
+          animation: flow 3.4s ease-in-out infinite; }
+
         @media (prefers-reduced-motion: reduce) {
-          .journey-track, .journey-dot, .journey-node, .float-card { animation: none; }
+          .in-1,.in-2,.in-3,.in-4,.in-5,.rise { animation:none!important; opacity:1!important; transform:none!important; }
+          .live-dot,.flow-line::after { animation:none!important; }
         }
       `}</style>
 
-      <div className="min-h-screen bg-white text-[#1B3A5C] overflow-x-hidden">
+      <div className="grain" />
 
-        {/* ── Navbar ── */}
-        <header className="sticky top-0 z-50 bg-[#0C1F35]/95 backdrop-blur-xl border-b border-white/10">
-          <div className="max-w-7xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
-            <DealioLogo size="sm" variant="light" to="/home" />
+      {/* ─── Nav ─────────────────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--paper)]/85 backdrop-blur-md">
+        <div className="max-w-[1240px] mx-auto px-5 sm:px-8 h-[68px] flex items-center justify-between">
+          <DealioLogo size="sm" variant="default" to="/home" />
 
-            <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white/70">
-              {[['#roles','Who it\'s for'],['#features','Features'],['#journey','Deal journey'],['#testimonials','Stories']].map(([href, label]) => (
-                <a key={href} href={href} className="hover:text-white transition-colors">{label}</a>
-              ))}
-            </nav>
+          <nav className="hidden md:flex items-center gap-9 kicker text-[var(--muted)]">
+            {NAV.map(([href, label]) => (
+              <a key={href} href={href} className="link-underline hover:text-[var(--ink)] transition-colors">{label}</a>
+            ))}
+          </nav>
 
-            <div className="hidden md:flex items-center gap-2.5">
-              {user ? (
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-white/70">Hi, <span className="font-bold text-white">{user.name}</span></span>
-                  <Link to={`/${user.role}`}>
-                    <button className="px-4 py-2 rounded-xl text-sm font-bold text-white shadow-lg shadow-[#0A7E8C]/25 hover:-translate-y-px active:translate-y-0 transition-all"
-                      style={{ background: 'linear-gradient(135deg, #0DAABF 0%, #0A7E8C 100%)' }}>
-                      Dashboard
-                    </button>
-                  </Link>
-                </div>
-              ) : (
-                <>
-                  <Link to="/login">
-                    <button className="px-4 py-2 rounded-xl text-sm font-semibold text-white/90 hover:bg-white/10 transition-colors">
-                      Sign In
-                    </button>
-                  </Link>
-                  <Link to="/login?tab=signup">
-                    <button className="px-4 py-2 rounded-xl text-sm font-bold text-white shadow-lg shadow-[#E87722]/25 hover:-translate-y-px active:translate-y-0 transition-all"
-                      style={{ background: 'linear-gradient(135deg, #EFAE54 0%, #E0833A 55%, #C8621D 100%)' }}>
-                      Get Started
-                    </button>
-                  </Link>
-                </>
-              )}
-            </div>
-
-            <button className="md:hidden p-2 rounded-lg text-white/80 hover:bg-white/10 transition-colors"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
+          <div className="hidden md:flex items-center gap-3">
+            {user ? (
+              <>
+                <span className="kicker text-[var(--muted)]">{user.name}</span>
+                <Link to={`/${user.role}`}
+                  className="group inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--paper)] bg-[var(--ink)] rounded-full hover:bg-[var(--brand)] transition-colors">
+                  Dashboard <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="text-sm font-semibold link-underline">Sign in</Link>
+                <Link to="/login?tab=signup"
+                  className="group inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--paper)] bg-[var(--ink)] rounded-full hover:bg-[var(--brand)] transition-colors">
+                  Get started <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </>
+            )}
           </div>
 
-          {mobileMenuOpen && (
-            <div className="md:hidden border-t border-white/10 bg-[#0C1F35] px-5 py-4 space-y-1">
-              {[['#roles','Who it\'s for'],['#features','Features'],['#journey','Deal journey'],['#testimonials','Stories']].map(([href, label]) => (
-                <a key={href} href={href} onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white">{label}</a>
-              ))}
-              <div className="flex gap-2 pt-3 border-t border-white/10 mt-2">
-                <Link to="/login" className="flex-1">
-                  <button className="w-full py-2.5 rounded-xl text-sm font-semibold border border-white/20 text-white">Sign In</button>
-                </Link>
-                <Link to="/login?tab=signup" className="flex-1">
-                  <button className="w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg,#E0833A,#C8621D)' }}>Get Started</button>
-                </Link>
-              </div>
+          <button className="md:hidden p-2 -mr-2" onClick={() => setOpen(!open)} aria-label="Menu">
+            {open ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
+
+        {open && (
+          <div className="md:hidden border-t border-[var(--line)] bg-[var(--paper)] px-5 py-5">
+            {NAV.map(([href, label]) => (
+              <a key={href} href={href} onClick={() => setOpen(false)}
+                className="block py-2.5 ff-serif text-xl">{label}</a>
+            ))}
+            <div className="flex gap-3 pt-4 mt-3 border-t border-[var(--line)]">
+              <Link to="/login" className="flex-1 text-center py-3 rounded-full border border-[var(--ink)] text-sm font-semibold">Sign in</Link>
+              <Link to="/login?tab=signup" className="flex-1 text-center py-3 rounded-full bg-[var(--ink)] text-[var(--paper)] text-sm font-semibold">Get started</Link>
             </div>
-          )}
-        </header>
-
-        {/* ── Hero ── */}
-        <section className="relative overflow-hidden"
-          style={{ background: 'linear-gradient(160deg, #FFFFFF 0%, #F4F9FB 45%, #EAF2F4 100%)' }}>
-
-          <div className="absolute inset-0 pointer-events-none" style={DOT_GRID} />
-
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <div className="absolute -top-32 -right-32 w-[640px] h-[640px] rounded-full"
-              style={{ background: 'radial-gradient(circle, rgba(10,126,140,0.14) 0%, transparent 65%)' }} />
-            <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full"
-              style={{ background: 'radial-gradient(circle, rgba(232,119,34,0.10) 0%, transparent 65%)' }} />
-            <div className="absolute top-[45%] left-[38%] w-72 h-72 rounded-full"
-              style={{ background: 'radial-gradient(circle, rgba(245,166,35,0.08) 0%, transparent 70%)' }} />
           </div>
+        )}
+      </header>
 
-          <div className="relative max-w-7xl mx-auto px-5 sm:px-8 pt-20 pb-16 md:pt-28 md:pb-24">
-            <div className="max-w-3xl mx-auto text-center">
+      {/* ─── Hero ────────────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(120% 90% at 85% -10%, rgba(224,123,54,0.10), transparent 55%), radial-gradient(80% 60% at 0% 100%, rgba(10,126,140,0.07), transparent 60%)' }} />
+        <div className="relative max-w-[1240px] mx-auto px-5 sm:px-8 pt-16 pb-20 md:pt-24 md:pb-28">
+          <div className="grid lg:grid-cols-12 gap-12 lg:gap-10 items-end">
 
-              <div className="hero-badge inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-slate-200 bg-white shadow-sm shadow-slate-200/60 text-slate-600 text-xs font-medium mb-8 tracking-wide">
-                <Sparkles size={12} style={{ color: '#E0833A' }} />
-                India's unified real-estate operating system
-                <span className="ml-0.5 px-2 py-0.5 rounded-full text-white text-[10px] font-bold tracking-wider"
-                  style={{ background: 'linear-gradient(135deg,#E0833A,#C8621D)' }}>NEW</span>
+            {/* Left — headline */}
+            <div className="lg:col-span-7">
+              <div className="in-1 flex items-center gap-3 mb-8">
+                <span className="kicker text-[var(--brand)]">India’s real-estate operating system</span>
+                <span className="h-px flex-1 max-w-[120px] bg-[var(--line)]" />
               </div>
 
-              <h1 className="hero-title text-4xl sm:text-5xl md:text-6xl lg:text-[72px] font-extrabold text-[#1B3A5C] leading-[1.08] tracking-tight mb-6">
+              <h1 className="in-2 ff-serif font-light leading-[0.98] tracking-[-0.02em] text-[var(--ink)]"
+                style={{ fontSize: 'clamp(2.7rem, 6.4vw, 5.4rem)' }}>
                 One platform.<br />
-                <span style={{ background: 'linear-gradient(90deg,#E0833A 0%,#C8621D 55%,#0A7E8C 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                  Every stakeholder
-                </span><br />
+                <span className="italic" style={{ background: 'linear-gradient(90deg,#FCD34D 0%,#F59E0B 45%,#E87722 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Every stakeholder</span><br />
                 in your deal.
               </h1>
 
-              <p className="hero-sub text-slate-600 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed font-light">
-                Dealio connects builders, channel partners, customers, banks and NRIs — so every transaction closes faster, with zero leakage.
+              <p className="in-3 mt-8 max-w-xl text-[17px] leading-relaxed text-[var(--muted)]">
+                Builders, channel partners, customers, banks and NRIs work the same
+                transaction in real time — so deals close faster and not a rupee of
+                commission leaks along the way.
               </p>
 
-              <div className="hero-cta flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
-                <Link to="/login?tab=signup">
-                  <button className="group flex items-center gap-2.5 px-7 py-4 rounded-2xl font-bold text-sm text-white shadow-2xl shadow-[#E87722]/30 hover:-translate-y-0.5 active:translate-y-0 transition-all"
-                    style={{ background: 'linear-gradient(135deg,#EFAE54 0%,#E0833A 55%,#C8621D 100%)' }}>
-                    Create free account
-                    <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
-                  </button>
+              <div className="in-4 mt-10 flex flex-col sm:flex-row sm:items-center gap-4">
+                <Link to="/login?tab=signup"
+                  className="group inline-flex items-center justify-center gap-2.5 px-7 py-4 rounded-full bg-[var(--brand)] text-white text-sm font-semibold tracking-wide hover:bg-[var(--ink)] transition-colors">
+                  Create a free account
+                  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <Link to="/login">
-                  <button className="flex items-center gap-2 px-7 py-4 rounded-2xl font-bold text-sm bg-white border border-slate-200 text-[#1B3A5C] shadow-sm shadow-slate-200/60 hover:bg-slate-50 hover:-translate-y-0.5 active:translate-y-0 transition-all">
-                    Sign in to dashboard
-                  </button>
+                <Link to="/login" className="inline-flex items-center gap-2 text-sm font-semibold link-underline self-center">
+                  Sign in to your portal
                 </Link>
               </div>
 
-              <div className="hero-trust flex flex-wrap items-center justify-center gap-3 sm:gap-5">
-                {[['RERA-ready'], ['6 role portals'], ['WhatsApp-native'], ['AI-powered pricing']].map(([label]) => (
-                  <span key={label} className="flex items-center gap-1.5 text-slate-500 text-xs font-medium">
-                    <CheckCircle2 size={12} style={{ color: '#16A34A' }} /> {label}
+              <div className="in-5 mt-12 flex flex-wrap items-center gap-x-8 gap-y-2 kicker text-[var(--muted)]">
+                <span>RERA-ready</span><span className="text-[var(--line)]">/</span>
+                <span>WhatsApp-native</span><span className="text-[var(--line)]">/</span>
+                <span>AI pricing</span><span className="text-[var(--line)]">/</span>
+                <span>Zero-leak commissions</span>
+              </div>
+            </div>
+
+            {/* Right — the deal ledger */}
+            <div className="lg:col-span-5 in-5">
+              <div className="relative bg-[var(--ink)] text-[var(--paper)] rounded-2xl p-6 sm:p-7 shadow-[0_30px_60px_-30px_rgba(17,36,59,0.55)]">
+                <div className="flex items-center justify-between pb-4 border-b border-white/12">
+                  <div>
+                    <div className="kicker text-white/45">Live deal</div>
+                    <div className="ff-mono text-sm mt-1 text-white/90">DLO-4471 · Prestige Lakeside</div>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 kicker text-[var(--warm-2)]">
+                    <span className="live-dot w-1.5 h-1.5 rounded-full bg-[var(--warm-2)]" /> open
                   </span>
-                ))}
-              </div>
-            </div>
+                </div>
 
-            {/* Dashboard preview cards */}
-            <div className="hero-cards relative mt-16 max-w-4xl mx-auto">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                {[
-                  { icon: Zap,       label: 'Channel partner', value: 'Lead auto-scored',   delta: 'just now',  color: '#F5A623', progress: '30%'  },
-                  { icon: Landmark,  label: 'Bank portal',     value: 'Loan sanctioned',    delta: 'synced',    color: '#38BDF8', progress: '55%'  },
-                  { icon: Building2, label: 'Builder portal',  value: 'Demand letter sent', delta: 'auto',      color: '#0DAABF', progress: '80%'  },
-                  { icon: HomeIcon,  label: 'Customer portal', value: 'Keys handed over',   delta: 'milestone', color: '#4ADE80', progress: '100%' },
-                ].map((item, i) => (
-                  <div key={item.label}
-                    className="float-card group relative bg-white border border-slate-200/70 shadow-lg shadow-slate-200/50 rounded-2xl p-4 sm:p-5 hover:shadow-xl hover:shadow-slate-200/70 hover:border-slate-300/70 transition-all duration-200 overflow-hidden"
-                    style={{ animationDelay: `${i * 0.4}s` }}>
-                    <div className="absolute top-0 left-5 right-5 h-px opacity-0 group-hover:opacity-100 transition-opacity"
-                      style={{ background: `linear-gradient(90deg, transparent, ${item.color}, transparent)` }} />
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ backgroundColor: item.color + '1F' }}>
-                        <item.icon size={15} style={{ color: item.color }} />
-                      </div>
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">{item.delta}</span>
+                <div className="divide-y divide-white/8">
+                  {ledger.map((r) => (
+                    <div key={r.stage} className="flex items-center gap-3 py-3">
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ff-mono shrink-0 ${
+                        r.done ? 'bg-[var(--brand-2)] text-[var(--ink)]' : r.active ? 'border border-[var(--warm-2)] text-[var(--warm-2)]' : 'border border-white/20 text-white/35'
+                      }`}>{r.done ? '✓' : '·'}</span>
+                      <span className="text-sm font-medium flex-1">{r.stage}</span>
+                      <span className="kicker text-white/35">{r.portal}</span>
+                      <span className={`ff-mono text-xs text-right w-[88px] ${r.active ? 'text-[var(--warm-2)]' : r.done ? 'text-white/70' : 'text-white/30'}`}>{r.note}</span>
                     </div>
-                    <div className="text-base sm:text-lg font-extrabold text-[#1B3A5C] leading-snug">{item.value}</div>
-                    <div className="text-slate-400 text-xs mt-0.5 font-medium">{item.label}</div>
-                    <div className="mt-3 h-1 rounded-full bg-slate-100 overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: item.progress, backgroundColor: item.color }} />
-                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-white/12">
+                  <div className="flex items-center justify-between kicker text-white/45 mb-2">
+                    <span>progress</span><span className="text-[var(--brand-2)]">67%</span>
                   </div>
-                ))}
+                  <div className="flow-line h-1 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-full rounded-full bg-[var(--brand-2)]" style={{ width: '67%' }} />
+                  </div>
+                </div>
               </div>
-
-              <div className="absolute -top-3.5 right-3 sm:right-0 flex items-center gap-2 bg-white border border-slate-100 rounded-full px-3 py-1.5 shadow-xl shadow-slate-300/40 text-xs font-bold text-[#1B3A5C]">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                One deal — every portal, live
-              </div>
+              <p className="mt-3 text-center kicker text-[var(--muted)]">one deal — read by every portal, live</p>
             </div>
           </div>
+        </div>
 
-          {/* Wave */}
-          <div className="absolute bottom-0 left-0 right-0">
-            <svg viewBox="0 0 1440 72" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full block" preserveAspectRatio="none">
-              <path d="M0 72L1440 72L1440 28C1320 60 1080 4 840 24C600 44 360 0 120 20L0 40Z" fill="white"/>
-            </svg>
+        {/* stat band */}
+        <div className="border-y border-[var(--line)] bg-[var(--paper-2)]">
+          <div className="max-w-[1240px] mx-auto px-5 sm:px-8 grid grid-cols-2 lg:grid-cols-4 divide-x divide-[var(--line)]">
+            {stats.map((s) => (
+              <div key={s.k} className="py-7 px-5 first:pl-0">
+                <div className="ff-serif text-3xl sm:text-[2.4rem] leading-none text-[var(--ink)]">{s.v}</div>
+                <div className="mt-2 kicker text-[var(--muted)] !tracking-[0.12em] normal-case" style={{ textTransform: 'none' }}>{s.k}</div>
+              </div>
+            ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* ── Deal journey ── */}
-        <section id="journey" className="bg-white py-14 sm:py-20 overflow-hidden">
-          <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <div className="reveal text-center max-w-2xl mx-auto mb-12 sm:mb-16">
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#16A34A]/10 text-[#16A34A] text-xs font-bold uppercase tracking-widest mb-4">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] animate-pulse" />
-                One living timeline
-              </span>
-              <h2 className="text-3xl sm:text-4xl md:text-[44px] font-extrabold text-[#1B3A5C] leading-tight tracking-tight">
-                Watch a deal flow,<br className="hidden sm:block" /> lead to keys
+      {/* ─── Who it’s for ────────────────────────────────────────────────────── */}
+      <section id="who" className="py-20 sm:py-28">
+        <div className="max-w-[1240px] mx-auto px-5 sm:px-8">
+          <div className="rise grid lg:grid-cols-12 gap-8 items-end mb-14">
+            <div className="lg:col-span-8">
+              <div className="kicker text-[var(--brand)] mb-5">[ 01 ] — Who it’s for</div>
+              <h2 className="ff-serif font-light leading-[1.04] tracking-[-0.02em]" style={{ fontSize: 'clamp(2rem,4.4vw,3.4rem)' }}>
+                Six portals, purpose-built —<br className="hidden sm:block" /> not one dashboard wearing six hats.
               </h2>
-              <p className="mt-3 text-slate-500 text-base leading-relaxed">
-                Builders, channel partners, banks and customers all watch the same milestones
-                light up in real time — no status calls, no guesswork.
+            </div>
+            <p className="lg:col-span-4 text-[var(--muted)] leading-relaxed">
+              Each role sees the work the way they actually do it. Same deal underneath,
+              a different lens on top.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 border-t border-l border-[var(--line)]">
+            {roles.map((r, i) => (
+              <Link to="/login?tab=signup" key={r.label}
+                className="rise group relative border-b border-r border-[var(--line)] p-7 sm:p-8 hover:bg-[var(--paper-2)] transition-colors"
+                style={{ transitionDelay: `${i * 50}ms` }}>
+                <div className="flex items-start justify-between mb-10">
+                  <span className="ff-mono text-xs text-[var(--muted)]">{r.n}</span>
+                  <r.icon size={20} strokeWidth={1.5} className="text-[var(--ink)] group-hover:text-[var(--brand)] transition-colors" />
+                </div>
+                <div className="ff-serif text-2xl mb-2 text-[var(--ink)]">{r.label}</div>
+                <p className="text-sm text-[var(--muted)] leading-relaxed pr-2">{r.line}</p>
+                <span className="mt-5 inline-flex items-center gap-1.5 kicker text-[var(--brand)] opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
+                  Open portal <ArrowUpRight size={13} />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── The ledger (journey) ────────────────────────────────────────────── */}
+      <section id="ledger" className="py-20 sm:py-28 bg-[var(--ink)] text-[var(--paper)] relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none opacity-[0.6]"
+          style={{ background: 'radial-gradient(70% 50% at 50% 0%, rgba(224,123,54,0.16), transparent 60%)' }} />
+        <div className="relative max-w-[1240px] mx-auto px-5 sm:px-8">
+          <div className="rise max-w-2xl mb-16">
+            <div className="kicker text-[var(--brand-2)] mb-5">[ 02 ] — The ledger</div>
+            <h2 className="ff-serif font-light leading-[1.05] tracking-[-0.02em]" style={{ fontSize: 'clamp(2rem,4.4vw,3.4rem)' }}>
+              From first lead to handed-over keys — one moving line.
+            </h2>
+            <p className="mt-5 text-white/55 leading-relaxed">
+              No status calls, no “let me check and revert.” Everyone watches the same
+              milestones light up, the moment they happen.
+            </p>
+          </div>
+
+          <div className="rise relative">
+            <div className="flow-line hidden md:block absolute top-[22px] left-0 right-0 h-px bg-white/15" />
+            <ol className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-y-10 gap-x-4">
+              {ledger.map((s, i) => (
+                <li key={s.stage} className="relative">
+                  <div className="relative z-10 w-11 h-11 rounded-full flex items-center justify-center mb-5 ff-mono text-xs"
+                    style={{
+                      background: s.done ? 'var(--brand-2)' : 'var(--ink)',
+                      color: s.done ? 'var(--ink)' : (s.active ? 'var(--warm-2)' : 'rgba(255,255,255,0.4)'),
+                      border: s.done ? 'none' : `1px solid ${s.active ? 'var(--warm-2)' : 'rgba(255,255,255,0.2)'}`,
+                    }}>
+                    {String(i + 1).padStart(2, '0')}
+                  </div>
+                  <div className="font-medium text-[15px]">{s.stage}</div>
+                  <div className="kicker text-white/40 mt-1">{s.note}</div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── The system (features) ───────────────────────────────────────────── */}
+      <section id="system" className="py-20 sm:py-28">
+        <div className="max-w-[1240px] mx-auto px-5 sm:px-8">
+          <div className="rise max-w-2xl mb-14">
+            <div className="kicker text-[var(--brand)] mb-5">[ 03 ] — The system</div>
+            <h2 className="ff-serif font-light leading-[1.04] tracking-[-0.02em]" style={{ fontSize: 'clamp(2rem,4.4vw,3.4rem)' }}>
+              Everything the deal needs.<br />Nothing it doesn’t.
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 border-t border-l border-[var(--line)]">
+            {system.map((f, i) => (
+              <div key={f.n} className="rise group border-b border-r border-[var(--line)] p-8 hover:bg-[var(--ink)] transition-colors duration-300"
+                style={{ transitionDelay: `${i * 50}ms` }}>
+                <div className="ff-mono text-sm text-[var(--brand)] mb-6">{f.n}</div>
+                <h3 className="ff-serif text-2xl mb-3 text-[var(--ink)] group-hover:text-[var(--paper)] transition-colors">{f.title}</h3>
+                <p className="text-sm text-[var(--muted)] leading-relaxed group-hover:text-white/55 transition-colors">{f.line}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Voices ──────────────────────────────────────────────────────────── */}
+      <section id="voices" className="py-20 sm:py-28 bg-[var(--paper-2)] border-y border-[var(--line)]">
+        <div className="max-w-[1240px] mx-auto px-5 sm:px-8">
+          <div className="rise kicker text-[var(--brand)] mb-10">[ 04 ] — Voices</div>
+          <figure className="rise max-w-4xl">
+            <blockquote className="ff-serif font-light leading-[1.15] tracking-[-0.015em] text-[var(--ink)]"
+              style={{ fontSize: 'clamp(1.7rem,3.8vw,3rem)' }}>
+              “Dealio cut our channel-partner follow-up by <span className="italic text-[var(--warm-2)]">sixty percent</span>.
+              Every stakeholder finally reads the same deal status — in real time.”
+            </blockquote>
+            <figcaption className="mt-8 flex items-center gap-4">
+              <span className="w-11 h-11 rounded-full bg-[var(--ink)] text-[var(--paper)] flex items-center justify-center ff-mono text-sm">PS</span>
+              <span>
+                <span className="block font-semibold text-[var(--ink)]">Priya Sharma</span>
+                <span className="block kicker text-[var(--muted)] mt-0.5">Sales Head · Prestige Group</span>
+              </span>
+            </figcaption>
+          </figure>
+
+          <div className="rise grid sm:grid-cols-2 gap-px mt-16 bg-[var(--line)] border border-[var(--line)]">
+            {[
+              { q: 'Finally a platform that speaks banker. TAT tracking alone saved two weeks per loan case.', who: 'Ramesh B.', role: 'Branch Manager · HDFC Bank' },
+              { q: 'As an NRI, managing property remotely was a nightmare. Dealio made it boring — in the best way.', who: 'Arjun M.', role: 'NRI Buyer · Dubai' },
+            ].map((t) => (
+              <div key={t.who} className="bg-[var(--paper)] p-8">
+                <p className="text-[var(--ink)] leading-relaxed mb-5">“{t.q}”</p>
+                <div className="font-semibold text-sm text-[var(--ink)]">{t.who}</div>
+                <div className="kicker text-[var(--muted)] mt-1">{t.role}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── CTA ─────────────────────────────────────────────────────────────── */}
+      <section className="bg-[var(--ink)] text-[var(--paper)] relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(60% 80% at 100% 0%, rgba(224,123,54,0.18), transparent 55%)' }} />
+        <div className="relative max-w-[1240px] mx-auto px-5 sm:px-8 py-24 sm:py-32">
+          <div className="rise max-w-3xl">
+            <div className="kicker text-[var(--brand-2)] mb-7">Free to begin</div>
+            <h2 className="ff-serif font-light leading-[1.02] tracking-[-0.02em]" style={{ fontSize: 'clamp(2.4rem,6vw,4.6rem)' }}>
+              Close the next deal<br />with everyone in the room.
+            </h2>
+            <p className="mt-7 text-white/55 text-lg max-w-xl leading-relaxed">
+              The builders, channel partners and banks already running their pipeline on
+              Dealio aren’t going back to spreadsheets. No card required.
+            </p>
+            <div className="mt-10 flex flex-col sm:flex-row gap-4">
+              <Link to="/login?tab=signup"
+                className="group inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-[var(--brand)] text-white text-sm font-semibold hover:bg-white hover:text-[var(--ink)] transition-colors">
+                Get started free <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link to="/login"
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full border border-white/25 text-sm font-semibold hover:bg-white/5 transition-colors">
+                Sign in to your portal
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Footer ──────────────────────────────────────────────────────────── */}
+      <footer className="bg-[var(--ink-2)] text-[var(--paper)]">
+        <div className="max-w-[1240px] mx-auto px-5 sm:px-8 py-16">
+          <div className="grid md:grid-cols-12 gap-10">
+            <div className="md:col-span-5">
+              <DealioLogo size="sm" variant="light" />
+              <p className="mt-4 text-white/40 text-sm max-w-xs leading-relaxed">
+                India’s unified real-estate operating system — every stakeholder in the
+                deal, reading from one ledger.
               </p>
             </div>
-
-            <div className="reveal relative">
-              <div className="journey-track hidden md:block absolute top-7 left-[8%] right-[8%] h-[3px] rounded-full -translate-y-1/2" />
-              <div className="journey-dot hidden md:block absolute top-7" />
-              <div className="relative grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-x-4 gap-y-10">
-                {journey.map((s, i) => (
-                  <div key={s.label} className="flex flex-col items-center text-center">
-                    <div className="journey-node w-14 h-14 rounded-2xl border flex items-center justify-center mb-4 relative z-10"
-                      style={{ '--c': s.color, borderColor: s.color + '40', backgroundColor: '#FFFFFF', animationDelay: `${i * 0.7}s` } as React.CSSProperties}>
-                      <s.icon size={22} style={{ color: s.color }} />
-                    </div>
-                    <div className="font-bold text-[#1B3A5C] text-sm leading-tight">{s.label}</div>
-                    <div className="text-xs text-slate-400 mt-1 font-medium">{s.sub}</div>
-                  </div>
+            <nav className="md:col-span-4 md:col-start-9">
+              <div className="kicker text-white/30 mb-4">Explore</div>
+              <ul className="space-y-2.5">
+                {NAV.map(([href, label]) => (
+                  <li key={href}><a href={href} className="text-white/65 hover:text-white link-underline transition-colors">{label}</a></li>
                 ))}
-              </div>
-            </div>
+                <li><Link to="/login" className="text-white/65 hover:text-white link-underline transition-colors">Sign in</Link></li>
+                <li><Link to="/login?tab=signup" className="text-white/65 hover:text-white link-underline transition-colors">Create account</Link></li>
+              </ul>
+            </nav>
           </div>
-        </section>
-
-        {/* ── Roles ── */}
-        <section id="roles" className="py-16 sm:py-20" style={{ background: 'linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%)' }}>
-          <div className="max-w-7xl mx-auto px-5 sm:px-8">
-            <div className="reveal text-center max-w-2xl mx-auto mb-10">
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0A7E8C]/10 text-[#0A7E8C] text-xs font-bold uppercase tracking-widest mb-4">
-                Role-based portals
-              </span>
-              <h2 className="text-3xl sm:text-4xl md:text-[44px] font-extrabold text-[#1B3A5C] leading-tight tracking-tight">
-                Built for every role<br className="hidden sm:block" /> in the deal
-              </h2>
-              <p className="mt-3 text-slate-500 text-base leading-relaxed">
-                Pick your portal. Each one is purpose-built — not a generic dashboard repurposed for your role.
-              </p>
-            </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {roles.map((r, i) => (
-                <Link to="/login?tab=signup" key={r.label}
-                  className="reveal group relative bg-white rounded-2xl border border-slate-100 p-6 hover:shadow-xl hover:shadow-slate-200/70 hover:-translate-y-1.5 transition-all duration-200 overflow-hidden"
-                  style={{ transitionDelay: `${i * 0.07}s` }}>
-                  <div className="absolute left-0 top-4 bottom-4 w-[3px] rounded-full opacity-30 group-hover:opacity-100 transition-all"
-                    style={{ backgroundColor: r.color }} />
-
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center mb-4"
-                    style={{ backgroundColor: r.bg }}>
-                    <r.icon size={20} style={{ color: r.color }} />
-                  </div>
-
-                  <div className="font-bold text-[#1B3A5C] text-[15px] mb-1.5">{r.label}</div>
-                  <div className="text-xs text-slate-500 leading-relaxed mb-4">{r.desc}</div>
-
-                  <div className="flex items-center gap-1 text-xs font-semibold opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all"
-                    style={{ color: r.color }}>
-                    Open portal <ArrowRight size={11} />
-                  </div>
-                </Link>
-              ))}
-            </div>
+          <div className="mt-14 pt-7 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 kicker text-white/30">
+            <span>© {new Date().getFullYear()} Dealio — built with care in India</span>
+            <span className="flex gap-6">
+              <a href="#" className="hover:text-white/60 transition-colors">Privacy</a>
+              <a href="#" className="hover:text-white/60 transition-colors">Terms</a>
+            </span>
           </div>
-        </section>
-
-        {/* ── Features ── */}
-        <section id="features" className="bg-white py-16 sm:py-20">
-          <div className="max-w-7xl mx-auto px-5 sm:px-8">
-            <div className="reveal text-center max-w-2xl mx-auto mb-10">
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#E87722]/10 text-[#E87722] text-xs font-bold uppercase tracking-widest mb-5">
-                Platform features
-              </span>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#1B3A5C] leading-tight tracking-tight">
-                Everything you need,<br className="hidden sm:block" /> nothing you don't
-              </h2>
-              <p className="mt-4 text-slate-500 text-lg leading-relaxed">
-                Six core engines that power every deal from first lead to final possession.
-              </p>
-            </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {features.map((f, i) => (
-                <div key={f.num}
-                  className="reveal group relative bg-[#F8FAFC] rounded-2xl border border-slate-100 p-7 hover:bg-white hover:shadow-2xl hover:shadow-slate-200/60 hover:-translate-y-1.5 transition-all duration-200 overflow-hidden"
-                  style={{ transitionDelay: `${i * 0.07}s` }}>
-                  <div className="absolute top-0 left-6 right-6 h-[2px] rounded-b-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ backgroundColor: f.color }} />
-
-                  <div className="flex items-start justify-between mb-5">
-                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
-                      style={{ background: `linear-gradient(135deg, ${f.color}22 0%, ${f.color}0A 100%)` }}>
-                      <f.icon size={20} style={{ color: f.color }} />
-                    </div>
-                    <span className="text-4xl font-black select-none tabular-nums leading-none"
-                      style={{ color: f.color + '18' }}>{f.num}</span>
-                  </div>
-
-                  <h3 className="font-bold text-[#1B3A5C] text-[16px] mb-2">{f.title}</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">{f.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── Testimonials ── */}
-        <section id="testimonials" className="py-16 sm:py-20 relative overflow-hidden"
-          style={{ background: 'linear-gradient(160deg, #F1F6F9 0%, #F8FAFC 55%, #FFFFFF 100%)' }}>
-          <div className="absolute inset-0 pointer-events-none" style={DOT_GRID} />
-          <div className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(10,126,140,0.08) 0%, transparent 65%)' }} />
-
-          <div className="relative max-w-7xl mx-auto px-5 sm:px-8">
-            <div className="reveal text-center mb-14">
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#6B3FA0]/10 text-[#6B3FA0] text-xs font-bold uppercase tracking-widest mb-5">
-                Real stories
-              </span>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#1B3A5C] leading-tight tracking-tight">
-                Trusted by India's top<br className="hidden sm:block" /> real-estate professionals
-              </h2>
-            </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {testimonials.map((t, i) => (
-                <div key={t.name}
-                  className="reveal relative bg-white border border-slate-100 shadow-sm rounded-2xl p-7 hover:shadow-xl hover:shadow-slate-200/60 hover:-translate-y-1 transition-all duration-200 flex flex-col"
-                  style={{ transitionDelay: `${i * 0.1}s` }}>
-                  <span className="absolute top-4 right-6 text-6xl font-black leading-none select-none pointer-events-none"
-                    style={{ color: 'rgba(27,58,92,0.06)' }}>"</span>
-
-                  <div className="flex gap-0.5 mb-5">
-                    {[...Array(5)].map((_, idx) => (
-                      <svg key={idx} width="14" height="14" viewBox="0 0 20 20" fill="#F5A623">
-                        <path d="M10 1l2.39 5.26 5.61.49-4.19 3.74 1.3 5.51L10 13.27l-5.11 2.73 1.3-5.51L2 6.75l5.61-.49z"/>
-                      </svg>
-                    ))}
-                  </div>
-
-                  <p className="text-slate-600 text-sm leading-[1.75] mb-6 flex-1">"{t.quote}"</p>
-
-                  <div className="border-t border-slate-100 pt-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0"
-                      style={{ background: `linear-gradient(135deg, ${t.color} 0%, ${t.color}BB 100%)` }}>
-                      {t.avatar}
-                    </div>
-                    <div>
-                      <div className="font-bold text-[#1B3A5C] text-sm leading-tight">{t.name}</div>
-                      <div className="text-slate-400 text-xs mt-0.5">{t.role}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── CTA ── */}
-        <section className="bg-white py-16 sm:py-20">
-          <div className="max-w-4xl mx-auto px-5 sm:px-8 text-center">
-            <div className="reveal-scale relative rounded-3xl overflow-hidden border border-slate-200/70 shadow-xl shadow-slate-200/60"
-              style={{ background: 'linear-gradient(150deg, #FFFFFF 0%, #F4F9FA 50%, #EDF5F1 100%)' }}>
-              <div className="absolute inset-0 pointer-events-none" style={DOT_GRID} />
-              <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full pointer-events-none"
-                style={{ background: 'radial-gradient(circle, rgba(10,126,140,0.12) 0%, transparent 65%)' }} />
-              <div className="absolute -bottom-20 -left-20 w-64 h-64 rounded-full pointer-events-none"
-                style={{ background: 'radial-gradient(circle, rgba(232,119,34,0.10) 0%, transparent 65%)' }} />
-
-              <div className="relative px-8 py-14 sm:px-14 sm:py-20">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm text-[#0A7E8C] text-xs font-bold uppercase tracking-widest mb-7">
-                  <Sparkles size={11} style={{ color: '#E0833A' }} /> Free to get started
-                </div>
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#1B3A5C] leading-tight tracking-tight mb-4">
-                  Ready to close<br /> deals faster?
-                </h2>
-                <p className="text-slate-500 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
-                  Join the builders, channel partners and banks already running every stage of their deals on Dealio. No credit card needed.
-                </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <Link to="/login?tab=signup">
-                    <button className="group flex items-center gap-2.5 px-8 py-4 rounded-2xl font-bold text-sm text-white shadow-2xl shadow-[#E87722]/30 hover:-translate-y-0.5 active:translate-y-0 transition-all"
-                      style={{ background: 'linear-gradient(135deg,#EFAE54 0%,#E0833A 55%,#C8621D 100%)' }}>
-                      Get started free
-                      <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
-                    </button>
-                  </Link>
-                  <Link to="/login">
-                    <button className="flex items-center gap-2.5 px-8 py-4 rounded-2xl font-bold text-sm bg-white border border-slate-200 text-[#1B3A5C] shadow-sm hover:bg-slate-50 hover:-translate-y-0.5 transition-all">
-                      Sign in to dashboard
-                    </button>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Footer ── */}
-        <footer className="bg-[#0C1F35] border-t-2" style={{ borderColor: '#E87722' }}>
-          <div className="max-w-7xl mx-auto px-5 sm:px-8 py-12">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-              <div>
-                <DealioLogo size="sm" variant="light" />
-                <p className="mt-3 text-white/45 text-sm max-w-xs leading-relaxed">
-                  India's unified real-estate OS — connecting every stakeholder in the deal.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-white/45">
-                {[['#roles','Who it\'s for'],['#features','Features'],['#journey','Deal journey'],['#testimonials','Stories']].map(([href, label]) => (
-                  <a key={href} href={href} className="hover:text-white/80 transition-colors">{label}</a>
-                ))}
-                <Link to="/login"  className="hover:text-white/80 transition-colors">Sign In</Link>
-                <Link to="/login?tab=signup" className="hover:text-white/80 transition-colors">Sign Up</Link>
-              </div>
-            </div>
-            <div className="border-t border-white/8 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-white/25">
-              <span>© {new Date().getFullYear()} Dealio. Made with care in India.</span>
-              <div className="flex gap-5">
-                <a href="#" className="hover:text-white/50 transition-colors">Privacy</a>
-                <a href="#" className="hover:text-white/50 transition-colors">Terms</a>
-              </div>
-            </div>
-          </div>
-        </footer>
-      </div>
-    </>
+        </div>
+      </footer>
+    </div>
   );
 };
 
