@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuthStore } from "@/stores/useAuthStore";
 import "@/stores/useThemeStore"; // initialises dark-mode class on import
+import ServerDownPage, { useServerStatus } from "@/components/shared/ServerDownBanner";
 
 import LoginPage from "./pages/Login";
 import SignupPage from "./pages/Signup";
@@ -142,12 +143,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+function AppInner() {
+  const { isDown, checking, retry } = useServerStatus();
+  if (isDown) return <ServerDownPage onRetry={retry} checking={checking} />;
+  return (
+    <BrowserRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<Home />} />
@@ -279,6 +279,15 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
+  );
+}
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <AppInner />
     </TooltipProvider>
   </QueryClientProvider>
 );

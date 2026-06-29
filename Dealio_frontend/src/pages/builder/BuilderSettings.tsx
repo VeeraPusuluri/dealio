@@ -3,10 +3,11 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore, roleLabels, roleColors } from '@/stores/useAuthStore';
 import ProfilePicUploader from '@/components/shared/ProfilePicUploader';
 import SignOutCard from '@/components/shared/SignOutCard';
+import LoggedInDevices from '@/components/shared/LoggedInDevices';
 import { builderApi } from '@/lib/api';
 import {
   User, Building2, Mail, Phone, Globe, MapPin,
-  Save, CheckCircle2, Loader2, Calendar, FileText, Moon, Sun,
+  Save, CheckCircle2, Loader2, Calendar, FileText, Moon, Sun, Monitor,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useThemeStore } from '@/stores/useThemeStore';
@@ -39,6 +40,7 @@ const TABS = [
   { id: 'profile',       label: 'Profile',       icon: User      },
   { id: 'company',       label: 'Company',        icon: Building2 },
   { id: 'availability',  label: 'Availability',   icon: Calendar  },
+  { id: 'devices',       label: 'Devices',        icon: Monitor   },
 ];
 
 const BuilderSettings = () => {
@@ -379,6 +381,9 @@ const BuilderSettings = () => {
                 </div>
               </div>
             )}
+
+            {/* ── Devices ── */}
+            {activeTab === 'devices' && <LoggedInDevices color={color} />}
 
           </div>
         </div>

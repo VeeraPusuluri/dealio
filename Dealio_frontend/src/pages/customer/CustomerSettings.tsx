@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { customerApi } from '@/lib/api';
 import { useAuthStore, roleLabels, roleColors } from '@/stores/useAuthStore';
-import { MapPin, Bell, Save, Mail, CheckCircle2, Loader2, X, Moon, Sun } from 'lucide-react';
+import { MapPin, Bell, Save, Mail, CheckCircle2, Loader2, X, Moon, Sun, Monitor } from 'lucide-react';
 import { useThemeStore } from '@/stores/useThemeStore';
 import ProfilePicUploader from '@/components/shared/ProfilePicUploader';
 import SignOutCard from '@/components/shared/SignOutCard';
+import LoggedInDevices from '@/components/shared/LoggedInDevices';
 
 const PREF_KEY = 'dealio_customer_prefs';
 const USER_KEY = 'dealio_user';
@@ -19,6 +20,7 @@ const TABS = [
   { id: 'preferences', label: 'Preferences', icon: MapPin },
   { id: 'account',     label: 'Account',     icon: Mail },
   { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'devices',       label: 'Devices',       icon: Monitor },
 ];
 
 const CustomerSettings = () => {
@@ -325,6 +327,9 @@ const CustomerSettings = () => {
                 )}
               </div>
             )}
+
+            {/* ── Devices ── */}
+            {activeTab === 'devices' && <LoggedInDevices color={color} />}
 
           </div>
         </div>
