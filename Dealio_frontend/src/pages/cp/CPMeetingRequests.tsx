@@ -192,8 +192,8 @@ const CPMeetingRequests = ({ embedded }: { embedded?: boolean } = {}) => {
       toast.success('Meeting request sent to builder');
       closeForm();
       setTimeout(loadMeetings, 500);
-    } catch {
-      toast.error('Failed to send request');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to send request');
     }
   };
 

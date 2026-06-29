@@ -495,6 +495,7 @@ const CPLeads = () => {
         preferredTime: meetingTime,
         meetingType:  'Site Visit',
         notes: `Arranged by CP: ${user?.name || 'Channel Partner'}`,
+        cpUserId: user?.id ?? null,
       });
       toast.success(`Meeting scheduled for ${meetingLead.customerName}`);
       setMeetingLead(null); setMeetingDate(''); setMeetingTime('');
