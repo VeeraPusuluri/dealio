@@ -6,6 +6,7 @@ import { MapPin, Bell, Save, Mail, CheckCircle2, Loader2, X, Moon, Sun, Monitor 
 import { useThemeStore } from '@/stores/useThemeStore';
 import ProfilePicUploader from '@/components/shared/ProfilePicUploader';
 import SignOutCard from '@/components/shared/SignOutCard';
+import AccountDeletionCard from '@/components/shared/AccountDeletionCard';
 import LoggedInDevices from '@/components/shared/LoggedInDevices';
 
 const PREF_KEY = 'dealio_customer_prefs';
@@ -334,6 +335,7 @@ const CustomerSettings = () => {
           </div>
         </div>
 
+        <AccountDeletionCard />
         <SignOutCard />
       </div>
     </DashboardLayout>

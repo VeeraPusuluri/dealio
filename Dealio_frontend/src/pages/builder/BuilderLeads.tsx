@@ -397,9 +397,13 @@ export function BuilderLeadsPanel({ builderId: externalBid, embedded }: { builde
 
                       <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
                         <User size={12} /> <span className="font-medium text-foreground">{s.customerName}</span>
-                        <a href={`tel:${s.customerPhone}`} className="flex items-center gap-1 ml-1 text-teal-600 hover:underline">
-                          <Phone size={11} />{s.customerPhone}
-                        </a>
+                        {s.customerPhone ? (
+                          <a href={`tel:${s.customerPhone}`} className="flex items-center gap-1 ml-1 text-teal-600 hover:underline">
+                            <Phone size={11} />{s.customerPhone}
+                          </a>
+                        ) : (
+                          <span className="flex items-center gap-1 ml-1 text-muted-foreground italic">via channel partner</span>
+                        )}
                       </div>
 
                       <div className="flex flex-wrap gap-1.5 text-[10px]">
@@ -644,10 +648,15 @@ export function BuilderLeadsPanel({ builderId: externalBid, embedded }: { builde
               {/* Contact */}
               <div className="bg-card rounded-xl border border-border p-4 space-y-2.5">
                 <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">Contact Details</p>
-                {drawerLead.phone && (
+                {drawerLead.phone ? (
                   <div className="flex items-center gap-2.5">
                     <Phone size={14} className="shrink-0" style={{ color: '#0A7E8C' }} />
                     <a href={`tel:${drawerLead.phone}`} className="text-[13px] font-medium text-foreground hover:opacity-70 transition-opacity">{drawerLead.phone}</a>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2.5">
+                    <Phone size={14} className="shrink-0 text-muted-foreground" />
+                    <span className="text-[12px] text-muted-foreground italic">Contact via channel partner</span>
                   </div>
                 )}
                 {drawerLead.email && (

@@ -3,6 +3,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthStore, roleLabels, roleColors } from '@/stores/useAuthStore';
 import ProfilePicUploader from '@/components/shared/ProfilePicUploader';
 import SignOutCard from '@/components/shared/SignOutCard';
+import AccountDeletionCard from '@/components/shared/AccountDeletionCard';
 import LoggedInDevices from '@/components/shared/LoggedInDevices';
 import { builderApi } from '@/lib/api';
 import {
@@ -388,6 +389,7 @@ const BuilderSettings = () => {
           </div>
         </div>
 
+        <AccountDeletionCard />
         <SignOutCard />
       </div>
     </DashboardLayout>

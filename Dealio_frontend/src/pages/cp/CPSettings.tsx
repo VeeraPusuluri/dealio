@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useThemeStore } from '@/stores/useThemeStore';
 import ProfilePicUploader from '@/components/shared/ProfilePicUploader';
 import SignOutCard from '@/components/shared/SignOutCard';
+import AccountDeletionCard from '@/components/shared/AccountDeletionCard';
 import LoggedInDevices from '@/components/shared/LoggedInDevices';
 
 type DocStatus = 'none' | 'uploaded' | 'verified';
@@ -500,6 +501,7 @@ const CPSettings = () => {
           </div>
         </div>
 
+        <AccountDeletionCard />
         <SignOutCard />
       </div>
     </DashboardLayout>

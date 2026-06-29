@@ -88,6 +88,8 @@ import AdminCampaigns from "./pages/admin/AdminCampaigns";
 import AdminMeetings from "./pages/admin/AdminMeetings";
 import AdminAddProject from "./pages/admin/AdminAddProject";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminVerifications from "./pages/admin/AdminVerifications";
+import AdminDeletionRequests from "./pages/admin/AdminDeletionRequests";
 import LoanPortal from "./pages/shared/LoanPortal";
 import DealConversation from "./pages/shared/DealConversation";
 import ProjectSharePage from "./pages/shared/ProjectSharePage";
@@ -250,6 +252,8 @@ function AppInner() {
           <Route path="/admin/fraud" element={<ProtectedRoute><AdminFraud /></ProtectedRoute>} />
           <Route path="/admin/campaigns" element={<ProtectedRoute><AdminCampaigns /></ProtectedRoute>} />
           <Route path="/admin/meetings" element={<ProtectedRoute><AdminMeetings /></ProtectedRoute>} />
+          <Route path="/admin/verifications" element={<ProtectedRoute><AdminVerifications /></ProtectedRoute>} />
+          <Route path="/admin/deletion-requests" element={<ProtectedRoute><AdminDeletionRequests /></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
 
           {/* Public share page — no auth required */}

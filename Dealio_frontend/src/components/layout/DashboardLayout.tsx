@@ -16,6 +16,7 @@ import {
     LogOut, Bell, Search, ChevronDown, Grid3X3, Briefcase, UserPlus,
     Trophy, ClipboardList, Radio, UserCircle, TrendingUp, Wallet, Video, Scale,
     Paintbrush, Brain, Share, BarChart, Columns, Settings, UserIcon,
+    ShieldCheck, UserX,
 } from 'lucide-react';
 
 interface NavItem {
@@ -262,6 +263,8 @@ const getRoleNavSections = (role: UserRole, badges: Record<string, number>): Nav
             {
                 title: 'Operations',
                 items: [
+                    {label: 'Verifications', path: '/admin/verifications', icon: ShieldCheck},
+                    {label: 'Deletion Requests', path: '/admin/deletion-requests', icon: UserX},
                     {label: 'Campaigns', path: '/admin/campaigns', icon: Radio},
                     {label: 'Fraud', path: '/admin/fraud', icon: AlertTriangle},
                 ],

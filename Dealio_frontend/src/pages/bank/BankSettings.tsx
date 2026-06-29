@@ -3,6 +3,7 @@ import { useAuthStore, roleLabels, roleColors } from '@/stores/useAuthStore';
 import { useThemeStore } from '@/stores/useThemeStore';
 import ProfilePicUploader from '@/components/shared/ProfilePicUploader';
 import SignOutCard from '@/components/shared/SignOutCard';
+import AccountDeletionCard from '@/components/shared/AccountDeletionCard';
 import { User, Mail, Phone, Moon, Sun, Landmark } from 'lucide-react';
 
 const BankSettings = () => {
@@ -76,6 +77,7 @@ const BankSettings = () => {
           </div>
         </div>
 
+        <AccountDeletionCard />
         <SignOutCard />
       </div>
     </DashboardLayout>

@@ -4,6 +4,7 @@ import { nriProfiles, nriCountries } from '@/data/nriData';
 import { MessageCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import AccountDeletionCard from '@/components/shared/AccountDeletionCard';
 
 const NRIProfile = () => {
   const profile = nriProfiles[0];
@@ -106,6 +107,8 @@ const NRIProfile = () => {
             Save Changes
           </button>
         )}
+
+        <AccountDeletionCard />
       </div>
     </DashboardLayout>
   );

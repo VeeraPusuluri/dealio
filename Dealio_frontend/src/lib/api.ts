@@ -97,6 +97,13 @@ export const authApi = {
 
   revokeOtherSessions: () =>
     authReq('/auth/sessions', { method: 'DELETE' }) as Promise<{ count: number }>,
+
+  // Account deletion (user submits a request; admin reviews it in the admin portal)
+  requestAccountDeletion: (reason?: string) =>
+    authReq('/auth/account/deletion-request', { method: 'POST', body: JSON.stringify({ reason }) }),
+
+  getMyDeletionRequest: () =>
+    authReq('/auth/account/deletion-request'),
 };
 
 export interface DeviceSession {
@@ -755,4 +762,10 @@ export const adminApi = {
     if (params?.search) qs.set('search', params.search);
     return adminReq(`/meetings${qs.toString() ? `?${qs}` : ''}`);
   },
+
+  getDeletionRequests: () =>
+    adminReq('/deletion-requests'),
+
+  reviewDeletionRequest: (id: number, action: 'approve' | 'reject') =>
+    adminReq(`/deletion-requests/${id}`, { method: 'PATCH', body: JSON.stringify({ action }) }),
 };
