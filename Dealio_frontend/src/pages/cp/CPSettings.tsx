@@ -4,12 +4,13 @@ import { cpApi } from '@/lib/api';
 import { useAuthStore, roleLabels, roleColors } from '@/stores/useAuthStore';
 import {
   User, Phone, FileText, Save, CheckCircle2, Loader2,
-  Upload, Shield, AlertCircle, Eye, X, Moon, Sun,
+  Upload, Shield, AlertCircle, Eye, X, Moon, Sun, Monitor,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useThemeStore } from '@/stores/useThemeStore';
 import ProfilePicUploader from '@/components/shared/ProfilePicUploader';
 import SignOutCard from '@/components/shared/SignOutCard';
+import LoggedInDevices from '@/components/shared/LoggedInDevices';
 
 type DocStatus = 'none' | 'uploaded' | 'verified';
 
@@ -38,6 +39,7 @@ const TABS = [
   { id: 'profile',      label: 'Profile',       icon: User },
   { id: 'verification', label: 'Verification',   icon: Phone },
   { id: 'status',       label: 'KYC Status',     icon: Shield },
+  { id: 'devices',      label: 'Devices',        icon: Monitor },
 ];
 
 function StatusBadge({ status }: { status: DocStatus }) {
@@ -491,6 +493,9 @@ const CPSettings = () => {
                 )}
               </div>
             )}
+
+            {/* ── Devices ── */}
+            {activeTab === 'devices' && <LoggedInDevices color={color} />}
 
           </div>
         </div>

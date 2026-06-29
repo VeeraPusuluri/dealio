@@ -87,7 +87,26 @@ export const authApi = {
 
   logout: () =>
     authReq('/auth/logout', { method: 'POST' }),
+
+  // Logged-in devices (Settings → Devices)
+  listSessions: () =>
+    authReq('/auth/sessions') as Promise<DeviceSession[]>,
+
+  revokeSession: (id: number) =>
+    authReq(`/auth/sessions/${id}`, { method: 'DELETE' }),
+
+  revokeOtherSessions: () =>
+    authReq('/auth/sessions', { method: 'DELETE' }) as Promise<{ count: number }>,
 };
+
+export interface DeviceSession {
+  id: number;
+  deviceName: string | null;
+  ip: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  current: boolean;
+}
 
 export const builderApi = {
   ensureBuilder: (name: string, email: string, phone?: string, userId?: string | number) =>
