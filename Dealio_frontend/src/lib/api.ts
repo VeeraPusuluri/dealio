@@ -706,6 +706,9 @@ export const adminApi = {
     return adminReq(`/cps${qs.toString() ? `?${qs}` : ''}`);
   },
 
+  getCPsForAssignment: () =>
+    adminReq('/cps/for-assignment'),
+
   verifyDocument: (cpId: number, docType: 'aadhaar' | 'pan' | 'rera', approved: boolean, rejectionNote?: string) =>
     adminReq(`/cps/${cpId}/verify-doc`, {
       method: 'PATCH',
@@ -727,6 +730,9 @@ export const adminApi = {
 
   updateDealMilestone: (dealId: number, status: string) =>
     adminReq(`/deals/${dealId}/milestone`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+
+  assignCPToDeal: (dealId: number, cpUserId: number | null) =>
+    adminReq(`/deals/${dealId}/assign-cp`, { method: 'PATCH', body: JSON.stringify({ cpUserId }) }),
 
   getCommissions: () =>
     adminReq('/commissions'),
