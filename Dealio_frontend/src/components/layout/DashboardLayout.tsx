@@ -647,34 +647,34 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                                     height: 44px; padding: 0 11px;
                                     border: none; background: transparent; cursor: pointer;
                                     font-size: 12px; font-weight: 400; letter-spacing: -0.01em;
-                                    color: rgba(210,210,215,0.7);
+                                    color: rgba(60,60,67,0.62);
                                     transition: color 0.12s;
                                     white-space: nowrap; position: relative;
                                     -webkit-font-smoothing: antialiased;
                                     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
                                 }
-                                .apnav-link:hover { color: #f5f5f7; }
-                                .apnav-link.active { color: #f5f5f7; font-weight: 500; }
+                                .apnav-link:hover { color: #1d1d1f; }
+                                .apnav-link.active { color: #0A7E8C; font-weight: 500; }
                                 .apnav-link.active::after {
                                     content: ''; position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
                                     width: 3px; height: 3px; border-radius: 50%;
-                                    background: rgba(255,255,255,0.55);
+                                    background: #0A7E8C;
                                 }
                                 .apnav-icon-btn {
                                     width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
                                     border: none; background: transparent; cursor: pointer; border-radius: 8px; flex-shrink: 0;
-                                    color: rgba(210,210,215,0.62); transition: background 0.12s, color 0.12s; position: relative;
+                                    color: rgba(60,60,67,0.55); transition: background 0.12s, color 0.12s; position: relative;
                                 }
-                                .apnav-icon-btn:hover { background: rgba(255,255,255,0.08); color: #f5f5f7; }
+                                .apnav-icon-btn:hover { background: rgba(0,0,0,0.05); color: #1d1d1f; }
                                 .apnav-more-drop {
                                     position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%);
                                     min-width: 192px;
-                                    background: rgba(30,30,34,0.97);
+                                    background: rgba(255,255,255,0.9);
                                     backdrop-filter: saturate(180%) blur(24px);
                                     -webkit-backdrop-filter: saturate(180%) blur(24px);
-                                    border: 1px solid rgba(255,255,255,0.1);
+                                    border: 1px solid rgba(0,0,0,0.08);
                                     border-radius: 13px;
-                                    box-shadow: 0 20px 44px rgba(0,0,0,0.55), 0 4px 12px rgba(0,0,0,0.3);
+                                    box-shadow: 0 12px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
                                     padding: 4px; z-index: 9999;
                                     animation: apnav-drop-c 0.18s cubic-bezier(0.25,0.46,0.45,0.94) both;
                                     transform-origin: top center;
@@ -687,20 +687,20 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                                     display: flex; align-items: center; gap: 9px;
                                     width: 100%; padding: 7px 11px; border-radius: 8px;
                                     border: none; background: transparent; cursor: pointer;
-                                    font-size: 12px; text-align: left; color: rgba(210,210,215,0.68);
+                                    font-size: 12px; text-align: left; color: rgba(60,60,67,0.72);
                                     transition: background 0.1s, color 0.1s; white-space: nowrap;
                                     -webkit-font-smoothing: antialiased;
                                     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
                                 }
-                                .apnav-more-item:hover { background: rgba(255,255,255,0.07); color: #f5f5f7; }
-                                .apnav-more-item.active { color: #f5f5f7; background: rgba(255,255,255,0.05); }
+                                .apnav-more-item:hover { background: rgba(0,0,0,0.05); color: #1d1d1f; }
+                                .apnav-more-item.active { color: #0A7E8C; background: rgba(10,126,140,0.08); }
                                 .apnav-prof-drop {
                                     position: absolute; right: 0; top: calc(100% + 8px); width: 230px;
-                                    background: rgba(30,30,34,0.97);
+                                    background: rgba(255,255,255,0.94);
                                     backdrop-filter: saturate(180%) blur(24px);
                                     -webkit-backdrop-filter: saturate(180%) blur(24px);
-                                    border: 1px solid rgba(255,255,255,0.1); border-radius: 13px;
-                                    box-shadow: 0 20px 44px rgba(0,0,0,0.55); overflow: hidden; z-index: 9999;
+                                    border: 1px solid rgba(0,0,0,0.08); border-radius: 13px;
+                                    box-shadow: 0 12px 32px rgba(0,0,0,0.14); overflow: hidden; z-index: 9999;
                                     animation: apnav-drop-r 0.18s cubic-bezier(0.25,0.46,0.45,0.94) both;
                                     transform-origin: top right;
                                 }
@@ -712,31 +712,31 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                                     display: flex; align-items: center; gap: 10px;
                                     width: 100%; padding: 8px 12px;
                                     border: none; background: transparent; cursor: pointer;
-                                    font-size: 12px; text-align: left; color: rgba(210,210,215,0.78);
+                                    font-size: 12px; text-align: left; color: rgba(60,60,67,0.82);
                                     transition: background 0.1s, color 0.1s;
                                     -webkit-font-smoothing: antialiased;
                                     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
                                 }
-                                .apnav-prof-action:hover { background: rgba(255,255,255,0.07); color: #f5f5f7; }
-                                .apnav-prof-action.danger { color: rgba(255,69,58,0.82); }
-                                .apnav-prof-action.danger:hover { background: rgba(255,69,58,0.08); color: #ff453a; }
+                                .apnav-prof-action:hover { background: rgba(0,0,0,0.05); color: #1d1d1f; }
+                                .apnav-prof-action.danger { color: rgba(255,59,48,0.9); }
+                                .apnav-prof-action.danger:hover { background: rgba(255,59,48,0.07); color: #ff3b30; }
                                 .apnav-search-input {
                                     height: 28px; padding: 0 8px 0 27px;
-                                    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
-                                    border-radius: 7px; font-size: 12px; color: #f5f5f7; outline: none; width: 148px;
+                                    background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.08);
+                                    border-radius: 7px; font-size: 12px; color: #1d1d1f; outline: none; width: 148px;
                                     transition: background 0.15s, border-color 0.15s;
                                     -webkit-font-smoothing: antialiased;
                                     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
                                 }
-                                .apnav-search-input::placeholder { color: rgba(210,210,215,0.28); }
-                                .apnav-search-input:focus { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.18); }
+                                .apnav-search-input::placeholder { color: rgba(60,60,67,0.4); }
+                                .apnav-search-input:focus { background: #fff; border-color: rgba(10,126,140,0.4); }
                                 .apnav-search-results {
                                     position: absolute; top: calc(100% + 8px); right: 0; width: 280px;
-                                    background: rgba(30,30,34,0.97);
+                                    background: rgba(255,255,255,0.94);
                                     backdrop-filter: saturate(180%) blur(24px);
                                     -webkit-backdrop-filter: saturate(180%) blur(24px);
-                                    border: 1px solid rgba(255,255,255,0.1); border-radius: 13px;
-                                    box-shadow: 0 20px 44px rgba(0,0,0,0.55);
+                                    border: 1px solid rgba(0,0,0,0.08); border-radius: 13px;
+                                    box-shadow: 0 12px 32px rgba(0,0,0,0.14);
                                     padding: 4px; z-index: 9999;
                                     animation: apnav-drop-r 0.15s ease both;
                                 }
@@ -747,15 +747,15 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                                     background: transparent; transition: background 0.1s;
                                     -webkit-font-smoothing: antialiased;
                                 }
-                                .apnav-search-item.sel { background: rgba(255,255,255,0.07); }
+                                .apnav-search-item.sel { background: rgba(0,0,0,0.05); }
                             `}</style>
 
                             <nav style={{
                                 flexShrink: 0, position: 'relative', zIndex: 60, height: 44,
-                                background: 'rgba(22,22,26,0.92)',
+                                background: 'rgba(255,255,255,0.78)',
                                 backdropFilter: 'saturate(180%) blur(20px)',
                                 WebkitBackdropFilter: 'saturate(180%) blur(20px)',
-                                borderBottom: '1px solid rgba(255,255,255,0.07)',
+                                borderBottom: '1px solid rgba(0,0,0,0.08)',
                             }}>
                                 <div style={{
                                     display: 'grid', gridTemplateColumns: '180px 1fr 260px',
@@ -771,7 +771,7 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                                                 <circle cx="16.2" cy="5.8" r="1.4" fill="#1CD8EE" fillOpacity="0.92"/>
                                             </svg>
                                         </div>
-                                        <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.04em', background: 'linear-gradient(135deg,#fff 0%,#c7f0fb 50%,#3ECDE2 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', WebkitFontSmoothing: 'antialiased' }}>dealio</span>
+                                        <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.04em', background: 'linear-gradient(135deg,#0B1929 0%,#0A7E8C 55%,#1CB8CE 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', WebkitFontSmoothing: 'antialiased' }}>dealio</span>
                                     </button>
 
                                     {/* Center: Nav Links */}
@@ -811,7 +811,7 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
                                         {/* Search */}
                                         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                            <Search size={13} style={{ position: 'absolute', left: 8, color: 'rgba(210,210,215,0.36)', pointerEvents: 'none', zIndex: 1 }}/>
+                                            <Search size={13} style={{ position: 'absolute', left: 8, color: 'rgba(60,60,67,0.4)', pointerEvents: 'none', zIndex: 1 }}/>
                                             <input
                                                 ref={searchRef}
                                                 value={searchQuery}
@@ -823,7 +823,7 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                                                 placeholder="Search… ⌘K"
                                             />
                                             {searchQuery && (
-                                                <button onClick={() => { setSearchQuery(''); setSearchOpen(false); }} style={{ position: 'absolute', right: 7, color: 'rgba(210,210,215,0.38)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, lineHeight: 1 }}>✕</button>
+                                                <button onClick={() => { setSearchQuery(''); setSearchOpen(false); }} style={{ position: 'absolute', right: 7, color: 'rgba(60,60,67,0.45)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, lineHeight: 1 }}>✕</button>
                                             )}
                                             {searchOpen && searchResults.length > 0 && (
                                                 <div className="apnav-search-results">
@@ -831,21 +831,21 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                                                         <button key={item.path} className={`apnav-search-item${i === searchIndex ? ' sel' : ''}`}
                                                             onMouseDown={() => { navigate(item.path); setSearchQuery(''); setSearchOpen(false); }}
                                                             onMouseEnter={() => setSearchIndex(i)}>
-                                                            <div style={{ width: 26, height: 26, borderRadius: 6, background: i === searchIndex ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                                <item.icon size={12} style={{ color: 'rgba(210,210,215,0.65)' }}/>
+                                                            <div style={{ width: 26, height: 26, borderRadius: 6, background: i === searchIndex ? 'rgba(10,126,140,0.12)' : 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                                <item.icon size={12} style={{ color: i === searchIndex ? '#0A7E8C' : 'rgba(60,60,67,0.6)' }}/>
                                                             </div>
                                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                                <div style={{ fontSize: 12, fontWeight: 500, color: '#f5f5f7' }}>{item.label}</div>
-                                                                <div style={{ fontSize: 10.5, color: 'rgba(210,210,215,0.36)', marginTop: 1 }}>{item.section}</div>
+                                                                <div style={{ fontSize: 12, fontWeight: 500, color: '#1d1d1f' }}>{item.label}</div>
+                                                                <div style={{ fontSize: 10.5, color: 'rgba(60,60,67,0.45)', marginTop: 1 }}>{item.section}</div>
                                                             </div>
-                                                            {i === searchIndex && <kbd style={{ fontSize: 10, color: 'rgba(210,210,215,0.32)', background: 'rgba(255,255,255,0.06)', padding: '2px 5px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.1)' }}>↵</kbd>}
+                                                            {i === searchIndex && <kbd style={{ fontSize: 10, color: 'rgba(60,60,67,0.5)', background: 'rgba(0,0,0,0.05)', padding: '2px 5px', borderRadius: 4, border: '1px solid rgba(0,0,0,0.1)' }}>↵</kbd>}
                                                         </button>
                                                     ))}
                                                 </div>
                                             )}
                                             {searchOpen && searchQuery.trim().length > 0 && searchResults.length === 0 && (
                                                 <div className="apnav-search-results" style={{ padding: '12px 14px', textAlign: 'center' }}>
-                                                    <p style={{ fontSize: 12, color: 'rgba(210,210,215,0.48)' }}>No results for "<span style={{ color: '#f5f5f7' }}>{searchQuery}</span>"</p>
+                                                    <p style={{ fontSize: 12, color: 'rgba(60,60,67,0.55)' }}>No results for "<span style={{ color: '#1d1d1f' }}>{searchQuery}</span>"</p>
                                                 </div>
                                             )}
                                         </div>
@@ -853,7 +853,7 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                                         {/* Bell */}
                                         <button className="apnav-icon-btn" onClick={() => setShowNotifications(true)}>
                                             <Bell size={15} strokeWidth={1.5}/>
-                                            {unreadCount > 0 && <span style={{ position: 'absolute', top: 6, right: 6, width: 6, height: 6, borderRadius: '50%', background: '#ff453a', border: '1.5px solid rgba(22,22,26,0.92)' }}/>}
+                                            {unreadCount > 0 && <span style={{ position: 'absolute', top: 6, right: 6, width: 6, height: 6, borderRadius: '50%', background: '#ff3b30', border: '1.5px solid rgba(255,255,255,0.9)' }}/>}
                                         </button>
 
                                         {/* Avatar */}
@@ -861,40 +861,40 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                                             <button
                                                 onClick={() => setShowDropdown(!showDropdown)}
                                                 style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px 4px 4px', borderRadius: 20, transition: 'background 0.12s', marginLeft: 2 }}
-                                                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'}
+                                                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(0,0,0,0.05)'}
                                                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'none'}
                                             >
-                                                <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, background: user.avatar ? 'transparent' : `linear-gradient(135deg, ${color} 0%, ${color}bb 100%)`, boxShadow: `0 0 0 1.5px ${color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', fontSize: 10, fontWeight: 700, color: '#fff' }}>
+                                                <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, background: user.avatar ? 'transparent' : `linear-gradient(135deg, ${color} 0%, ${color}bb 100%)`, boxShadow: `0 0 0 1.5px ${color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', fontSize: 10, fontWeight: 700, color: '#fff' }}>
                                                     {user.avatar ? <img src={user.avatar} alt="av" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : initials}
                                                 </div>
-                                                <ChevronDown size={11} style={{ color: 'rgba(210,210,215,0.42)', transition: 'transform 0.18s', transform: showDropdown ? 'rotate(180deg)' : undefined }}/>
+                                                <ChevronDown size={11} style={{ color: 'rgba(60,60,67,0.5)', transition: 'transform 0.18s', transform: showDropdown ? 'rotate(180deg)' : undefined }}/>
                                             </button>
 
                                             {showDropdown && (
                                                 <div className="apnav-prof-drop">
-                                                    <div style={{ padding: '14px 14px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                                                    <div style={{ padding: '14px 14px 12px', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                                            <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: user.avatar ? 'transparent' : `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: `0 2px 10px ${color}40` }}>
+                                                            <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: user.avatar ? 'transparent' : `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: `0 2px 10px ${color}33` }}>
                                                                 {user.avatar ? <img src={user.avatar} alt="av" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : initials}
                                                             </div>
                                                             <div style={{ minWidth: 0 }}>
-                                                                <div style={{ fontSize: 13, fontWeight: 600, color: '#f5f5f7', WebkitFontSmoothing: 'antialiased', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
-                                                                <div style={{ fontSize: 11, color: 'rgba(210,210,215,0.38)', marginTop: 2 }}>{roleLabels[user.role]}</div>
+                                                                <div style={{ fontSize: 13, fontWeight: 600, color: '#1d1d1f', WebkitFontSmoothing: 'antialiased', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
+                                                                <div style={{ fontSize: 11, color: 'rgba(60,60,67,0.5)', marginTop: 2 }}>{roleLabels[user.role]}</div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                     <div style={{ padding: '5px 5px 7px' }}>
                                                         <button className="apnav-prof-action" onClick={() => { setShowDropdown(false); navigate(`/${user.role}/settings`); }}>
-                                                            <span style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Settings size={12} style={{ color: 'rgba(210,210,215,0.52)' }}/></span>
+                                                            <span style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Settings size={12} style={{ color: 'rgba(60,60,67,0.6)' }}/></span>
                                                             Settings
                                                         </button>
                                                         <button className="apnav-prof-action" onClick={() => { setShowDropdown(false); logout(); navigate('/login'); }}>
-                                                            <span style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><RoleIcon size={12} style={{ color: 'rgba(210,210,215,0.52)' }}/></span>
+                                                            <span style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><RoleIcon size={12} style={{ color: 'rgba(60,60,67,0.6)' }}/></span>
                                                             Switch Role
                                                         </button>
-                                                        <div style={{ margin: '4px 7px', borderTop: '1px solid rgba(255,255,255,0.07)' }}/>
+                                                        <div style={{ margin: '4px 7px', borderTop: '1px solid rgba(0,0,0,0.07)' }}/>
                                                         <button className="apnav-prof-action danger" onClick={() => { logout(); navigate('/login'); setShowDropdown(false); }}>
-                                                            <span style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,69,58,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><LogOut size={12} style={{ color: 'rgba(255,69,58,0.62)' }}/></span>
+                                                            <span style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,59,48,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><LogOut size={12} style={{ color: 'rgba(255,59,48,0.7)' }}/></span>
                                                             Sign Out
                                                         </button>
                                                     </div>

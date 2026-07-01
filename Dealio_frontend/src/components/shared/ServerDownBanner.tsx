@@ -1,12 +1,17 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { WifiOff, RefreshCw, Server } from 'lucide-react';
 
 const HEALTH_URL = (import.meta.env.VITE_AUTH_URL ?? 'http://127.0.0.1:8090/api') + '/health';
 const POLL_INTERVAL = 15_000;
+// Give a slow / cold-starting backend room to respond before judging it unreachable.
+const HEALTH_TIMEOUT = 10_000;
+// Only take over the whole app after several pings miss in a row — a single slow
+// response or transient blip shouldn't look like an outage.
+const FAIL_THRESHOLD = 3;
 
 async function checkHealth(): Promise<boolean> {
   try {
-    const res = await fetch(HEALTH_URL, { method: 'GET', signal: AbortSignal.timeout(5000) });
+    const res = await fetch(HEALTH_URL, { method: 'GET', signal: AbortSignal.timeout(HEALTH_TIMEOUT) });
     return res.ok;
   } catch {
     return false;
@@ -16,10 +21,17 @@ async function checkHealth(): Promise<boolean> {
 export function useServerStatus() {
   const [isDown, setIsDown] = useState(false);
   const [checking, setChecking] = useState(false);
+  const failures = useRef(0);
 
   const ping = useCallback(async () => {
     const ok = await checkHealth();
-    setIsDown(!ok);
+    if (ok) {
+      failures.current = 0;
+      setIsDown(false);
+    } else {
+      failures.current += 1;
+      if (failures.current >= FAIL_THRESHOLD) setIsDown(true);
+    }
   }, []);
 
   useEffect(() => {

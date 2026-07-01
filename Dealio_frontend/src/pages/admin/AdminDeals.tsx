@@ -5,7 +5,7 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { adminApi } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search, X, LayoutGrid, CheckCircle, Clock, Banknote } from 'lucide-react';
+import { ArrowLeft, Search, X, LayoutGrid, CheckCircle, Clock, Banknote, Download, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Deal {
@@ -14,11 +14,18 @@ interface Deal {
   dealValue: number | null;
   commissionStatus: string | null;
   createdAt: string;
-  customer: { id: number; fullName: string; phone: string; email?: string };
+  customer: { id: number; fullName: string; phone: string; email?: string; preferredCity?: string | null };
   project: { id: number; name: string; city: string };
   builder: { id: number; companyName: string };
-  cp: { id: number; user: { fullName: string } } | null;
+  cp: { id: number; city?: string | null; user: { id?: number; fullName: string } } | null;
   loanCase: { id: number; status: string } | null;
+}
+
+interface AssignableCP {
+  id: number;
+  city: string | null;
+  tier: string;
+  user: { id: number; fullName: string; phone: string };
 }
 
 const STATUSES = [
@@ -36,10 +43,13 @@ const STATUS_COLORS: Record<string, string> = {
 const AdminDeals = () => {
   const navigate = useNavigate();
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [cps, setCps] = useState<AssignableCP[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [selected, setSelected] = useState<Deal | null>(null);
+  const [checked, setChecked] = useState<Set<number>>(new Set());
+  const [bulkCpId, setBulkCpId] = useState('');
 
   useEffect(() => {
     adminApi.getDeals().then(data => {
@@ -47,6 +57,7 @@ const AdminDeals = () => {
     }).catch(() => {
       toast.error('Failed to load deals');
     }).finally(() => setLoading(false));
+    adminApi.getCPsForAssignment().then(data => setCps((data as AssignableCP[]) || [])).catch(() => {});
   }, []);
 
   const filtered = deals.filter(d => {
@@ -69,6 +80,87 @@ const AdminDeals = () => {
     }
   };
 
+  // CPs sorted so ones based in the customer's preferred city surface first —
+  // typing into the <select> still lets the admin jump straight to a CP by name.
+  const cpOptionsFor = (preferredCity?: string | null) => {
+    const norm = (s?: string | null) => (s || '').trim().toLowerCase();
+    const target = norm(preferredCity);
+    return [...cps].sort((a, b) => {
+      const aMatch = target && norm(a.city) === target ? 0 : 1;
+      const bMatch = target && norm(b.city) === target ? 0 : 1;
+      if (aMatch !== bMatch) return aMatch - bMatch;
+      return a.user.fullName.localeCompare(b.user.fullName);
+    });
+  };
+
+  const mostCommonPreferredCity = (rows: Deal[]): string | null => {
+    const counts = new Map<string, number>();
+    rows.forEach(d => {
+      const city = d.customer.preferredCity?.trim();
+      if (city) counts.set(city, (counts.get(city) ?? 0) + 1);
+    });
+    let best: string | null = null;
+    let bestCount = 0;
+    counts.forEach((count, city) => {
+      if (count > bestCount) { best = city; bestCount = count; }
+    });
+    return best;
+  };
+
+  const assignCP = async (dealId: number, cpUserId: number | null) => {
+    try {
+      const updated = await adminApi.assignCPToDeal(dealId, cpUserId) as Deal;
+      setDeals(prev => prev.map(d => d.id === dealId ? updated : d));
+      if (selected?.id === dealId) setSelected(updated);
+      toast.success(cpUserId ? `CP assigned` : 'CP unassigned');
+    } catch {
+      toast.error('Failed to assign CP');
+    }
+  };
+
+  const toggleChecked = (id: number) => {
+    setChecked(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    setChecked(prev => prev.size === filtered.length ? new Set() : new Set(filtered.map(d => d.id)));
+  };
+
+  const bulkAssign = async () => {
+    if (!bulkCpId || checked.size === 0) return;
+    const cpUserId = Number(bulkCpId);
+    const ids = Array.from(checked);
+    try {
+      await Promise.all(ids.map(id => adminApi.assignCPToDeal(id, cpUserId)));
+      const cp = cps.find(c => c.user.id === cpUserId);
+      setDeals(prev => prev.map(d => ids.includes(d.id)
+        ? { ...d, cp: cp ? { id: cp.id, city: cp.city, user: { id: cp.user.id, fullName: cp.user.fullName } } : d.cp }
+        : d));
+      toast.success(`Assigned ${ids.length} contact${ids.length > 1 ? 's' : ''} to ${cp?.user.fullName ?? 'CP'}`);
+      setChecked(new Set());
+      setBulkCpId('');
+    } catch {
+      toast.error('Bulk assignment failed');
+    }
+  };
+
+  const exportCSV = () => {
+    const hdr = 'Customer,Phone,Email,Preferred City,Project,Builder,Deal Value,Assigned CP,Status,Date\n';
+    const rows = filtered.map(d => [
+      d.customer.fullName, d.customer.phone, d.customer.email ?? '', d.customer.preferredCity ?? '',
+      d.project.name, d.builder.companyName, d.dealValue ?? '', d.cp?.user?.fullName ?? '', d.status,
+      new Date(d.createdAt).toLocaleDateString('en-IN'),
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([hdr + rows], { type: 'text/csv' }));
+    a.download = 'contacts.csv';
+    a.click();
+  };
+
   const totalGmv = deals.reduce((s, d) => s + (d.dealValue ?? 0), 0);
   const active = deals.filter(d => !['Registration Done', 'Possession Given'].includes(d.status)).length;
   const closed = deals.filter(d => ['Registration Done', 'Possession Given'].includes(d.status)).length;
@@ -82,7 +174,10 @@ const AdminDeals = () => {
             <ArrowLeft size={15} className="text-muted-foreground" />
           </button>
           <h2 className="text-[15px] font-bold text-foreground">Deal Oversight</h2>
-          <span className="ml-auto text-xs text-muted-foreground">{deals.length} total deals</span>
+          <span className="text-xs text-muted-foreground">{deals.length} total deals</span>
+          <button onClick={exportCSV} className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/70 text-xs font-medium text-foreground transition-colors">
+            <Download size={13} /> Export Contacts
+          </button>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -103,6 +198,33 @@ const AdminDeals = () => {
           </select>
         </div>
 
+        {checked.size > 0 && (
+          <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-lg px-4 py-2.5">
+            <UserPlus size={15} className="text-primary" />
+            <span className="text-xs font-medium text-foreground">{checked.size} selected</span>
+            <select
+              value={bulkCpId}
+              onChange={e => setBulkCpId(e.target.value)}
+              className="ml-auto px-3 py-1.5 rounded-lg bg-card text-xs text-foreground outline-none border border-border min-w-[220px]"
+            >
+              <option value="">Assign to CP (type a name)…</option>
+              {cpOptionsFor(mostCommonPreferredCity(filtered.filter(d => checked.has(d.id)))).map(cp => (
+                <option key={cp.id} value={cp.user.id}>
+                  {cp.user.fullName}{cp.city ? ` — ${cp.city}` : ''}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={bulkAssign}
+              disabled={!bulkCpId}
+              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-40"
+            >
+              Assign
+            </button>
+            <button onClick={() => setChecked(new Set())} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>
+          </div>
+        )}
+
         <div className="bg-card rounded-lg card-shadow border border-border overflow-x-auto">
           {loading ? (
             <div className="py-16 text-center text-muted-foreground text-sm animate-pulse">Loading deals...</div>
@@ -112,6 +234,9 @@ const AdminDeals = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-muted-foreground border-b border-border bg-muted/30">
+                  <th className="px-4 py-3 font-medium w-8">
+                    <input type="checkbox" checked={checked.size === filtered.length && filtered.length > 0} onChange={toggleAll} onClick={e => e.stopPropagation()} />
+                  </th>
                   <th className="px-4 py-3 font-medium">Customer</th>
                   <th className="px-4 py-3 font-medium">Project</th>
                   <th className="px-4 py-3 font-medium">Builder</th>
@@ -126,9 +251,15 @@ const AdminDeals = () => {
               <tbody>
                 {filtered.map(d => (
                   <tr key={d.id} onClick={() => setSelected(d)} className="border-t border-border hover:bg-muted/30 cursor-pointer">
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" checked={checked.has(d.id)} onChange={() => toggleChecked(d.id)} />
+                    </td>
                     <td className="px-4 py-3">
                       <p className="font-medium text-card-foreground">{d.customer.fullName}</p>
                       <p className="text-xs text-muted-foreground">{d.customer.phone}</p>
+                      {d.customer.preferredCity && (
+                        <p className="text-[11px] text-primary/70">Prefers: {d.customer.preferredCity}</p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-card-foreground">{d.project.name}</p>
@@ -138,7 +269,20 @@ const AdminDeals = () => {
                     <td className="px-4 py-3 text-right font-semibold text-card-foreground">
                       {d.dealValue ? formatCurrency(d.dealValue) : <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{d.cp?.user?.fullName || '—'}</td>
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                      <select
+                        className="text-[11px] rounded-lg px-2 py-1.5 bg-muted text-foreground outline-none border border-border cursor-pointer max-w-[160px]"
+                        value={d.cp?.user?.id ?? ''}
+                        onChange={e => assignCP(d.id, e.target.value ? Number(e.target.value) : null)}
+                      >
+                        <option value="">Unassigned</option>
+                        {cpOptionsFor(d.customer.preferredCity).map(cp => (
+                          <option key={cp.id} value={cp.user.id}>
+                            {cp.user.fullName}{cp.city ? ` — ${cp.city}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="px-4 py-3">
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold text-white"
                         style={{ backgroundColor: STATUS_COLORS[d.status] || '#6B7280' }}>
