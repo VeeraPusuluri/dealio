@@ -145,7 +145,7 @@ function ProjectGridCard({
       onClick={onClick}
       className={`group bg-white rounded-3xl overflow-hidden cursor-pointer flex flex-col border border-gray-100/80
         transition-all duration-200 hover:shadow-2xl hover:shadow-gray-200/60 hover:border-gray-200
-        ${featured ? 'col-span-2' : ''}`}
+        ${featured ? 'sm:col-span-2' : ''}`}
       style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.03)' }}
     >
       {/* Status header strip */}
@@ -239,13 +239,13 @@ function ProjectGrid({
   return (
     <div className="space-y-5">
       {/* Row 1: featured (col-span-2) + first small */}
-      <div className="grid grid-cols-3 gap-5 items-start">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 items-start">
         {card(projects[0], true)}
         {projects[1] && card(projects[1])}
       </div>
       {/* Remaining: 3-col equal */}
       {projects.length > 2 && (
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
           {projects.slice(2).map(p => card(p))}
         </div>
       )}
@@ -508,7 +508,7 @@ const CustomerHome = () => {
       <div className="space-y-0 pb-8" style={{zoom:0.9}}>
 
         {/* ══ HEADER ══ */}
-        <div className="flex items-start justify-between gap-4 pt-1 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pt-1 pb-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 leading-tight tracking-tight">
               Find your{' '}
@@ -563,7 +563,7 @@ const CustomerHome = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 mt-1">
+          <div className="flex items-center gap-2 shrink-0 mt-1 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
             {/* Filters button */}
             <button
               onClick={() => setShowFilters(v => !v)}
@@ -806,7 +806,7 @@ const CustomerHome = () => {
         )}
 
         {/* ══ GRID ══ */}
-        <div className="pt-10 px-20">
+        <div className="pt-10 px-4 sm:px-10 lg:px-20">
           {error ? (
             <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
               <Building2 size={32} className="mx-auto mb-3 text-gray-300" />
@@ -814,11 +814,11 @@ const CustomerHome = () => {
             </div>
           ) : loading ? (
             <div className="space-y-5">
-              <div className="grid grid-cols-3 gap-5">
-                <div className="col-span-2 h-80 bg-gray-100 rounded-3xl animate-pulse"/>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                <div className="sm:col-span-2 h-80 bg-gray-100 rounded-3xl animate-pulse"/>
                 <div className="h-80 bg-gray-100 rounded-3xl animate-pulse"/>
               </div>
-              <div className="grid grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
                 {[1,2,3].map(i => <div key={i} className="h-56 bg-gray-100 rounded-3xl animate-pulse"/>)}
               </div>
             </div>

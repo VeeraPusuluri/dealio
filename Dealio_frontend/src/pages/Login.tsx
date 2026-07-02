@@ -217,7 +217,12 @@ const LoginPage = () => {
       if (data?.demoCode) toast({ title: 'Demo OTP', description: `Your code: ${data.demoCode}` });
       else toast({ title: 'OTP sent', description: `Code sent to ${data?.maskedPhone ?? phone}` });
     } catch (err: unknown) {
-      toast({ title: 'Could not send code', description: err instanceof Error ? err.message : 'Could not send code', variant: 'destructive' });
+      const msg = err instanceof Error ? err.message : 'Could not send code';
+      if (msg.toLowerCase().includes('no account found')) {
+        toast({ title: 'No account found', description: 'This number is not registered. Please sign up first.', variant: 'destructive' });
+      } else {
+        toast({ title: 'Could not send code', description: msg, variant: 'destructive' });
+      }
     } finally { setBusy(false); }
   };
 
@@ -244,6 +249,8 @@ const LoginPage = () => {
       const msg = err instanceof Error ? err.message : 'Verification failed';
       if (msg.toLowerCase().includes('suspended')) {
         toast({ title: 'Account Suspended', description: 'Your account has been suspended. Please contact support.', variant: 'destructive' });
+      } else if (msg.toLowerCase().includes('no account found')) {
+        toast({ title: 'No account found', description: 'This number is not registered. Please sign up first.', variant: 'destructive' });
       } else {
         toast({ title: 'Verification failed', description: msg, variant: 'destructive' });
       }

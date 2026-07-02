@@ -45,6 +45,7 @@ interface DealDetail {
   dealValue?: number | null;
   customerName: string;
   customerPhone: string;
+  phoneHidden?: boolean;
   projectName: string;
   projectId: number;
   cpName?: string | null;
@@ -548,9 +549,13 @@ export function DealDrawer({
                     </div>
                     <div className="flex items-center gap-2.5">
                       <Phone size={14} style={{ color: '#0A7E8C' }} />
-                      <a href={`tel:${detail.customerPhone}`} className="text-[13px] text-foreground hover:text-[#0A7E8C] transition-colors">
-                        {detail.customerPhone}
-                      </a>
+                      {detail.phoneHidden || !detail.customerPhone ? (
+                        <span className="text-[12px] text-muted-foreground italic">Contact via channel partner</span>
+                      ) : (
+                        <a href={`tel:${detail.customerPhone}`} className="text-[13px] text-foreground hover:text-[#0A7E8C] transition-colors">
+                          {detail.customerPhone}
+                        </a>
+                      )}
                     </div>
                     {detail.customerConfirmed && (
                       <div className="flex items-center gap-1.5 mt-1">

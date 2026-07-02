@@ -11,8 +11,30 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import {
   Calendar, Clock, CheckCircle2, XCircle, RefreshCw, Loader2,
   MessageSquare, Phone, Building2, ChevronRight, Share2, Users,
-  AlertCircle, X, MapPin,
+  AlertCircle, X, MapPin, List, CalendarDays,
 } from 'lucide-react';
+import { AppleCalendar, CalEvent } from '@/components/shared/AppleCalendar';
+
+/** ISO date/datetime → "YYYY-MM-DD" for the calendar. */
+function toDateStr(iso: string): string {
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
+}
+
+/** List / Calendar segmented toggle. */
+function ViewToggle({ viewMode, setViewMode }: { viewMode: 'list' | 'calendar'; setViewMode: (v: 'list' | 'calendar') => void }) {
+  return (
+    <div className="flex items-center gap-1 bg-muted/60 rounded-xl p-1">
+      {(['list', 'calendar'] as const).map(v => (
+        <button key={v} onClick={() => setViewMode(v)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${viewMode === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+          {v === 'list' ? <List size={13} /> : <CalendarDays size={13} />}
+          {v === 'list' ? 'List' : 'Calendar'}
+        </button>
+      ))}
+    </div>
+  );
+}
 import AddToCalendarButton from '@/components/shared/AddToCalendarButton';
 import { toast } from 'sonner';
 import DatePickerField from '@/components/shared/DatePickerField';
@@ -88,6 +110,7 @@ const CPMeetingRequests = ({ embedded }: { embedded?: boolean } = {}) => {
   const cpUserId = user?.id ?? '';
 
   const [tab, setTab] = useState<'meetings' | 'sharing'>('meetings');
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [meetings, setMeetings] = useState<ApiMeeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<ApiMeeting | null>(null);
@@ -192,8 +215,8 @@ const CPMeetingRequests = ({ embedded }: { embedded?: boolean } = {}) => {
       toast.success('Meeting request sent to builder');
       closeForm();
       setTimeout(loadMeetings, 500);
-    } catch {
-      toast.error('Failed to send request');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to send request');
     }
   };
 
@@ -277,13 +300,45 @@ const CPMeetingRequests = ({ embedded }: { embedded?: boolean } = {}) => {
               ))}
             </div>
 
+            {/* Calendar view */}
+            {viewMode === 'calendar' && (
+              <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                  <h2 className="text-[13px] font-bold text-foreground">Meeting Calendar</h2>
+                  <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+                </div>
+                <div className="p-4">
+                  <AppleCalendar
+                    loading={loading}
+                    accentColor="#0A7E8C"
+                    events={meetings
+                      .filter(m => m.status !== 'Cancelled')
+                      .map(m => ({
+                        id: `mtg-${m.id}`,
+                        title: m.customerName || 'Customer',
+                        subtitle: m.projectName,
+                        date: toDateStr(m.confirmedDate || m.preferredDate),
+                        time: m.confirmedTime || m.preferredTime || undefined,
+                        type: (m.meetingType === 'Site Visit' ? 'visit' : 'meeting') as CalEvent['type'],
+                        status: m.status,
+                        phone: m.customerPhone,
+                      } satisfies CalEvent))}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Meeting list */}
+            {viewMode === 'list' && (
             <div className="rounded-2xl border border-border bg-card overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-border">
                 <h2 className="text-[13px] font-bold text-foreground">Meeting Activity</h2>
-                <button onClick={loadMeetings} disabled={loading} className="text-[12px] text-muted-foreground hover:text-foreground flex items-center gap-1">
-                  <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> Refresh
-                </button>
+                <div className="flex items-center gap-3">
+                  <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+                  <button onClick={loadMeetings} disabled={loading} className="text-[12px] text-muted-foreground hover:text-foreground flex items-center gap-1">
+                    <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> Refresh
+                  </button>
+                </div>
               </div>
 
               {loading ? (
@@ -333,6 +388,7 @@ const CPMeetingRequests = ({ embedded }: { embedded?: boolean } = {}) => {
                 </div>
               )}
             </div>
+            )}
           </>
         )}
 

@@ -946,6 +946,25 @@ function PossessionCard({ deal }: { deal: CustomerDeal }) {
 
 // ─── One journey thread (per property) ──────────────────────────────────────────
 
+// Compact "last update" row shown on a visit-only thread — a visit has no deal
+// milestones yet, so the full timeline (with upcoming Registration/Possession
+// placeholders) is just noise. We surface only the most recent real update.
+function VisitLastUpdate({ step }: { step: JourneyStep }) {
+  const done = step.status === 'completed';
+  const Icon = done ? CheckCircle2 : Clock;
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-gray-200/70 bg-gray-50/60 px-4 py-3">
+      <Icon size={18} className={done ? 'text-emerald-600 shrink-0 mt-0.5' : 'text-blue-600 shrink-0 mt-0.5'} />
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Last update</p>
+        <p className="text-sm font-semibold text-gray-900 truncate">{step.label}</p>
+        {step.date && <p className="text-xs text-gray-500 mt-0.5">{step.date}</p>}
+        {step.notes && <p className="text-xs text-gray-500 mt-0.5">{step.notes}</p>}
+      </div>
+    </div>
+  );
+}
+
 function JourneyThreadCard({
   thread, phone, customerName, onReload,
 }: {
@@ -961,8 +980,11 @@ function JourneyThreadCard({
   const isActive  = status === 'negotiation' || status === 'agreement' || status === 'pending booking';
   const isClosed  = status === 'closed';
   const isPreDeal = !deal || PRE_DEAL_STAGES.includes(status);
+  const isVisit   = threadKind(thread) === 'visit';
 
   const steps  = buildJourney(deal ? [deal] : [], thread.meetings);
+  // Newest meaningful step (skip the upcoming placeholders) → the visit's last update.
+  const lastUpdate = [...steps].reverse().find(s => s.status !== 'upcoming') ?? steps[steps.length - 1];
   const handle = thread.handle;
   const stage  = threadStage(thread);
 
@@ -1010,12 +1032,14 @@ function JourneyThreadCard({
           />
         )}
 
-        {/* Milestone timeline */}
+        {/* Milestone timeline — visits show just their last update, deals get the full timeline */}
         {steps.length === 0 ? (
           <div className="flex flex-col items-center py-8 text-center">
             <AlertCircle size={22} className="text-gray-300 mb-2" />
             <p className="text-sm text-gray-400">No milestones yet for this property.</p>
           </div>
+        ) : isVisit ? (
+          <VisitLastUpdate step={lastUpdate} />
         ) : (
           <JourneyTimeline steps={steps} />
         )}

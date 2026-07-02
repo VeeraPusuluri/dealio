@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuthStore } from "@/stores/useAuthStore";
 import "@/stores/useThemeStore"; // initialises dark-mode class on import
+import ServerDownPage, { useServerStatus } from "@/components/shared/ServerDownBanner";
 
 import LoginPage from "./pages/Login";
 import SignupPage from "./pages/Signup";
@@ -87,6 +88,8 @@ import AdminCampaigns from "./pages/admin/AdminCampaigns";
 import AdminMeetings from "./pages/admin/AdminMeetings";
 import AdminAddProject from "./pages/admin/AdminAddProject";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminVerifications from "./pages/admin/AdminVerifications";
+import AdminDeletionRequests from "./pages/admin/AdminDeletionRequests";
 import LoanPortal from "./pages/shared/LoanPortal";
 import DealConversation from "./pages/shared/DealConversation";
 import ProjectSharePage from "./pages/shared/ProjectSharePage";
@@ -142,12 +145,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+function AppInner() {
+  const { isDown, checking, retry } = useServerStatus();
+  if (isDown) return <ServerDownPage onRetry={retry} checking={checking} />;
+  return (
+    <BrowserRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<Home />} />
@@ -250,6 +252,8 @@ const App = () => (
           <Route path="/admin/fraud" element={<ProtectedRoute><AdminFraud /></ProtectedRoute>} />
           <Route path="/admin/campaigns" element={<ProtectedRoute><AdminCampaigns /></ProtectedRoute>} />
           <Route path="/admin/meetings" element={<ProtectedRoute><AdminMeetings /></ProtectedRoute>} />
+          <Route path="/admin/verifications" element={<ProtectedRoute><AdminVerifications /></ProtectedRoute>} />
+          <Route path="/admin/deletion-requests" element={<ProtectedRoute><AdminDeletionRequests /></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
 
           {/* Public share page — no auth required */}
@@ -279,6 +283,15 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
+  );
+}
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <AppInner />
     </TooltipProvider>
   </QueryClientProvider>
 );

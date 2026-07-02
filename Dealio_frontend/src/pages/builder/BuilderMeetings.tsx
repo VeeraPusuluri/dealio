@@ -22,6 +22,7 @@ interface ApiMeeting {
   customerId: number;
   customerName: string;
   customerPhone: string;
+  phoneHidden?: boolean;
   preferredDate: string;
   preferredTime: string;
   meetingType: string | null;
@@ -455,7 +456,7 @@ export function BuilderMeetingsPanel({ builderId: externalBid, embedded }: { bui
                     {[
                       { icon: Calendar, text: fmtDate(selected.preferredDate) },
                       { icon: Clock,    text: selected.preferredTime },
-                      { icon: Phone,    text: selected.customerPhone },
+                      ...(selected.phoneHidden || !selected.customerPhone ? [] : [{ icon: Phone, text: selected.customerPhone }]),
                       ...(selected.meetingType ? [{ icon: TYPE_ICON[selected.meetingType] ?? Building2, text: selected.meetingType }] : []),
                       ...(selected.cpName ? [{ icon: Users, text: `via ${selected.cpName}` }] : []),
                     ].map(({ icon: Icon, text }) => (
@@ -473,16 +474,28 @@ export function BuilderMeetingsPanel({ builderId: externalBid, embedded }: { bui
                   {/* contact */}
                   <div className="bg-card rounded-xl border border-border p-4">
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-3">Contact</p>
-                    <a href={`tel:${selected.customerPhone}`}
-                      className="flex items-center gap-3 p-3 bg-muted/40 rounded-xl border border-border hover:border-ring hover:bg-muted/60 transition-all group">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: '#0A7E8C15', color: '#0A7E8C' }}>
-                        <Phone size={14} />
+                    {selected.phoneHidden || !selected.customerPhone ? (
+                      <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-xl border border-border">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: '#0A7E8C15', color: '#0A7E8C' }}>
+                          <Users size={14} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground">Phone</p>
+                          <p className="text-[12px] font-medium text-muted-foreground">Contact via channel partner</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[10px] text-muted-foreground">Phone</p>
-                        <p className="text-[13px] font-semibold text-foreground">{selected.customerPhone}</p>
-                      </div>
-                    </a>
+                    ) : (
+                      <a href={`tel:${selected.customerPhone}`}
+                        className="flex items-center gap-3 p-3 bg-muted/40 rounded-xl border border-border hover:border-ring hover:bg-muted/60 transition-all group">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: '#0A7E8C15', color: '#0A7E8C' }}>
+                          <Phone size={14} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground">Phone</p>
+                          <p className="text-[13px] font-semibold text-foreground">{selected.customerPhone}</p>
+                        </div>
+                      </a>
+                    )}
                   </div>
 
                   {/* meeting details grid */}
@@ -542,7 +555,9 @@ export function BuilderMeetingsPanel({ builderId: externalBid, embedded }: { bui
                       date: selected.confirmedDate ?? selected.preferredDate,
                       time: selected.confirmedTime ?? selected.preferredTime,
                       summary: `${selected.meetingType ?? 'Site Visit'} — ${selected.projectName}`,
-                      description: `Meeting with ${selected.customerName} (${selected.customerPhone})`,
+                      description: selected.phoneHidden || !selected.customerPhone
+                        ? `Meeting with ${selected.customerName}`
+                        : `Meeting with ${selected.customerName} (${selected.customerPhone})`,
                     }} />
                   )}
 

@@ -174,7 +174,7 @@ const BuilderProjects = () => {
         onClick={() => navigate(`/builder/projects/${p.id}`)}
         className={`group bg-white rounded-3xl overflow-hidden cursor-pointer flex flex-col border border-gray-100/80
           transition-all duration-200 hover:shadow-2xl hover:shadow-gray-200/60 hover:border-gray-200
-          ${featured ? 'col-span-2' : ''}`}
+          ${featured ? 'sm:col-span-2' : ''}`}
         style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.03)' }}
       >
         {/* ── Status header strip ── */}
@@ -260,12 +260,12 @@ const BuilderProjects = () => {
   /* ── Render ── */
   return (
     <DashboardLayout>
-      <div className="px-6 py-6 max-w-7xl mx-auto">
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm px-8 py-8">
+      <div className="px-3 sm:px-6 py-6 max-w-7xl mx-auto">
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
 
         {/* ── Editorial header ── */}
         <div className="mb-8">
-          <h1 className="text-[42px] font-bold text-gray-900 leading-[1.1] mb-2.5">
+          <h1 className="text-[28px] sm:text-[42px] font-bold text-gray-900 leading-[1.1] mb-2.5">
             <em style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontStyle: 'italic', color: '#0d9488', fontWeight: 400 }}>
               {nWord(n)} {n === 1 ? 'project,' : 'projects,'}
             </em>
@@ -283,11 +283,11 @@ const BuilderProjects = () => {
         </div>
 
         {/* ── Filter + actions bar ── */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-0.5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
+          <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-none -mx-1 px-1 sm:mx-0 sm:px-0">
             {FILTER_TABS.map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all ${
+                className={`shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all ${
                   activeTab === tab
                     ? 'bg-gray-900 text-white'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
@@ -346,10 +346,10 @@ const BuilderProjects = () => {
 
             {/* Draft card */}
             {wizardDraft && (
-              <div className="grid grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                 <div
                   onClick={() => navigate('/builder/projects/new')}
-                  className="col-span-1 bg-amber-50/60 border-2 border-dashed border-amber-200 rounded-3xl p-5 cursor-pointer
+                  className="bg-amber-50/60 border-2 border-dashed border-amber-200 rounded-3xl p-5 cursor-pointer
                     hover:border-amber-400 hover:bg-amber-50 transition-all flex flex-col gap-3 group">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Unsaved Draft</span>
@@ -392,7 +392,7 @@ const BuilderProjects = () => {
 
             {/* Row 1: featured (col-span-2) + first small */}
             {filteredRows.length > 0 && (
-              <div className="grid grid-cols-3 gap-5 items-start">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 items-start">
                 {renderCard(filteredRows[0], true)}
                 {filteredRows[1] && renderCard(filteredRows[1])}
               </div>
@@ -400,7 +400,7 @@ const BuilderProjects = () => {
 
             {/* Remaining rows: 3-col equal */}
             {filteredRows.length > 2 && (
-              <div className="grid grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
                 {filteredRows.slice(2).map(p => renderCard(p))}
               </div>
             )}
