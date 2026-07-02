@@ -11,7 +11,15 @@ import {
   Calendar, MapPin, Clock, Star, Building2, FileText, Users, Loader2,
   RefreshCw, X, ChevronRight, MessageSquare, CheckCircle2, Sparkles,
   Navigation, Phone, Plus, UserCheck, User, Bookmark, ExternalLink,
+  List, CalendarDays,
 } from 'lucide-react';
+import { AppleCalendar, CalEvent } from '@/components/shared/AppleCalendar';
+
+/** ISO date/datetime → "YYYY-MM-DD" for the calendar. */
+function toDateStr(iso: string): string {
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
+}
 import AddToCalendarButton from '@/components/shared/AddToCalendarButton';
 import { toast } from 'sonner';
 import DatePickerField from '@/components/shared/DatePickerField';
@@ -76,6 +84,7 @@ export default function CustomerMeeting() {
   const [cps, setCPs]           = useState<CPProfile[]>([]);
   const [meetings, setMeetings] = useState<ApiMeeting[]>([]);
   const [loadingMeetings, setLoadingMeetings] = useState(true);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [showForm, setShowForm] = useState(false);
   // 'meetings' tab by default so customer always lands on their list first
   const [activeTab, setActiveTab] = useState<'meetings' | 'book'>('meetings');
@@ -735,13 +744,44 @@ export default function CustomerMeeting() {
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h2 className="text-[13px] font-bold text-foreground">My Meetings</h2>
-            <button onClick={fetchMeetings} disabled={loadingMeetings}
-              className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors">
-              <RefreshCw size={12} className={loadingMeetings ? 'animate-spin' : ''} /> Refresh
-            </button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 bg-muted/60 rounded-xl p-1">
+                {(['list', 'calendar'] as const).map(v => (
+                  <button key={v} onClick={() => setViewMode(v)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${viewMode === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                    {v === 'list' ? <List size={13} /> : <CalendarDays size={13} />}
+                    {v === 'list' ? 'List' : 'Calendar'}
+                  </button>
+                ))}
+              </div>
+              <button onClick={fetchMeetings} disabled={loadingMeetings}
+                className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors">
+                <RefreshCw size={12} className={loadingMeetings ? 'animate-spin' : ''} /> Refresh
+              </button>
+            </div>
           </div>
 
-          {loadingMeetings ? (
+          {viewMode === 'calendar' && (
+            <div className="p-4">
+              <AppleCalendar
+                loading={loadingMeetings}
+                accentColor="#0A7E8C"
+                events={meetings
+                  .filter(m => m.status !== 'Cancelled')
+                  .map(m => ({
+                    id: `mtg-${m.id}`,
+                    title: m.projectName || 'Site visit',
+                    subtitle: m.meetingType || undefined,
+                    date: toDateStr(m.confirmedDate || m.preferredDate),
+                    time: m.confirmedTime || m.preferredTime || undefined,
+                    type: (m.meetingType === 'Site Visit' ? 'visit' : 'meeting') as CalEvent['type'],
+                    status: m.status,
+                  } satisfies CalEvent))}
+              />
+            </div>
+          )}
+
+          {viewMode === 'list' && (loadingMeetings ? (
             <div className="flex justify-center py-14">
               <Loader2 size={24} className="animate-spin text-muted-foreground" />
             </div>
@@ -805,7 +845,7 @@ export default function CustomerMeeting() {
                 </>
               )}
             </div>
-          )}
+          ))}
         </div>
         )}
 

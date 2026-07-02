@@ -16,7 +16,7 @@ import {
     LogOut, Bell, Search, ChevronDown, Grid3X3, Briefcase, UserPlus,
     Trophy, ClipboardList, Radio, UserCircle, TrendingUp, Wallet, Video, Scale,
     Paintbrush, Brain, Share, BarChart, Columns, Settings, UserIcon,
-    ShieldCheck, UserX,
+    ShieldCheck, UserX, Menu, X,
 } from 'lucide-react';
 
 interface NavItem {
@@ -340,10 +340,12 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
     });
     const [showDropdown, setShowDropdown] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const [openNavSection, setOpenNavSection] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchIndex, setSearchIndex] = useState(0);
+    const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
     const searchRef = useRef<HTMLInputElement>(null);
 
     const toggleCollapsed = () => {
@@ -482,9 +484,11 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
 
     return (
         <div className="flex h-screen overflow-hidden bg-background">
-            {/* ── Sidebar — hidden for customer ── */}
+            {/* ── Sidebar — hidden for customer; off-canvas drawer on mobile, in-flow on desktop ── */}
             <aside
-                className={`${isCustomer ? 'hidden' : ''} ${collapsed ? 'w-[60px]' : 'w-[220px]'} flex flex-col transition-all duration-200 flex-shrink-0`}
+                className={`${isCustomer ? 'hidden' : 'flex'} flex-col flex-shrink-0 transition-transform duration-200
+                    fixed inset-y-0 left-0 z-50 w-[220px] ${mobileNavOpen ? 'translate-x-0' : '-translate-x-full'} shadow-2xl
+                    md:static md:z-auto md:translate-x-0 md:shadow-none ${collapsed ? 'md:w-[60px]' : 'md:w-[220px]'}`}
                 style={{backgroundColor: sidebarBg}}
             >
                 {/* Logo */}
@@ -540,7 +544,7 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                                 return (
                                     <button
                                         key={item.path}
-                                        onClick={() => navigate(item.path)}
+                                        onClick={() => { navigate(item.path); setMobileNavOpen(false); }}
                                         title={collapsed ? item.label : undefined}
                                         className={`w-full flex items-center transition-all duration-150 ${
                                             collapsed
@@ -614,6 +618,11 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                     </button>
                 </div>
             </aside>
+
+            {/* Mobile drawer backdrop */}
+            {!isCustomer && mobileNavOpen && (
+                <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setMobileNavOpen(false)} />
+            )}
 
             {/* ── Main Content ── */}
             <div className="flex-1 flex flex-col min-w-0">
@@ -757,8 +766,8 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                                 WebkitBackdropFilter: 'saturate(180%) blur(20px)',
                                 borderBottom: '1px solid rgba(0,0,0,0.08)',
                             }}>
-                                <div style={{
-                                    display: 'grid', gridTemplateColumns: '180px 1fr 260px',
+                                <div className="hidden md:grid" style={{
+                                    gridTemplateColumns: '180px 1fr 260px',
                                     alignItems: 'center', height: '100%', padding: '0 20px',
                                 }}>
                                     {/* Left: Logo */}
@@ -903,15 +912,144 @@ const DashboardLayout = ({children}: { children: React.ReactNode }) => {
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Mobile: logo + search/bell/menu */}
+                                <div className="flex md:hidden items-center h-full px-3 gap-1">
+                                    {mobileSearchOpen ? (
+                                        <>
+                                            <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+                                                <Search size={13} style={{ position: 'absolute', left: 8, color: 'rgba(60,60,67,0.4)', pointerEvents: 'none' }}/>
+                                                <input
+                                                    autoFocus
+                                                    value={searchQuery}
+                                                    onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); setSearchIndex(0); }}
+                                                    onKeyDown={handleSearchKeyDown}
+                                                    className="apnav-search-input"
+                                                    style={{ width: '100%' }}
+                                                    placeholder="Search…"
+                                                />
+                                                {searchOpen && searchResults.length > 0 && (
+                                                    <div className="apnav-search-results" style={{ left: 0, right: 0, width: 'auto' }}>
+                                                        {searchResults.map((item, i) => (
+                                                            <button key={item.path} className={`apnav-search-item${i === searchIndex ? ' sel' : ''}`}
+                                                                onMouseDown={() => { navigate(item.path); setSearchQuery(''); setSearchOpen(false); setMobileSearchOpen(false); }}
+                                                                onMouseEnter={() => setSearchIndex(i)}>
+                                                                <div style={{ width: 26, height: 26, borderRadius: 6, background: i === searchIndex ? 'rgba(10,126,140,0.12)' : 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                                    <item.icon size={12} style={{ color: i === searchIndex ? '#0A7E8C' : 'rgba(60,60,67,0.6)' }}/>
+                                                                </div>
+                                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                                    <div style={{ fontSize: 12, fontWeight: 500, color: '#1d1d1f' }}>{item.label}</div>
+                                                                    <div style={{ fontSize: 10.5, color: 'rgba(60,60,67,0.45)', marginTop: 1 }}>{item.section}</div>
+                                                                </div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {searchOpen && searchQuery.trim().length > 0 && searchResults.length === 0 && (
+                                                    <div className="apnav-search-results" style={{ left: 0, right: 0, width: 'auto', padding: '12px 14px', textAlign: 'center' }}>
+                                                        <p style={{ fontSize: 12, color: 'rgba(60,60,67,0.55)' }}>No results for "<span style={{ color: '#1d1d1f' }}>{searchQuery}</span>"</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <button className="apnav-icon-btn" style={{ width: 'auto', padding: '0 8px', fontSize: 12 }} onClick={() => { setMobileSearchOpen(false); setSearchOpen(false); setSearchQuery(''); }}>
+                                                Cancel
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button onClick={() => navigate('/customer')} style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}>
+                                                <div style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, background: 'linear-gradient(145deg,#0B1B2E,#0E2542,#112E50)', boxShadow: '0 0 0 1px rgba(28,216,238,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                                                        <path fillRule="evenodd" clipRule="evenodd" d="M3 2 H9 C16 2 18 6 18 10 C18 14 16 18 9 18 H3 Z M6 5.5 H9 C13.5 5.5 15 7.5 15 10 C15 12.5 13.5 14.5 9 14.5 H6 Z" fill="white" fillOpacity="0.94"/>
+                                                        <rect x="3" y="7.8" width="3" height="1.4" rx="0.5" fill="#FF8930" fillOpacity="0.88"/>
+                                                        <rect x="3" y="11.4" width="3" height="1.4" rx="0.5" fill="#FF8930" fillOpacity="0.60"/>
+                                                        <circle cx="16.2" cy="5.8" r="1.4" fill="#1CD8EE" fillOpacity="0.92"/>
+                                                    </svg>
+                                                </div>
+                                                <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.04em', background: 'linear-gradient(135deg,#0B1929 0%,#0A7E8C 55%,#1CB8CE 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', WebkitFontSmoothing: 'antialiased' }}>dealio</span>
+                                            </button>
+                                            <div style={{ flex: 1 }}/>
+                                            <button aria-label="Search" className="apnav-icon-btn" onClick={() => { setMobileSearchOpen(true); setSearchOpen(true); }}>
+                                                <Search size={15} strokeWidth={1.5}/>
+                                            </button>
+                                            <button aria-label="Notifications" className="apnav-icon-btn" onClick={() => setShowNotifications(true)}>
+                                                <Bell size={15} strokeWidth={1.5}/>
+                                                {unreadCount > 0 && <span style={{ position: 'absolute', top: 6, right: 6, width: 6, height: 6, borderRadius: '50%', background: '#ff3b30', border: '1.5px solid rgba(255,255,255,0.9)' }}/>}
+                                            </button>
+                                            <button aria-label="Menu" className="apnav-icon-btn" onClick={() => setMobileNavOpen(true)}>
+                                                <Menu size={17} strokeWidth={1.5}/>
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             </nav>
+
+                            {/* Mobile nav drawer */}
+                            {mobileNavOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-[65] bg-black/40 md:hidden" onClick={() => setMobileNavOpen(false)} />
+                                    <div className="fixed top-0 right-0 bottom-0 z-[70] w-[78vw] max-w-[300px] bg-white shadow-2xl md:hidden overflow-y-auto"
+                                        style={{ WebkitFontSmoothing: 'antialiased', fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif" }}>
+                                        <div className="flex items-center justify-between px-4 h-14 border-b" style={{ borderColor: 'rgba(0,0,0,0.07)' }}>
+                                            <div className="flex items-center gap-2.5">
+                                                <div style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, background: user.avatar ? 'transparent' : `linear-gradient(135deg, ${color} 0%, ${color}bb 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', fontSize: 11, fontWeight: 700, color: '#fff' }}>
+                                                    {user.avatar ? <img src={user.avatar} alt="av" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/> : initials}
+                                                </div>
+                                                <div style={{ minWidth: 0 }}>
+                                                    <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1d1d1f' }}>{user.name}</div>
+                                                    <div style={{ fontSize: 10.5, color: 'rgba(60,60,67,0.5)' }}>{roleLabels[user.role]}</div>
+                                                </div>
+                                            </div>
+                                            <button className="apnav-icon-btn" onClick={() => setMobileNavOpen(false)}>
+                                                <X size={17}/>
+                                            </button>
+                                        </div>
+                                        <div className="py-2">
+                                            {navSections.map(section => (
+                                                <div key={section.title} className="px-3 py-1.5">
+                                                    <div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600, color: 'rgba(60,60,67,0.4)', padding: '4px 8px' }}>
+                                                        {section.title}
+                                                    </div>
+                                                    {section.items.map(item => {
+                                                        const isActive = item.path === '/customer' ? location.pathname === item.path : location.pathname.startsWith(item.path);
+                                                        return (
+                                                            <button key={item.path}
+                                                                className={`apnav-more-item${isActive ? ' active' : ''}`}
+                                                                style={{ fontSize: 13, padding: '9px 8px' }}
+                                                                onClick={() => { navigate(item.path); setMobileNavOpen(false); }}>
+                                                                <item.icon size={15} strokeWidth={1.5} style={{ opacity: 0.5, flexShrink: 0 }}/>
+                                                                {item.label}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ))}
+                                            <div className="mx-3 my-2 border-t" style={{ borderColor: 'rgba(0,0,0,0.07)' }}/>
+                                            <div className="px-3 pb-2">
+                                                <button className="apnav-prof-action danger" style={{ fontSize: 13 }} onClick={() => { logout(); navigate('/login'); setMobileNavOpen(false); }}>
+                                                    <span style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,59,48,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><LogOut size={12} style={{ color: 'rgba(255,59,48,0.7)' }}/></span>
+                                                    Sign Out
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </>
                     );
                 })()}
                 {openNavSection && <div className="fixed inset-0 z-30" onClick={() => setOpenNavSection(null)} />}
 
                 {/* Header — hidden for customer (search/bell/avatar live in the apple nav above) */}
-                {!isCustomer && <header className="h-14 bg-card border-b border-border flex items-center px-5 gap-4 flex-shrink-0 relative z-50">
-                    <h1 className="text-[15px] font-semibold text-card-foreground tracking-tight">{currentTitle}</h1>
+                {!isCustomer && <header className="h-14 bg-card border-b border-border flex items-center px-4 sm:px-5 gap-3 sm:gap-4 flex-shrink-0 relative z-50">
+                    <button
+                        onClick={() => setMobileNavOpen(true)}
+                        className="md:hidden p-1.5 -ml-1 rounded-lg hover:bg-muted transition-colors"
+                        aria-label="Open menu"
+                    >
+                        <Menu size={20} className="text-foreground"/>
+                    </button>
+                    <h1 className="text-[15px] font-semibold text-card-foreground tracking-tight truncate">{currentTitle}</h1>
                     <div className="flex-1"/>
 
                     {/* Search */}

@@ -124,16 +124,16 @@ const CustomerSettings = () => {
           </div>
         </div>
 
-        {/* Tabs + Content */}
-        <div className="flex gap-4">
+        {/* Tabs + Content — vertical rail on desktop, horizontal scroll strip on mobile */}
+        <div className="flex flex-col md:flex-row gap-4">
 
           {/* Left nav */}
-          <div className="w-40 flex-shrink-0 space-y-0.5">
+          <div className="flex md:flex-col gap-1 md:gap-0.5 md:w-40 md:flex-shrink-0 overflow-x-auto pb-1 md:pb-0 -mx-1 px-1 md:mx-0 md:px-0 scrollbar-hide">
             {TABS.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] transition-all text-left ${
+                className={`flex-shrink-0 md:w-full flex items-center gap-2 md:gap-2.5 px-3 py-2 md:py-2.5 rounded-xl text-[13px] whitespace-nowrap transition-all text-left ${
                   activeTab === tab.id
                     ? 'font-medium text-card-foreground bg-muted'
                     : 'text-muted-foreground hover:text-card-foreground hover:bg-muted/50'
